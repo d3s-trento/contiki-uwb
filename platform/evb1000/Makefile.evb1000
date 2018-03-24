@@ -1,0 +1,82 @@
+# EVB1000 platform makefile
+
+ifndef CONTIKI
+  $(error CONTIKI not defined! You must specify where CONTIKI resides!)
+endif
+
+CONTIKI_TARGET_DIRS = . dev 
+CONTIKI_TARGET_DIRS += evb-newlib
+
+CONTIKI_TARGET_SOURCEFILES += contiki-main.c
+CONTIKI_TARGET_SOURCEFILES += board.c leds-arch.c lcd.c
+CONTIKI_TARGET_SOURCEFILES += stm32f10x_it.c
+CONTIKI_TARGET_SOURCEFILES += syscalls.c
+CONTIKI_TARGET_SOURCEFILES += dw1000-arch.c
+
+# Other C Files
+# CONTIKI_TARGET_SOURCEFILES += deca_mutex.c deca_sleep.c deca_spi.c port.c stm32f10x_it.c syscalls.c
+
+# Decawave Driver
+CONTIKIDIRS += ../../dev/dw1000 ../../dev/dw1000/decadriver
+CONTIKI_TARGET_SOURCEFILES += deca_device.c deca_params_init.c deca_range_tables.c
+CONTIKI_TARGET_SOURCEFILES += dw1000.c dw1000-ranging.c
+
+CONTIKI_SOURCEFILES += $(CONTIKI_TARGET_SOURCEFILES)
+
+### Define the CPU directory
+CONTIKI_CPU = ../../cpu/stm32f105
+include $(CONTIKI_CPU)/Makefile.stm32f105
+
+MODULES += core/net
+MODULES += core/net/mac
+MODULES += core/net/llsec core/net/llsec/noncoresec
+MODULES += core/net/mac/contikimac
+
+# Specific platform clean configuration
+CLEAN += *.evb1000
+
+# Build with code size optimizations
+#ifndef SMALL
+#  SMALL = 1
+#endif
+
+# Include file
+FILE_INCLUDES += stm32f10x_conf.h
+FILE_INCLUDES_PATHS = $(addprefix -include ,$(FILE_INCLUDES))
+
+###############################################################################
+# Login Command 
+###############################################################################
+
+# Check if we are running under Windows
+ifeq ($(HOST_OS),Windows)
+  SERIALDUMP ?= $(CONTIKI)/tools/sky/serialdump-windows
+else
+ifeq ($(HOST_OS),Darwin)
+  SERIALDUMP ?= $(CONTIKI)/tools/sky/serialdump-macos
+else
+  # Else assume Linux
+  SERIALDUMP ?= $(CONTIKI)/tools/sky/serialdump-linux
+endif
+endif
+
+UART_BAUDRATE = 115200
+
+login:
+	$(SERIALDUMP) -b$(UART_BAUDRATE) $(PORT)
+
+
+###############################################################################
+# Upload Command 
+###############################################################################
+
+STFLASH = st-flash
+STFLASH_FLAGS = --reset
+STFLASH_CMD = write
+STFLASH_MEM_ADDR = 0x08000000
+ifdef STFLASH_SERIAL
+  STFLASH_SERIAL_ARG = --serial $(STFLASH_SERIAL)
+endif
+
+%.upload: %.bin
+	$(STFLASH) $(STFLASH_FLAGS) $(STFLASH_SERIAL_ARG) $(STFLASH_CMD) $< $(STFLASH_MEM_ADDR)

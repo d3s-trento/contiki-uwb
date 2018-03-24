@@ -1,0 +1,174 @@
+# Makefile.stm32f105
+#
+# Author: Pablo Corbalan <p.corbalanpelegrin@unitn.it>
+#
+
+###############################################################################
+# Toolchain
+###############################################################################
+
+CC		= arm-none-eabi-gcc
+CPP		= arm-none-eabi-cpp
+LD		= arm-none-eabi-gcc
+AR		= arm-none-eabi-ar
+OBJCOPY	= arm-none-eabi-objcopy
+OBJDUMP	= arm-none-eabi-objdump
+NM		= arm-none-eabi-nm
+AS		= arm-none-eabi-as
+SIZE	= arm-none-eabi-size
+GDB		= arm-none-eabi-gdb
+
+###############################################################################
+# CPU-dependent cleanup files
+###############################################################################
+
+CLEAN += symbols.c symbols.h *.d *.elf *.hex
+
+###############################################################################
+# Device System and Startup Files
+###############################################################################
+
+START_CODE ?= startup_stm32f10x_cl.S
+SYSTEM_FILE ?= system_stm32f10x.c
+
+CONTIKI_CPU_SOURCEFILES += system_stm32f10x.c
+
+###############################################################################
+# Code Size Optimizations
+###############################################################################
+
+ifeq ($(SMALL),1)
+  CFLAGS += -Os
+else
+  CFLAGS += -O2
+endif
+
+###############################################################################
+# CPU Dependent Directories
+###############################################################################
+
+CONTIKI_CPU_DIRS += .
+CONTIKI_CPU_DIRS += lib/CMSIS/CM3/CoreSupport/
+CONTIKI_CPU_DIRS += lib/CMSIS/CM3/DeviceSupport/ST/STM32F10x/ # System File
+CONTIKI_CPU_DIRS += lib/CMSIS/CM3/DeviceSupport/ST/STM32F10x/startup/ # Startup File
+
+CONTIKI_CPU_DIRS += lib/STM32F10x_StdPeriph_Driver/inc/
+CONTIKI_CPU_DIRS += lib/STM32F10x_StdPeriph_Driver/src/
+
+CONTIKI_CPU_DIRS += lib/STM32_USB_Device_Library/Class/cdc/inc/
+CONTIKI_CPU_DIRS += lib/STM32_USB_Device_Library/Class/cdc/src/
+CONTIKI_CPU_DIRS += lib/STM32_USB_Device_Library/Core/inc/
+CONTIKI_CPU_DIRS += lib/STM32_USB_Device_Library/Core/src/
+CONTIKI_CPU_DIRS += lib/STM32_USB_OTG_Driver/inc/
+CONTIKI_CPU_DIRS += lib/STM32_USB_OTG_Driver/src/
+
+#CONTIKI_CPU_DIRS += lib/oldlib/STM32_USB_Device_Library/Class/cdc/inc/
+#CONTIKI_CPU_DIRS += lib/oldlib/STM32_USB_Device_Library/Class/cdc/src/
+#CONTIKI_CPU_DIRS += lib/oldlib/STM32_USB_Device_Library/Core/inc/
+#CONTIKI_CPU_DIRS += lib/oldlib/STM32_USB_Device_Library/Core/src/
+#CONTIKI_CPU_DIRS += lib/oldlib/STM32_USB_OTG_Driver/inc/
+#CONTIKI_CPU_DIRS += lib/oldlib/STM32_USB_OTG_Driver/src/
+
+CONTIKI_CPU_DIRS += usb/
+
+# Not included USB classes
+# CONTIKI_CPU_DIRS += lib/STM32_USB_Device_Library/Class/audio/inc/
+# CONTIKI_CPU_DIRS += lib/STM32_USB_Device_Library/Class/audio/src/
+# CONTIKI_CPU_DIRS += lib/STM32_USB_Device_Library/Class/dfu/inc/
+# CONTIKI_CPU_DIRS += lib/STM32_USB_Device_Library/Class/dfu/src/
+# CONTIKI_CPU_DIRS += lib/STM32_USB_Device_Library/Class/hid/inc/
+# CONTIKI_CPU_DIRS += lib/STM32_USB_Device_Library/Class/hid/src/
+# CONTIKI_CPU_DIRS += lib/STM32_USB_Device_Library/Class/msc/inc/
+# CONTIKI_CPU_DIRS += lib/STM32_USB_Device_Library/Class/msc/src/
+
+###############################################################################
+# Source Code Files
+###############################################################################
+
+CONTIKI_CPU_SOURCEFILES += core_cm3.c
+CONTIKI_CPU_SOURCEFILES += misc.c stm32f10x_cec.c stm32f10x_dma.c 
+CONTIKI_CPU_SOURCEFILES += stm32f10x_gpio.c stm32f10x_rcc.c stm32f10x_tim.c
+CONTIKI_CPU_SOURCEFILES += stm32f10x_adc.c stm32f10x_crc.c stm32f10x_exti.c 
+CONTIKI_CPU_SOURCEFILES += stm32f10x_i2c.c stm32f10x_rtc.c stm32f10x_usart.c
+CONTIKI_CPU_SOURCEFILES += stm32f10x_bkp.c stm32f10x_dac.c stm32f10x_flash.c 
+CONTIKI_CPU_SOURCEFILES += stm32f10x_iwdg.c stm32f10x_sdio.c stm32f10x_wwdg.c
+CONTIKI_CPU_SOURCEFILES += stm32f10x_can.c stm32f10x_dbgmcu.c stm32f10x_fsmc.c 
+CONTIKI_CPU_SOURCEFILES += stm32f10x_pwr.c stm32f10x_spi.c
+
+# $(CONTIKI_CPU)/lib/STM32_USB_Device_Library/Core/src/ -- TO ADD
+CONTIKI_CPU_SOURCEFILES += usbd_core.c usbd_ioreq.c usbd_req.c
+
+# $(CONTIKI_CPU)/lib/STM32_USB_Device_Library/Class/cdc/src/ -- TO ADD -- do not include template
+CONTIKI_CPU_SOURCEFILES += usbd_cdc_core.c 
+#CONTIKI_CPU_SURCEFILES += usbd_cdc_core_loopback.c
+
+# USB Files -- TO ADD
+CONTIKI_CPU_SOURCEFILES += deca_usb.c deca_usb_bsp_evk1000.c usbd_desc.c usbd_usr.c
+#CONTIKI_CPU_SOURCEFILES += usb_bsp.c usbd_cdc_vcp.c
+
+# STM32 USB OTG Driver Source Files -- do not include the template -- TO ADD
+CONTIKI_CPU_SOURCEFILES += usb_core.c
+#CONTIKI_CPU_SOURCEFILES += usb_hcd_int.c usb_hcd.c // host mode, seems not needed
+CONTIKI_CPU_SOURCEFILES += usb_dcd_int.c usb_dcd.c
+
+# STM32F105 Contiki Core Drivers -- TO ADD
+CONTIKI_CPU_SOURCEFILES += clock.c watchdog.c rtimer-arch.c spix.c
+
+# Add the CPU Source Files to Contiki Source Files
+CONTIKI_SOURCEFILES += $(CONTIKI_CPU_SOURCEFILES)
+
+###############################################################################
+# Linker 
+###############################################################################
+
+LINKER_SCRIPT ?= stm32_flash_256k_ram_64k.ld
+LINKER_SCRIPT_INCLUDES = $(CONTIKI_CPU)/linkers/
+
+LDSCRIPT = $(CONTIKI_CPU)/linkers/stm32_flash_256k_ram_64k.ld
+CPU_START_SOURCEFILES = startup_stm32f10x_cl.S
+#CPU_STARTFILES = ${addprefix $(OBJECTDIR)/,${call oname, $(CPU_START_SOURCEFILES)}}
+
+###############################################################################
+
+FLASH_START_ADDRESS = 0x08000000
+
+###############################################################################
+# GCC Flags
+###############################################################################
+
+CFLAGS += -ggdb
+CFLAGS += -DSTM32F105RC -DSTM32F10X_CL -DUSE_STDPERIPH_DRIVER -D__ASSEMBLY__
+CFLAGS += -mthumb -mcpu=cortex-m3 -march=armv7-m -mfloat-abi=soft
+CFLAGS += -g -std=gnu99 -c
+CFLAGS += -Wall #-Wextra
+CFLAGS += -nostdlib -s -ffunction-sections 
+CFLAGS += -fdata-sections -MD
+
+LDFLAGS += -lm
+LDFLAGS += -mthumb -mcpu=cortex-m3 -march=armv7-m -mfloat-abi=soft
+LDFLAGS += -L$(LINKER_SCRIPT_INCLUDES) -T $(LINKER_SCRIPT) 
+LDFLAGS += -Wl,--gc-sections
+LDFLAGS += -Wl,-Map=$(@:.elf=-$(TARGET).map)
+
+###############################################################################
+# Output Files
+###############################################################################
+
+### Don't treat the .elf as intermediate
+.PRECIOUS: %.elf %.hex %.bin
+
+%.elf: $(CPU_START_SOURCEFILES)  %.co $(CONTIKI_OBJECTFILES) $(PROJECT_OBJECTFILES) $(PROJECT_LIBRARIES) contiki-$(TARGET).a $(LDSCRIPT)
+	$(TRACE_LD)
+	$(Q)$(LD) $(LDFLAGS) ${filter-out $(LDSCRIPT) %.a,$^} ${filter %.a,$^} $(TARGET_LIBFILES) -o $@
+
+%.hex: %.elf
+	$(OBJCOPY) -O ihex $< $@
+
+%.bin: %.elf
+	$(OBJCOPY) -Obinary $(OBJCOPY_FLAGS) $< $@
+
+%.lst: %.elf
+	$(OBJDUMP) $(OBJDUMP_FLAGS) $< > $@
+
+%.$(TARGET): %.elf %.hex %.bin
+	cp $< $@
