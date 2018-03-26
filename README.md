@@ -1,4 +1,4 @@
-# DecaWave EVB100 Contiki Port 
+# DecaWave EVB1000 Contiki Port 
 
 ## Overview
 This repository contains a Contiki port for the DecaWave EVB1000 platform. The DecaWave EVB1000 is a platform developed by DecaWave that includes an STM32F105 microcontroller, a DecaWave DW1000 ultra-wideband transceiver, and an LCD display. Contiki is an open source operating system that runs on constrained embedded systems and provides standardized low-power wireless communication.
