@@ -56,7 +56,7 @@ dwt_config_t radio_config = {
   .rxPAC = DWT_PAC8,
   .nsSFD = 0 /* standard */,
   .phrMode = DWT_PHRMODE_STD,
-  .sfdTO = (128 + 8 - 8),
+  .sfdTO = (129 + 8 - 8),
 #elif APP_RADIO_CONF == 2
   .chan = 2,
   .prf = DWT_PRF_64M,
