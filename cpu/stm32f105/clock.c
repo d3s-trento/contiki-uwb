@@ -34,7 +34,7 @@
  *		Contiki Clock architecture dependent driver
  *
  * \author
- *    Pablo Corbalan <p.corbalanpelegrin@unitn.it>
+ * 		Pablo Corbalan <p.corbalanpelegrin@unitn.it>
  */
 
 /*---------------------------------------------------------------------------*/
@@ -56,7 +56,7 @@ SysTick_Handler(void)
 
   /* Increase tick current_clock */
   current_clock++;
-
+  
   /* Inform the etimer library about a possible etimer expiration */
   if(etimer_pending()) {
     etimer_request_poll();
@@ -81,11 +81,11 @@ SysTick_Handler(void)
 void
 clock_init(void)
 {
-  if(SysTick_Config(SystemCoreClock / CLOCK_SECOND)) {
-    /* Capture error */
-    while(1);
-  }
-  NVIC_SetPriority(SysTick_IRQn, 5);
+	if(SysTick_Config(SystemCoreClock / CLOCK_SECOND)) {
+		/* Capture error */
+		while (1);
+	}
+	NVIC_SetPriority(SysTick_IRQn, 5);
 }
 /*---------------------------------------------------------------------------*/
 /**
@@ -137,7 +137,7 @@ clock_wait(clock_time_t t)
   clock_time_t start;
 
   start = clock_time();
-  while(clock_time() - start < (clock_time_t)t);
+  while(clock_time() - start < (clock_time_t) t);
 }
 /*---------------------------------------------------------------------------*/
 /**
@@ -155,8 +155,8 @@ clock_delay_usec(uint16_t dt)
 
   do {
     if(++count > utime) {
-      return;
+      return ;
     }
-  } while(1);
+  } while (1);
 }
 /*---------------------------------------------------------------------------*/

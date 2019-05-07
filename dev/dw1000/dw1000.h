@@ -58,7 +58,7 @@
  * SFD Mode: Standard-compliant
  * Bit Rate: 6.8 Mbps
  * Physical Header Mode: Standard-compliant
- * SFD Timeout: 128 + 8 - 8
+ * SFD Timeout: 129 + 8 - 8
  * TX/RX Preamble Code: 7
  *
  */
@@ -72,13 +72,13 @@
 #ifdef DW1000_CONF_CHANNEL
 #define DW1000_CHANNEL DW1000_CONF_CHANNEL
 #else
-#define DW1000_CHANNEL 4
+#define DW1000_CHANNEL 5
 #endif
 
 #ifdef DW1000_CONF_PRF
 #define DW1000_PRF DW1000_CONF_PRF
 #else
-#define DW1000_PRF DWT_PRF_16M
+#define DW1000_PRF DWT_PRF_64M
 #endif
 
 #ifdef DW1000_CONF_PLEN
@@ -124,7 +124,7 @@
 #ifdef DW1000_CONF_SFD_TIMEOUT
 #define DW1000_SFD_TIMEOUT DW1000_CONF_PHR_MODE
 #else
-#define DW1000_SFD_TIMEOUT (128 + 8 - 8)
+#define DW1000_SFD_TIMEOUT (128 + 1 + 8 - 8)
 #endif
 
 /*---------------------------------------------------------------------------*/

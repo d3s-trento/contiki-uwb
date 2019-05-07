@@ -4,6 +4,9 @@ ifndef CONTIKI
   $(error CONTIKI not defined! You must specify where CONTIKI resides!)
 endif
 
+# we assume that the UWB-related contiki files are located next to the contiki dir
+UWB_MAIN_DIR ?= $(CONTIKI)/..
+
 CONTIKI_TARGET_DIRS = . dev 
 CONTIKI_TARGET_DIRS += evb-newlib
 
@@ -17,14 +20,14 @@ CONTIKI_TARGET_SOURCEFILES += dw1000-arch.c
 # CONTIKI_TARGET_SOURCEFILES += deca_mutex.c deca_sleep.c deca_spi.c port.c stm32f10x_it.c syscalls.c
 
 # Decawave Driver
-CONTIKIDIRS += ../../dev/dw1000 ../../dev/dw1000/decadriver
+CONTIKIDIRS += $(UWB_MAIN_DIR)/dev/dw1000 $(UWB_MAIN_DIR)/dev/dw1000/decadriver
 CONTIKI_TARGET_SOURCEFILES += deca_device.c deca_params_init.c deca_range_tables.c
 CONTIKI_TARGET_SOURCEFILES += dw1000.c dw1000-ranging.c
 
 CONTIKI_SOURCEFILES += $(CONTIKI_TARGET_SOURCEFILES)
 
 ### Define the CPU directory
-CONTIKI_CPU = ../../cpu/stm32f105
+CONTIKI_CPU = $(UWB_MAIN_DIR)/cpu/stm32f105
 include $(CONTIKI_CPU)/Makefile.stm32f105
 
 MODULES += core/net

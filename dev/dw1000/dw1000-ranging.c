@@ -61,6 +61,22 @@
 #define PRINTF(...) do {} while(0)
 #endif
 
+#define DEBUG_RNG 0
+#if DEBUG_RNG
+#include <stdio.h>
+#define PRINTF_RNG(...) printf(__VA_ARGS__)
+#else
+#define PRINTF_RNG(...) do {} while(0)
+#endif
+
+#define DEBUG_RNG_FAILED 0
+#if DEBUG_RNG_FAILED
+#include <stdio.h>
+#define PRINTF_RNG_FAILED(...) printf(__VA_ARGS__)
+#else
+#define PRINTF_RNG_FAILED(...) do {} while(0)
+#endif
+
 /* UWB microsecond (uus) to device time unit (dtu, around 15.65 ps) conversion factor.
  * 1 uus = 512 / 499.2 µs and 1 µs = 499.2 * 128 dtu. */
 #define UUS_TO_DWT_TIME 65536
@@ -134,46 +150,56 @@ static uint8_t rx_buf[RX_BUF_LEN];
 
 typedef struct {
   /* SS and DS timeouts */
-  uint32_t poll_rx_to_resp_tx_dly_uus;
-  uint32_t poll_tx_to_resp_rx_dly_uus;
-  uint16_t resp_rx_timeout_uus;
+  uint32_t a;
+  uint32_t rx_dly_a;
+  uint16_t to_a;
 
 /* DS timeouts */
-  uint32_t resp_tx_to_final_rx_dly_uus;
-  uint32_t resp_rx_to_final_tx_dly_uus;
-  uint16_t final_rx_timeout_uus;
-  uint16_t distance_rx_timeout_uus;
+  uint32_t rx_dly_b;
+  uint32_t b;
+  uint16_t to_b;
+  uint16_t to_c;
 
   uint32_t finish_delay; /* assumes millisecond clock tick! */
 } ranging_conf_t;
 
+/*
+*              DS0/SS0 --------->
+* timeout: to_a                  tx: rx_ts + a
+*              <--------- DS1/SS1
+* tx: rx_ts + b                  timeout: to_b
+*              DS2 ------------->
+* timeout: to_c                  tx: immediate
+*              <------------- DS3
+*/
+
 /* EXPERIMENTAL VALUE */
 const ranging_conf_t ranging_conf_6M8 = {
 /* SS and DS timeouts */
-  .poll_rx_to_resp_tx_dly_uus = 450,
-  .poll_tx_to_resp_rx_dly_uus = 0,
-  .resp_rx_timeout_uus = 500,
+  .a = 500,
+  .rx_dly_a = 0,
+  .to_a = 550,
 
 /* DS timeouts */
-  .resp_tx_to_final_rx_dly_uus = 0,
-  .resp_rx_to_final_tx_dly_uus = 350,
-  .final_rx_timeout_uus = 450,
-  .distance_rx_timeout_uus = 400,
+  .rx_dly_b = 0,
+  .b = 500,           // evb1000 can do 450
+  .to_b = 600,        // evb1000 can do 550
+  .to_c = 550,        // evb1000 can do 400
 
   .finish_delay = 1, /* assumes millisecond clock tick! */
 };
 
 const ranging_conf_t ranging_conf_110K = {
 /* SS and DS timeouts */
-  .poll_rx_to_resp_tx_dly_uus = 3000,
-  .poll_tx_to_resp_rx_dly_uus = 0,
-  .resp_rx_timeout_uus = 4000,
+  .a = 3000,
+  .rx_dly_a = 0,
+  .to_a = 4000,
 
 /* DS timeouts */
-  .resp_tx_to_final_rx_dly_uus = 0,
-  .resp_rx_to_final_tx_dly_uus = 3000,
-  .final_rx_timeout_uus = 4500,
-  .distance_rx_timeout_uus = 3500, /* 3000 kind of works, too */
+  .rx_dly_b = 0,
+  .b = 3000,
+  .to_b = 4500,
+  .to_c = 3500, /* 3000 kind of works, too */
 
   .finish_delay = 3, /* assumes millisecond clock tick! */
 };
@@ -259,6 +285,9 @@ msg_set_ts(uint8_t *ts_field, uint64_t ts)
 }
 /*---------------------------------------------------------------------------*/
 PROCESS(dw1000_rng_process, "DW1000 dbg process");
+#if DEBUG
+PROCESS(dw1000_rng_dbg_process, "DW1000 rng dbg process");
+#endif
 /*---------------------------------------------------------------------------*/
 void
 dw1000_ranging_init()
@@ -316,7 +345,7 @@ dw1000_range_with(linkaddr_t *lladdr, dw1000_rng_type_t type)
   ranging_data.status = 0;
   my_seqn++;
   rng_type = type;
-  /* PRINTF("dwr: rng start %d type %d\n", my_seqn, rng_type); */
+  PRINTF_RNG("dwr: rng start %d type %d\n", my_seqn, rng_type);
 
   /* Write frame data to DW1000 and prepare transmission. */
   tx_buf[IDX_SN] = my_seqn;
@@ -326,8 +355,8 @@ dw1000_range_with(linkaddr_t *lladdr, dw1000_rng_type_t type)
 
   /* Set expected response's delay and timeout.
    * As this example only handles one incoming frame with always the same delay and timeout, those values can be set here once for all. */
-  dwt_setrxaftertxdelay(ranging_conf.poll_tx_to_resp_rx_dly_uus);
-  dwt_setrxtimeout(ranging_conf.resp_rx_timeout_uus);
+  dwt_setrxaftertxdelay(ranging_conf.rx_dly_a);
+  dwt_setrxtimeout(ranging_conf.to_a);
 
   /* Write frame data to DW1000 and prepare transmission. */
   /* dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS); */
@@ -339,6 +368,7 @@ dw1000_range_with(linkaddr_t *lladdr, dw1000_rng_type_t type)
 
   if(dwt_starttx(DWT_START_TX_IMMEDIATE | DWT_RESPONSE_EXPECTED) != DWT_SUCCESS) {
     ret = false;
+    PRINTF_RNG_FAILED("dwr: error in tx of rframe.\n");
     goto enable_interrupts;
   }
 
@@ -348,7 +378,7 @@ dw1000_range_with(linkaddr_t *lladdr, dw1000_rng_type_t type)
 
 enable_interrupts:
   dw1000_enable_interrupt(irq_status);
-  /* PRINTF("dwr3: %d\n", my_seqn); */
+  PRINTF_RNG("dwr3: %d\n", my_seqn);
   return ret;
 }
 /*---------------------------------------------------------------------------*/
@@ -393,7 +423,7 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
       poll_rx_ts_64 = get_rx_timestamp_u64();
 
       /* Compute final message transmission time. */
-      resp_tx_time = (poll_rx_ts_64 + (ranging_conf.poll_rx_to_resp_tx_dly_uus * UUS_TO_DWT_TIME)) >> 8;
+      resp_tx_time = (poll_rx_ts_64 + (ranging_conf.a * UUS_TO_DWT_TIME)) >> 8;
       dwt_setdelayedtrxtime(resp_tx_time);
 
       /* Response TX timestamp is the transmission time we programmed plus the antenna delay. */
@@ -414,6 +444,7 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
       dwt_writetxfctrl(PKT_LEN_SS1, 0, 1); /* Zero offset in TX buffer, ranging. */
       dwt_setrxaftertxdelay(0);
       dwt_setrxtimeout(0);
+      dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M); /* errata TX-1: force rx timeout */
       int ret = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
       if(ret != DWT_SUCCESS) {
         status = 14;
@@ -424,17 +455,19 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
       uint32_t resp_tx_time;
       uint64_t poll_rx_ts_64;
 
+      PRINTF_RNG("dwr: got DS0.\n");
+
       /* Retrieve poll and store poll reception timestamp. */
       poll_rx_ts_64 = get_rx_timestamp_u64();
       ds_poll_rx_ts = (uint32_t)poll_rx_ts_64;
 
       /* Set send time for response. See NOTE 9 below. */
-      resp_tx_time = (poll_rx_ts_64 + (ranging_conf.poll_rx_to_resp_tx_dly_uus * UUS_TO_DWT_TIME)) >> 8;
+      resp_tx_time = (poll_rx_ts_64 + (ranging_conf.a * UUS_TO_DWT_TIME)) >> 8;
       dwt_setdelayedtrxtime(resp_tx_time);
 
       /* Set expected delay and timeout for final message reception. See NOTE 4 and 5 below. */
-      dwt_setrxaftertxdelay(ranging_conf.resp_tx_to_final_rx_dly_uus);
-      dwt_setrxtimeout(ranging_conf.final_rx_timeout_uus);
+      dwt_setrxaftertxdelay(ranging_conf.rx_dly_b);
+      dwt_setrxtimeout(ranging_conf.to_b);
 
       /* Write and send the response message. See NOTE 10 below.*/
       recv_seqn = rx_buf[IDX_SN];
@@ -447,11 +480,15 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
 
       dwt_writetxdata(PKT_LEN_DS1, tx_buf, 0); /* Zero offset in TX buffer. */
       dwt_writetxfctrl(PKT_LEN_DS1, 0, 1); /* Zero offset in TX buffer, ranging. */
+      dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M); /* errata TX-1: force rx timeout */
       int ret = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
       if(ret != DWT_SUCCESS) {
         status = 15;
+        PRINTF_RNG_FAILED("dwr: error in tx of DS1.\n");
         goto abort;
       }
+
+      old_state = state;
       state = S_WAIT_DS2;
       return; /* done with this packet */
     } else {
@@ -489,7 +526,9 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     msg_get_ts(&rx_buf[RESP_MSG_POLL_RX_TS_IDX], &ss_poll_rx_ts);
     msg_get_ts(&rx_buf[RESP_MSG_RESP_TX_TS_IDX], &ss_resp_tx_ts);
 
+    old_state = state;
     state = S_RANGING_DONE;
+
     dwt_setrxtimeout(0);
     dwt_rxenable(0);
     goto finish;
@@ -516,6 +555,8 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
       goto abort;
     }
 
+    PRINTF_RNG("dwr: got DS1.\n");
+
     uint64_t final_tx_ts_64;
     uint32_t final_tx_time;
     uint64_t poll_tx_ts_64, resp_rx_ts_64;
@@ -527,11 +568,11 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     tx_buf[IDX_TYPE] = MSG_TYPE_DS2;
 
     /* Compute final message transmission time. See NOTE 10 below. */
-    final_tx_time = (resp_rx_ts_64 + (ranging_conf.resp_rx_to_final_tx_dly_uus * UUS_TO_DWT_TIME)) >> 8;
+    final_tx_time = (resp_rx_ts_64 + (ranging_conf.b * UUS_TO_DWT_TIME)) >> 8;
     dwt_setdelayedtrxtime(final_tx_time);
 
     dwt_setrxaftertxdelay(0);
-    dwt_setrxtimeout(ranging_conf.distance_rx_timeout_uus);
+    dwt_setrxtimeout(ranging_conf.to_c);
 
     /* Final TX timestamp is the transmission time we programmed plus the TX antenna delay. */
     final_tx_ts_64 = (((uint64_t)(final_tx_time & 0xFFFFFFFEUL)) << 8) + ranging_ant_delay.tx_ant_dly;
@@ -547,12 +588,16 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
 
     dwt_writetxdata(PKT_LEN_DS2, tx_buf, 0); /* Zero offset in TX buffer. */
     dwt_writetxfctrl(PKT_LEN_DS2, 0, 1); /* Zero offset in TX buffer, ranging. */
+    dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M); /* errata TX-1: force rx timeout */
     int ret = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
 
     if(ret != DWT_SUCCESS) {
       status = 45;
+      PRINTF_RNG_FAILED("dwr: error in tx of DS2.\n");
       goto abort;
     }
+
+    old_state = state;
     state = S_WAIT_DS3;
     return;
   } else if(state == S_WAIT_DS2) { /* --- We are waiting for the DS2 response --- */
@@ -578,7 +623,9 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
       goto abort;
     }
 
-    dwt_readrxdata(rx_buf, pkt_len - DW1000_CRC_LEN, 0);
+    PRINTF_RNG("dwr: got DS2.\n");
+
+    //dwt_readrxdata(rx_buf, pkt_len - DW1000_CRC_LEN, 0);
 
     /* ds_poll_rx_ts was stored on the previous step */
     /* Retrieve response transmission and final reception timestamps. */
@@ -607,7 +654,10 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     dwt_setrxtimeout(0);
     dwt_starttx(DWT_START_TX_IMMEDIATE | DWT_RESPONSE_EXPECTED);
 
+    PRINTF("dwr: sent DS3.\n");
+
     /* done with this ranging session but still sending the 4th message */
+    old_state = state;
     state = S_RANGING_DONE_MSG4;
 
     goto finish;
@@ -634,12 +684,15 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
       goto abort;
     }
 
+    PRINTF("dwr: got DS3.\n");
+
     dwt_readrxdata(rx_buf, pkt_len - DW1000_CRC_LEN, 0);
 
     msg_get_ts(&rx_buf[DISTANCE_MSG_POLL_RX_IDX], &ds_poll_rx_ts);
     msg_get_ts(&rx_buf[DISTANCE_MSG_RESP_TX_IDX], &ds_resp_tx_ts);
     msg_get_ts(&rx_buf[DISTANCE_MSG_FINAL_RX_IDX], &ds_final_rx_ts);
 
+    old_state = state;
     state = S_RANGING_DONE;
     dwt_setrxtimeout(0);
     dwt_rxenable(0);
@@ -693,13 +746,20 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
     ranging_event = process_alloc_event();
   }
 
+#if DEBUG
+  process_start(&dw1000_rng_dbg_process, NULL);
+#endif
+
   while(1) {
     PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
 
-    PRINTF("dwr: my %d their %d, ost %d st %d ss %d\n", my_seqn, recv_seqn, old_state, state, status);
+    PRINTF_RNG("dwr: my %d their %d, ost %d st %d ss %d\n", my_seqn, recv_seqn, old_state, state, status);
     old_state = 0;
     status = 0;
     if(state == S_RESET || state == S_ABORT) {
+#if PRINTF_RNG == 0
+      PRINTF_RNG_FAILED("dwr: my %d their %d, ost %d st %d ss %d\n", my_seqn, recv_seqn, old_state, state, status);
+#endif
       ranging_data.status = 0;
     } else if(state == S_RANGING_DONE || state == S_RANGING_DONE_MSG4) {
       double tof;
@@ -719,7 +779,7 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
       ranging_data.distance = not_corrected;
 #endif
 
-      /* PRINTF("dwr: %d done %f, after bias %f\n", my_seqn, not_corrected, ranging_data.distance); */
+      //PRINTF_RNG("dwr: %d done %f, after bias %f\n", my_seqn, not_corrected, ranging_data.distance);
       ranging_data.status = 1;
     }
     if(req_process != PROCESS_NONE) {
@@ -733,11 +793,27 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
       process_post(req_process, ranging_event, &ranging_data);
       req_process = PROCESS_NONE;
     }
+    old_state = state;
     state = S_WAIT_POLL;
   }
 
   PROCESS_END();
 }
+#if DEBUG
+PROCESS_THREAD(dw1000_rng_dbg_process, ev, data)
+{
+  static struct etimer et;
+  PROCESS_BEGIN();
+  while(1) {
+    etimer_set(&et, CLOCK_SECOND * 5);
+    PROCESS_WAIT_EVENT();
+    if(etimer_expired(&et)) {
+      PRINTF_RNG_FAILED("dwr: my %d their %d, ost %d st %d ss %d\n", my_seqn, recv_seqn, old_state, state, status);
+    }
+  }
+  PROCESS_END();
+}
+#endif /* DEBUG */
 /*---------------------------------------------------------------------------*/
 bool
 dw1000_is_ranging()

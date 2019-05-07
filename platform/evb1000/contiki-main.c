@@ -42,7 +42,6 @@
 #include "sys/rtimer.h"
 #include "dev/watchdog.h"
 #include "dev/radio.h"
-//#include "sys/node-id.h"
 #include "lib/random.h"
 #include "net/netstack.h"
 #include <stdio.h>
@@ -64,8 +63,6 @@
 /*---------------------------------------------------------------------------*/
 /* DW1000 Radio Driver */
 #include "deca_device_api.h"
-/*---------------------------------------------------------------------------*/
-unsigned short node_id = 0;
 /*---------------------------------------------------------------------------*/
 static void
 fade_leds(void)
@@ -90,60 +87,30 @@ fade_leds(void)
 static void
 set_rf_params(void)
 {
-  uint16_t short_addr;
+  uint8_t ext_addr[8];
   uint32_t part_id, lot_id;
-  uint8_t saddr[2]; /* Short address -- 2 bytes */
-  uint8_t laddr[8]; /* Long address -- 8 bytes */
-  uint8_t rladdr[8]; /* Reverse Long address -- 8 bytes */
 
   /* Read from the DW1000 OTP memory the DW1000 PART and LOT IDs */
   part_id = dwt_getpartid();
   lot_id = dwt_getlotid();
 
-  /* Compute the Link Layer address depending on the PART and LOT IDs */
-  /* In little endian */
-  /* Short address */
-  saddr[0] = 0xFF & part_id;
-  saddr[1] = 0xFF & (part_id >> 8);
-  short_addr = ((0xFFFF & saddr[0]) << 8) | (0xFFFF & saddr[1]);
+  /* Compute the Link Layer addresses depending on the PART and LOT IDs */
+  ext_addr[0] = (lot_id  & 0xFF000000) >> 24;
+  ext_addr[1] = (lot_id  & 0x00FF0000) >> 16;
+  ext_addr[2] = (lot_id  & 0x0000FF00) >> 8;
+  ext_addr[3] = (lot_id  & 0x000000FF);
+  ext_addr[4] = (part_id & 0xFF000000) >> 24;
+  ext_addr[5] = (part_id & 0x00FF0000) >> 16;
+  ext_addr[6] = (part_id & 0x0000FF00) >> 8;
+  ext_addr[7] = (part_id & 0x000000FF);
 
-  /* Long address */
-  laddr[0] = (part_id & 0x000000FF);
-  laddr[1] = (part_id & 0x0000FF00) >> 8;
-  laddr[2] = (part_id & 0x00FF0000) >> 16;
-  laddr[3] = (part_id & 0xFF000000) >> 24;
+  /* Populate linkaddr_node_addr (big-endian) */
+  memcpy(&linkaddr_node_addr, &ext_addr[8 - LINKADDR_SIZE], LINKADDR_SIZE);
 
-  laddr[4] = (lot_id & 0x000000FF);
-  laddr[5] = (lot_id & 0x0000FF00) >> 8;
-  laddr[6] = (lot_id & 0x00FF0000) >> 16;
-  laddr[7] = (lot_id & 0xFF000000) >> 24;
-
-  /* Set the LLADDR */
-#if LINKADDR_SIZE == 2
-  memcpy(&linkaddr_node_addr, saddr, LINKADDR_SIZE);
-#else /* LINKADDR_SIZE == 2 */
-  memcpy(&linkaddr_node_addr, laddr, LINKADDR_SIZE);
-#endif /* LINKADDR_SIZE == 2 */
-
-#if NETSTACK_CONF_WITH_IPV6
-  memcpy(&uip_lladdr.addr, &linkaddr_node_addr, sizeof(uip_lladdr.addr));
-  queuebuf_init();
-  process_start(&tcpip_process, NULL);
-#endif /* NETSTACK_CONF_WITH_IPV6 */
-
-  /* We reverse the long address to set it on the radio chip */
-  uint8_t i;
-  for(i = 0; i < 8; i++) {
-    rladdr[i] = laddr[7 - i];
-  }
-
-  /* Set up the IEEE 802.15.4 Short and Long address
-   * to be able to enable HW frame filtering */
-  NETSTACK_RADIO.set_value(RADIO_PARAM_16BIT_ADDR, short_addr);
-  NETSTACK_RADIO.set_object(RADIO_PARAM_64BIT_ADDR, rladdr, 8);
-
-  /* Set the PAN ID -- required for HW frame filtering */
   NETSTACK_RADIO.set_value(RADIO_PARAM_PAN_ID, IEEE802154_PANID);
+  NETSTACK_RADIO.set_object(RADIO_PARAM_64BIT_ADDR, ext_addr, 8);
+  NETSTACK_RADIO.set_value(RADIO_PARAM_16BIT_ADDR, 
+      (ext_addr[6]) << 8 | (ext_addr[7])); // converting from big-endian format
 }
 /*---------------------------------------------------------------------------*/
 /**
@@ -195,6 +162,12 @@ main(void)
   /* Set the link layer addresses and the PAN ID */
   set_rf_params();
 
+#if NETSTACK_CONF_WITH_IPV6
+  memcpy(&uip_lladdr.addr, &linkaddr_node_addr, sizeof(uip_lladdr.addr));
+  queuebuf_init();
+  process_start(&tcpip_process, NULL);
+#endif /* NETSTACK_CONF_WITH_IPV6 */
+
   /* Init pseudo-random generator with a chip-id based seed */ 
   random_init(0xFFFF & dwt_getpartid());
 
@@ -204,7 +177,15 @@ main(void)
   fade_leds();
 
   char str[20];
-  snprintf(str, 20, "Contiki 0x%02x%02x", linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1]);
+#if (LINKADDR_SIZE == 2)
+  snprintf(str, 20, "%02x%02x", linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1]);
+#else
+  snprintf(str, 20, "%02x%02x%02x%02x%02x%02x%02x%02x", 
+      linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
+      linkaddr_node_addr.u8[2], linkaddr_node_addr.u8[3],
+      linkaddr_node_addr.u8[4], linkaddr_node_addr.u8[5],
+      linkaddr_node_addr.u8[6], linkaddr_node_addr.u8[7]);
+#endif
   lcd_display_str(str);
 
   /* Start application processes */

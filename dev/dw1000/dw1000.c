@@ -44,7 +44,6 @@
 #include "net/packetbuf.h"
 #include "net/rime/rimestats.h"
 #include "net/netstack.h"
-#include "board.h" /* To be removed after debugging */
 #include "leds.h" /* To be removed after debugging */
 #include <stdbool.h>
 #include "dev/watchdog.h"
@@ -58,6 +57,14 @@
 #define PRINTF(...) printf(__VA_ARGS__)
 #else
 #define PRINTF(...) do {} while(0)
+#endif
+
+#define DEBUG_RNG_FAILED 0
+#if DEBUG_RNG_FAILED
+#include <stdio.h>
+#define PRINTF_RNG_FAILED(...) printf(__VA_ARGS__)
+#else
+#define PRINTF_RNG_FAILED(...) do {} while(0)
 #endif
 
 #define DEBUG_LEDS 1
@@ -134,6 +141,7 @@ rx_ok_cb(const dwt_cb_data_t *cb_data)
   /* got a non-ranging packet: reset the ranging module if */
   /* it was in the middle of ranging */
   dw1000_range_reset();
+  PRINTF_RNG_FAILED("Err, non-rng.\n");
 #endif
 
   data_len = cb_data->datalength - DW1000_CRC_LEN;
@@ -157,6 +165,7 @@ rx_to_cb(const dwt_cb_data_t *cb_data)
 {
 #if DW1000_RANGING_ENABLED
   dw1000_range_reset();
+  PRINTF_RNG_FAILED("Err, to.\n");
 #endif
 #if DEBUG
   dw_dbg_event = RECV_TO;
@@ -175,6 +184,7 @@ rx_err_cb(const dwt_cb_data_t *cb_data)
 {
 #if DW1000_RANGING_ENABLED
   dw1000_range_reset();
+  PRINTF_RNG_FAILED("Err, bad-rx.\n");
 #endif
 #if DEBUG
   dw_dbg_event = RECV_ERROR;
@@ -210,6 +220,7 @@ dw1000_configure(dwt_config_t *cfg)
   int8_t irq_status = dw1000_disable_interrupt();
 #if DW1000_RANGING_ENABLED
   dw1000_range_reset(); /* In case we were ranging */
+  PRINTF_RNG_FAILED("RNG module reconfigured.\n");
 #endif
   dwt_forcetrxoff();
   dw1000_enable_interrupt(irq_status);
@@ -419,7 +430,13 @@ static int
 dw1000_off(void)
 {
   /* Turn off the transceiver */
-  /*dwt_forcetrxoff(); */
+  int8_t irq_status = dw1000_disable_interrupt();
+#if DW1000_RANGING_ENABLED
+  dw1000_range_reset(); /* In case we were ranging */
+#endif
+  dwt_forcetrxoff();
+  dw1000_enable_interrupt(irq_status);
+
   return 0;
 }
 /*---------------------------------------------------------------------------*/
@@ -463,7 +480,13 @@ dw1000_get_object(radio_param_t param, void *dest, size_t size)
     if(size != 8 || dest == NULL) {
       return RADIO_RESULT_INVALID_VALUE;
     }
-    dwt_geteui((uint8_t *)dest);
+    uint8_t little_endian[8];
+    int i;
+    dwt_geteui(little_endian);
+
+    for(i = 0; i < 8; i++) {
+      ((uint8_t*)dest)[i] = little_endian[7 - i];
+    }
     return RADIO_RESULT_OK;
   }
   return RADIO_RESULT_NOT_SUPPORTED;
@@ -476,7 +499,15 @@ dw1000_set_object(radio_param_t param, const void *src, size_t size)
     if(size != 8 || src == NULL) {
       return RADIO_RESULT_INVALID_VALUE;
     }
-    dwt_seteui((uint8_t *)src);
+
+    uint8_t little_endian[8];
+    int i;
+
+    for(i = 0; i < 8; i++) {
+      little_endian[i] = ((uint8_t *)src)[7 - i];
+    }
+    dwt_seteui(little_endian);
+
     return RADIO_RESULT_OK;
   }
   return RADIO_RESULT_NOT_SUPPORTED;
