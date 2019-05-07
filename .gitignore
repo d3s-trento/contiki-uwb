@@ -1,13 +1,22 @@
+#common files
+*~
 *.bin
 *.elf
 *.a
-*.evb1000
-obj_evb1000/*
+*.o
 *.map
 *.d
 *.hex
 *.pyc
 *.DS_Store
 *.swp
-obj_evb1000
+
+*.log
+
+#platform specific
+*.evb1000
+obj_evb1000/*
+
+*.dwm1001
+obj_dwm1001/*
 obj_srf06-cc26xx
