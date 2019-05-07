@@ -1,7 +1,8 @@
-# DecaWave EVB1000 Contiki Port 
+# DecaWave EVB1000/DWM1001 Contiki Port 
 
 ## Overview
-This repository contains a Contiki port for the DecaWave EVB1000 platform. The DecaWave EVB1000 is a platform developed by DecaWave that includes an STM32F105 microcontroller, a DecaWave DW1000 ultra-wideband transceiver, and an LCD display. Contiki is an open source operating system that runs on constrained embedded systems and provides standardized low-power wireless communication.
+This repository contains a Contiki port for the DecaWave EVB1000 and DWM1001 platforms. 
+Contiki is an open source operating system that runs on constrained embedded systems and provides standardized low-power wireless communication.
 
 ## Port Features
 This port includes support for:
@@ -28,13 +29,20 @@ Note that the ranging mechanisms are currently implemented using short IEEE 802.
 │   ├── ranging
 │   ├── sensniff
 └── platform
-    └── evb1000
+    ├── evb1000
+    └── dwm1001
+
 ```
 
 ## Requirements
-* [GNU Arm Embedded Toolchain](https://developer.arm.com/open-source/gnu-toolchain/gnu-rm)
-* [ST-Link V2 Tools](https://github.com/texane/stlink)
-* [Contiki OS](https://github.com/contiki-os/contiki)
+* For both platforms
+  * [GNU Arm Embedded Toolchain](https://developer.arm.com/open-source/gnu-toolchain/gnu-rm)
+  * [Contiki OS](https://github.com/contiki-os/contiki)
+* For EVB1000
+  * [ST-Link V2 Tools](https://github.com/texane/stlink)
+* For DWM1001
+  * [Nordic nRF5 IoT SDK v0.9.x](https://developer.nordicsemi.com/nRF5_IoT_SDK/nRF5_IoT_SDK_v0.9.x)
+  * [SEGGER J-Link](https://www.segger.com/downloads/jlink/)
 
 To use this port, clone the Contiki OS GitHub repository.
 ```
@@ -46,6 +54,13 @@ Then, you may set `CONTIKI` in your `PATH` as:
 export CONTIKI=/path/to/contiki
 ```
 
+For DWM1001, set also the following environment variables:
+```
+export NRF52_SDK_ROOT=/path/to/nrf_sdk
+export NRF52_JLINK_PATH=/path/to/jlink/bin
+```
+
+
 ## Examples
 We include three main examples showing:
 - how to perform ranging: **examples/ranging**
@@ -56,30 +71,51 @@ Note that other general Contiki examples directly available in the original Cont
 the Rime stack examples, can also be used on the DecaWave EVB1000 platform.
 
 ### Build and program your first example
+#### EVB1000
 Go to the **examples/ranging** folder and compile your example as:
 
 ```
 $ cd examples/ranging/
-$ make 
+$ make TARGET=evb1000
 ```
 
 To flash your device with the compiled application, first connect the ST-LINK V2 programmer to your 
 DecaWave EVB1000 and power up both the ST-LINK programmer and the EVB1000 through USB. Then, simply run:
 
 ```
-$ make rng.upload
+$ make TARGET=evb1000 rng.upload
 ```
 
 If everything works out fine, you should get a positive message like: 
 > Flash written and verified! jolly good!
 
+#### DWM1001
+Go to the **examples/ranging** folder and compile your example as:
+
+```
+$ cd examples/ranging/
+$ make TARGET=dwm1001
+```
+
+To flash your device with the compiled application, connect the device to the computer through USB
+Then, simply run:
+
+```
+$ make TARGET=dwm1001 rng.upload
+```
+
+If everything works out fine, you should get a positive message like: 
+> Verifying flash   [100%] Done.
+
+#### Configuring the ranging application
 Note that the ranging application requires to set the IEEE 802.15.4 short address of the responder (i.e., the node 
 to range with in the **rng.c** file). After flashing a device with any application from this code, the device should
 show its short IEEE address in the LCD display. Set this address appropriately in the line:
 ```
 linkaddr_t dst = {{0xdd, 0x37}};
 ```
-This particular address should be displayed in the LCD as `0xdd37`.
+This particular address should be displayed in the LCD (EVB1000 only) as `dd37`, it is also printed to the standard
+output when the node boots.
 
 ### IEEE Addresses
 In this port, we generate the IEEE 802.15.4 addresses used for the network stacks and ranging 

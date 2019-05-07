@@ -38,20 +38,28 @@
 #include "dw1000.h"
 #include "dw1000-ranging.h"
 #include "core/net/linkaddr.h"
+#include "net/rime/unicast.h"
 /*---------------------------------------------------------------------------*/
 PROCESS(range_process, "Test range process");
 PROCESS(collect_process, "Test collect process");
+PROCESS(unicast_process, "Test unicast process");
+/*AUTOSTART_PROCESSES(&range_process); */
+/*AUTOSTART_PROCESSES(&unicast_process); */
+/*AUTOSTART_PROCESSES(&collect_process); */
 AUTOSTART_PROCESSES(&collect_process, &range_process);
+/*AUTOSTART_PROCESSES(&collect_process, &range_process, &unicast_process); */
 /*---------------------------------------------------------------------------*/
 #define RANGING_PERIOD (10 * CLOCK_SECOND)
 #define RANGING_TIMEOUT (0.5 * CLOCK_SECOND)
 /*---------------------------------------------------------------------------*/
-#define COLLECT_SENDER_IPI (15 * CLOCK_SECOND)
+#define COLLECT_SENDER_IPI (5 * CLOCK_SECOND)
 #define COLLECT_NUM_RTX 15
 /*---------------------------------------------------------------------------*/
+#define UNICAST_IPI (2 * CLOCK_SECOND)
+#define UNICAST_CHANNEL 0xAA
 #define COLLECT_CHANNEL 0xBB
 /*---------------------------------------------------------------------------*/
-linkaddr_t sink = {{0x0d, 0x17}};
+linkaddr_t sink = {{0x19, 0x15}}; /* node 1 */
 /*---------------------------------------------------------------------------*/
 enum {
   WARMUP_MSG = 0,
@@ -69,6 +77,7 @@ typedef struct test_msg {
 } test_msg_t;
 /*---------------------------------------------------------------------------*/
 static struct collect_conn tc;
+static struct unicast_conn uc;
 /*---------------------------------------------------------------------------*/
 static test_msg_t msg;
 static struct collect_neighbor *nbr = NULL;
@@ -88,12 +97,29 @@ col_recv(const linkaddr_t *originator, uint8_t seqn, uint8_t hops)
   total_recv++;
   printf("Col recv %02x%02x %u %u %u %02x%02x %u %u %d %u\n",
          originator->u8[0], originator->u8[1],
-         msg.seqn, hops, msg.num_nbr, msg.parent.u8[0], msg.parent.u8[1],
-         msg.parent_etx, msg.current_rt_metric,
+         msg.seqn, hops, msg.num_nbr,
+         msg.parent.u8[0], msg.parent.u8[1], msg.parent_etx, msg.current_rt_metric,
          msg.parent_distance, total_recv);
 }
 /*---------------------------------------------------------------------------*/
+static void
+uc_recv(struct unicast_conn *conn, const linkaddr_t *from)
+{
+  uint16_t seqn;
+  /* Copy the message */
+  memcpy(&seqn, packetbuf_dataptr(), sizeof(seqn));
+  printf("Unicast recv from %X.%X %u\n", from->u8[0], from->u8[1], seqn);
+}
+/*---------------------------------------------------------------------------*/
+static void
+uc_sent(struct unicast_conn *conn, int status, int num_tx)
+{
+  printf("%d.%d: uc_sent status: %d num_tx: %d\n",
+         linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1], status, num_tx);
+}
+/*---------------------------------------------------------------------------*/
 static const struct collect_callbacks col_callbacks = { .recv = col_recv };
+static const struct unicast_callbacks uc_callbacks = { .recv = uc_recv, .sent = uc_sent };
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(collect_process, ev, data)
 {
@@ -121,11 +147,10 @@ PROCESS_THREAD(collect_process, ev, data)
     etimer_set(&et, 2 * 60 * CLOCK_SECOND);
     PROCESS_WAIT_UNTIL(etimer_expired(&et));
 
-    /* Warm up Period */
-    /* Send some short packets to improve the collection tree */
-    etimer_set(&et, 3 * 60 * CLOCK_SECOND);
+    /* send some short packets to improve the tree */
+    etimer_set(&et, 10 * 60 * CLOCK_SECOND);
     while(!etimer_expired(&et)) {
-      etimer_set(&periodic, 15 * CLOCK_SECOND + random_rand() % (15 * CLOCK_SECOND));
+      etimer_set(&periodic, 60 * CLOCK_SECOND + random_rand() % (30 * CLOCK_SECOND));
       PROCESS_WAIT_EVENT();
       if(etimer_expired(&periodic)) {
         uint8_t a = 0;
@@ -135,11 +160,11 @@ PROCESS_THREAD(collect_process, ev, data)
       }
     }
 
+    etimer_set(&periodic, COLLECT_SENDER_IPI);
     while(1) {
-      etimer_set(&periodic, COLLECT_SENDER_IPI);
-      etimer_set(&et, random_rand() % COLLECT_SENDER_IPI);
-      PROCESS_WAIT_UNTIL(etimer_expired(&et));
 
+      etimer_set(&et, 10 + random_rand() % (COLLECT_SENDER_IPI - 20));
+      PROCESS_WAIT_UNTIL(etimer_expired(&et));
       /* Build the message */
       msg.seqn = seqn;
       msg.num_nbr = collect_neighbor_list_num(&tc.neighbor_list);
@@ -158,9 +183,50 @@ PROCESS_THREAD(collect_process, ev, data)
       collect_send(&tc, COLLECT_NUM_RTX);
       printf("Col send %02x%02x %u\n",
              linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1], seqn);
-      seqn++;
 
+      seqn++;
       PROCESS_WAIT_UNTIL(etimer_expired(&periodic));
+      etimer_reset(&periodic);
+    }
+  }
+
+  PROCESS_END();
+}
+/*---------------------------------------------------------------------------*/
+PROCESS_THREAD(unicast_process, ev, data)
+{
+  static struct etimer periodic;
+  static struct etimer et;
+  static uint16_t uc_seqn = 0;
+
+  PROCESS_BEGIN();
+
+  unicast_open(&uc, UNICAST_CHANNEL, &uc_callbacks);
+  etimer_set(&periodic, 2 * CLOCK_SECOND);
+  PROCESS_WAIT_UNTIL(etimer_expired(&periodic));
+
+  if(linkaddr_cmp(&sink, &linkaddr_node_addr)) {
+    printf("Node: I am unicast sink\n");
+    while(1) {
+      PROCESS_WAIT_EVENT();
+    }
+  } else {
+
+    etimer_set(&periodic, UNICAST_IPI);
+    while(1) {
+
+      etimer_set(&et, random_rand() % UNICAST_IPI);
+      PROCESS_WAIT_UNTIL(etimer_expired(&et));
+
+      packetbuf_clear();
+      packetbuf_copyfrom(&uc_seqn, sizeof(uc_seqn));
+      printf("Node %02x%02x App: sending unicast %u\n",
+             linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1], uc_seqn);
+      unicast_send(&uc, &sink);
+
+      uc_seqn++;
+      PROCESS_WAIT_UNTIL(etimer_expired(&periodic));
+      etimer_reset(&periodic);
     }
   }
 

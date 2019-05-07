@@ -48,11 +48,11 @@ AUTOSTART_PROCESSES(&range_process);
 dwt_config_t radio_config = {
 #if APP_RADIO_CONF == 1
   .chan = 4,
-  .prf = DWT_PRF_16M,
+  .prf = DWT_PRF_64M,
   .txPreambLength = DWT_PLEN_128,
   .dataRate = DWT_BR_6M8,
-  .txCode = 7,
-  .rxCode = 7,
+  .txCode = 17,
+  .rxCode = 17,
   .rxPAC = DWT_PAC8,
   .nsSFD = 0 /* standard */,
   .phrMode = DWT_PHRMODE_STD,
@@ -73,7 +73,7 @@ dwt_config_t radio_config = {
 #endif
 };
 /*---------------------------------------------------------------------------*/
-linkaddr_t dst = {{0xdd, 0x37}};
+linkaddr_t dst = {{0x18, 0x8c}};
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(range_process, ev, data)
 {
@@ -84,6 +84,11 @@ PROCESS_THREAD(range_process, ev, data)
   PROCESS_BEGIN();
 
   dw1000_configure(&radio_config);
+  printf("I am %02x%02x dst %02x%02x\n",
+         linkaddr_node_addr.u8[0],
+         linkaddr_node_addr.u8[1],
+         dst.u8[0],
+         dst.u8[1]);
 
   if(!linkaddr_cmp(&linkaddr_node_addr, &dst)) {
 
@@ -107,7 +112,7 @@ PROCESS_THREAD(range_process, ev, data)
           printf("R TIMEOUT\n");
         } else if(((ranging_data_t *)data)->status) {
           ranging_data_t *d = data;
-          printf("R success: %f bias %f\n", d->raw_distance, d->distance);
+          printf("R success: %d bias %d\n", (int)(100*d->raw_distance), (int)(100*d->distance));
         } else {
           printf("R FAIL\n");
         }

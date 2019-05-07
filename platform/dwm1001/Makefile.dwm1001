@@ -1,0 +1,133 @@
+ifndef CONTIKI
+	$(error CONTIKI not defined! You must specify where CONTIKI resides!)
+endif
+
+### Include the board-specific makefile
+PLATFORM_ROOT_DIR = $(CONTIKI)/platform/$(TARGET)
+
+CONTIKI_TARGET_DIRS += . dev config
+CONTIKI_SOURCEFILES += contiki-main.c leds-arch.c nrf52dk-sensors.c button-sensor.c temperature-sensor.c
+
+# Add DW1000 architecture-dependent drivers
+CONTIKI_SOURCEFILES += dw1000-arch.c
+INC_PATHS += components/drivers_nrf/spi_master
+
+# Inlude nRF52 NRF DRV SPI drivers
+C_SOURCE_FILES += $(NRF52_SDK_ROOT)/components/drivers_nrf/nrf_drv_spi.c
+
+# DecaWave DW1000 Drivers
+CONTIKI_TARGET_DIRS += ../../dev/dw1000
+CONTIKI_TARGET_DIRS += ../../dev/dw1000/decadriver
+CONTIKI_SOURCEFILES += deca_device.c deca_params_init.c deca_range_tables.c
+CONTIKI_SOURCEFILES += dw1000.c dw1000-ranging.c
+
+ifeq ($(NRF52_USE_RTT),1)
+### Use the existing debug I/O in cpu/arm/common
+CONTIKI_TARGET_DIRS += rtt
+CONTIKI_SOURCEFILES += rtt-printf.c segger-rtt.c segger-rtt-printf.c
+else
+CONTIKI_TARGET_DIRS += dbg-io
+CONTIKI_SOURCEFILES += dbg.c
+CONTIKI_CPU_DIRS += ../arm/common/dbg-io
+CONTIKI_CPU_SOURCEFILES += dbg-printf.c dbg-putchar.c dbg-snprintf.c dbg-sprintf.c strformat.c
+endif
+
+CLEAN += *.dwm1001 symbols.*
+
+### Unless the example dictates otherwise, build with code size optimisations switched
+### off
+ifndef SMALL
+	SMALL = 0
+endif
+
+# Set the appropriate NRF52 Revision: custom in our case
+NRF52_DK_REVISION = custom
+
+### Define the CPU directory and pull in the correct CPU makefile.
+# Makefile.nrf52832 will rise errors if CONTIKI_WITH_RIME == 1 or
+# CONTIKI_WITH_IPV6 == 0 as nrf52dk platform doesn't support that cases.
+# DWM1001 platform support them so those checks are neutralized
+SAVE_CONTIKI_WITH_RIME:=$(CONTIKI_WITH_RIME)
+SAVE_CONTIKI_WITH_IPV6:=$(CONTIKI_WITH_IPV6)
+
+CONTIKI_WITH_RIME = 0
+CONTIKI_WITH_IPV6 = 1
+
+CONTIKI_CPU=$(CONTIKI)/cpu/nrf52832
+include $(CONTIKI_CPU)/Makefile.nrf52832
+
+CONTIKI_WITH_RIME:=$(SAVE_CONTIKI_WITH_RIME)
+CONTIKI_WITH_IPV6:=$(SAVE_CONTIKI_WITH_IPV6)
+
+MODULES += core/net core/net/mac core/net/llsec
+
+###############################################################################
+# Linker Script Selection
+# We use the same linker script as for the PCA10040, but we need to set it
+# here to avoid the Makefile to look for nrf52-custom-sd.ld
+###############################################################################
+
+# Select the linker script
+ifneq ($(NRF52_WITHOUT_SOFTDEVICE),1)
+LINKER_SCRIPT = $(CONTIKI_CPU)/ld/nrf52-pca10040-sd.ld
+else
+LINKER_SCRIPT = $(CONTIKI_CPU)/ld/nrf52.ld
+endif
+$(info LINKER_SCRIPT is $(LINKER_SCRIPT))
+
+
+###############################################################################
+# Network Stack Configuration
+# This platform includes two radios: a DecaWave DW1000 radio and a BLE radio.
+# We provide support for the Rime stack only in UWB. The IPv6 stack is supported
+# both in UWB and in BLE (using the softdevice network stack provided by Nordic).
+# Only one network stack configuration (e.g., IPv6 over UWB) can be used at a
+# time.
+###############################################################################
+
+ifeq ($(CONTIKI_WITH_RIME),1)
+	CFLAGS += -DUWB_WITH_RIME=1 
+endif
+
+ifeq ($(CONTIKI_WITH_IPV6),1)
+	ifneq ($(NRF52_WITHOUT_SOFTDEVICE),1)
+		CFLAGS += -DBLE_WITH_IPV6=1 
+	else
+		CFLAGS += -DUWB_WITH_IPV6=1 
+	endif
+endif
+
+###############################################################################
+# Login Command 
+###############################################################################
+
+# Check if we are running under Windows
+ifeq ($(HOST_OS),Windows)
+	SERIALDUMP ?= $(CONTIKI)/tools/sky/serialdump-windows
+else
+ifeq ($(HOST_OS),Darwin)
+	SERIALDUMP ?= $(CONTIKI)/tools/sky/serialdump-macos
+else
+	# Else assume Linux
+	SERIALDUMP ?= $(CONTIKI)/tools/sky/serialdump-linux
+endif
+endif
+
+UART_BAUDRATE = 115200
+
+login:
+	$(SERIALDUMP) -b$(UART_BAUDRATE) $(PORT)
+
+
+###############################################################################
+# Upload Command 
+###############################################################################
+
+motelist:
+	@$(JLINK) -CommanderScript $(dir $(target_makefile))/listEmulator.jlink | awk 'BEGIN {printf("Index\tS/N\n----------------------------\n")} \
+match($$0, "J-Link\\[([[:digit:]]+)\\].*Serial number: ([[:digit:]]*)", m) {printf(" %s\t%s\n",m[1],m[2])}'
+
+%.upload: %.hex %.jlink 
+	@echo Flashing: $^
+	$(JLINK) $(JLINK_OPTS) -CommanderScript $*.jlink
+

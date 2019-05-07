@@ -23,7 +23,7 @@ CONTIKI_WITH_RIME = 1
 
 all: $(CONTIKI_PROJECT)
 
-CONTIKI ?= ../../../contiki
+CONTIKI ?= ../../contiki
 include $(CONTIKI)/Makefile.include
 
 PYTHON ?= python
