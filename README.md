@@ -49,9 +49,10 @@ To use this port, clone the Contiki OS GitHub repository.
 $ git clone https://github.com/contiki-os/contiki
 ```
 
-Then, you may set `CONTIKI` in your `PATH` as:
+Then, you may set `CONTIKI` and `UWB_MAIN_DIR` in your `PATH` as:
 ```
 export CONTIKI=/path/to/contiki
+export UWB_MAIN_DIR=/path/to/contiki-uwb
 ```
 
 For DWM1001, set also the following environment variables:

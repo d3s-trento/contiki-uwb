@@ -2,8 +2,8 @@ ifndef CONTIKI
 	$(error CONTIKI not defined! You must specify where CONTIKI resides!)
 endif
 
-### Include the board-specific makefile
-PLATFORM_ROOT_DIR = $(CONTIKI)/platform/$(TARGET)
+# we assume that the UWB-related contiki files are located next to the contiki dir
+UWB_MAIN_DIR ?= $(CONTIKI)/..
 
 CONTIKI_TARGET_DIRS += . dev config
 CONTIKI_SOURCEFILES += contiki-main.c leds-arch.c nrf52dk-sensors.c button-sensor.c temperature-sensor.c
@@ -16,8 +16,7 @@ INC_PATHS += components/drivers_nrf/spi_master
 C_SOURCE_FILES += $(NRF52_SDK_ROOT)/components/drivers_nrf/nrf_drv_spi.c
 
 # DecaWave DW1000 Drivers
-CONTIKI_TARGET_DIRS += ../../dev/dw1000
-CONTIKI_TARGET_DIRS += ../../dev/dw1000/decadriver
+CONTIKIDIRS += $(UWB_MAIN_DIR)/dev/dw1000 $(UWB_MAIN_DIR)/dev/dw1000/decadriver
 CONTIKI_SOURCEFILES += deca_device.c deca_params_init.c deca_range_tables.c
 CONTIKI_SOURCEFILES += dw1000.c dw1000-ranging.c
 
