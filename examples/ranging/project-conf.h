@@ -1,7 +1,7 @@
 #ifndef PROJECT_CONF_H_
 #define PROJECT_CONF_H_
 
-#define APP_RADIO_CONF 2
+#define APP_RADIO_CONF 1
 
 #if APP_RADIO_CONF == 1
 #define DW1000_CONF_CHANNEL        4

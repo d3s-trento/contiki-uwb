@@ -61,13 +61,6 @@ PROCESS_THREAD(range_process, ev, data)
          dst.u8[0],
          dst.u8[1]);
 
-  //printf("till rmarker: %f\n", dwt_estimate_tx_time(radio_config, 0, 1));
-  //printf("len 0:        %f\n", dwt_estimate_tx_time(radio_config, 0, 0));
-  //printf("len 12:       %f\n", dwt_estimate_tx_time(radio_config, 12, 0));
-  //printf("len 64:       %f\n", dwt_estimate_tx_time(radio_config, 64, 0));
-  //printf("len 127:      %f\n", dwt_estimate_tx_time(radio_config, 127, 0));
-
-
   if(!linkaddr_cmp(&linkaddr_node_addr, &dst)) {
 
     etimer_set(&et, 5 * CLOCK_SECOND);
