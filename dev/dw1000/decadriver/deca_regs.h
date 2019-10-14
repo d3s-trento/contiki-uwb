@@ -48,7 +48,7 @@ extern "C" {
 #define PANADR_SHORT_ADDR_OFFSET 0              /* In bytes */
 #define PANADR_SHORT_ADDR_MASK  0x0000FFFFUL    /* Short Address */
 #define PANADR_PAN_ID_OFFSET     2              /* In bytes */
-#define PANADR_PAN_ID_MASK      0xFFFF00F0UL    /* PAN Identifier */
+#define PANADR_PAN_ID_MASK      0xFFFF0000UL    /* PAN Identifier */
 
 /****************************************************************************//**
  * @brief Bit definitions for register 0x05
@@ -596,7 +596,7 @@ extern "C" {
  * Please take care to write to this register as doing so may cause the DW1000 to malfunction
 **/
 #define AGC_CTRL_ID             0x23            /* Automatic Gain Control configuration */
-#define AGC_CTRL_LEN            (32)
+#define AGC_CTRL_LEN            (33)
 #define AGC_CFG_STS_ID          AGC_CTRL_ID
 /* offset from AGC_CTRL_ID in bytes */
 #define AGC_CTRL1_OFFSET        (0x02)
@@ -881,7 +881,7 @@ extern "C" {
 #define DRX_TUNE2_OFFSET        0x08    /* 7.2.40.5 Sub-Register 0x27:08 – DRX_TUNE2 */
 #define DRX_TUNE2_LEN           (4)
 #define DRX_TUNE2_MASK          0xFFFFFFFFUL
-#define DRX_TUNE2_PRF16_PAC8    0x311A002DUL
+#define DRX_TUNE2_PRF16_PAC8    0x311A003CUL
 #define DRX_TUNE2_PRF16_PAC16   0x331A0052UL
 #define DRX_TUNE2_PRF16_PAC32   0x351A009AUL
 #define DRX_TUNE2_PRF16_PAC64   0x371A011DUL
@@ -889,6 +889,9 @@ extern "C" {
 #define DRX_TUNE2_PRF64_PAC16   0x333B00BEUL
 #define DRX_TUNE2_PRF64_PAC32   0x353B015EUL
 #define DRX_TUNE2_PRF64_PAC64   0x373B0296UL
+
+#define DRX_TUNE2_UNCONF_SFD_TH_PRF16 0x0E
+#define DRX_TUNE2_UNCONF_SFD_TH_PRF64 0x20
 
 /* offset from DRX_CONF_ID in bytes */
 /* WARNING: Please do NOT set DRX_SFDTOC to zero (disabling SFD detection timeout)
@@ -931,12 +934,12 @@ extern "C" {
 #define RF_CONF_TXBLOCKSEN_MASK 0x00001F00UL   /* enable TX blocks */
 #define RF_CONF_TXPLLPOWEN_MASK (RF_CONF_PLLEN_MASK | RF_CONF_TXPOW_MASK)
 #define RF_CONF_TXALLEN_MASK    (RF_CONF_TXEN_MASK | RF_CONF_TXPOW_MASK | RF_CONF_PLLEN_MASK | RF_CONF_TXBLOCKSEN_MASK)
-/* offset from TX_CAL_ID in bytes */
+/* offset from RF_CONF in bytes */
 #define RF_RXCTRLH_OFFSET       0x0B            /* Analog RX Control Register */
 #define RF_RXCTRLH_LEN          (1)
 #define RF_RXCTRLH_NBW          0xD8            /* RXCTRLH value for narrow bandwidth channels */
 #define RF_RXCTRLH_WBW          0xBC            /* RXCTRLH value for wide bandwidth channels */
-/* offset from TX_CAL_ID in bytes */
+/* offset from RF_CONF in bytes */
 #define RF_TXCTRL_OFFSET        0x0C            /* Analog TX Control Register */
 #define RF_TXCTRL_LEN           (4)
 #define RF_TXCTRL_TXMTUNE_MASK  0x000001E0UL    /* Transmit mixer tuning register */
@@ -948,8 +951,11 @@ extern "C" {
 #define RF_TXCTRL_CH5           0x001E3FE0UL    /* 32-bit value to program to Sub-Register 0x28:0C – RF_TXCTRL */
 #define RF_TXCTRL_CH7           0x001E7DE0UL    /* 32-bit value to program to Sub-Register 0x28:0C – RF_TXCTRL */
 
-/* offset from TX_CAL_ID in bytes */
+/* offset from RF_CONF in bytes */
 #define RF_STATUS_OFFSET        0x2C
+
+#define LDOTUNE                 0x30            /* LDO Voltage tuning register */
+#define LDOTUNE_DEFAULT         0x88888888UL
 
 /****************************************************************************//**
  * @brief Bit definitions for register
@@ -1007,7 +1013,7 @@ extern "C" {
 #define FS_RES1_LEN             (7)
 /* offset from FS_CTRL_ID in bytes */
 #define FS_PLLCFG_OFFSET        0x07            /* Frequency synthesiser – PLL configuration */
-#define FS_PLLCFG_LEN           (5)
+#define FS_PLLCFG_LEN           (4)
 #define FS_PLLCFG_CH1           0x09000407UL    /* Operating Channel 1 */
 #define FS_PLLCFG_CH2           0x08400508UL    /* Operating Channel 2 */
 #define FS_PLLCFG_CH3           0x08401009UL    /* Operating Channel 3 */
@@ -1276,7 +1282,12 @@ extern "C" {
  * Please take care not to write to these registers as doing so may cause the DW1000 to malfunction.
 **/
 #define REG_30_ID_RESERVED      0x30
-#define REG_31_ID_RESERVED      0x31
+
+#define CRTR_ID                 0x31
+#define CRTR_GEAR_OFFSET        0x28
+#define DEMOD_GEAR_DEF          0x49
+#define DEMOD_GEAR_64L          0x47
+
 #define REG_32_ID_RESERVED      0x32
 #define REG_33_ID_RESERVED      0x33
 #define REG_34_ID_RESERVED      0x34
@@ -1303,7 +1314,10 @@ extern "C" {
 #define PMSC_CTRL0_TXCLKS_125M  0x00000020UL    /* Force TX clock enable and sourced from the 125 MHz PLL clock */
 #define PMSC_CTRL0_TXCLKS_OFF   0x00000030UL    /* Force TX clock off */
 #define PMSC_CTRL0_FACE         0x00000040UL    /* Force Accumulator Clock Enable */
+#define PMSC_CTRL0_GPCE         0x00010000UL    /* GPIO clock enable*/
+#define PMSC_CTRL0_GPRN         0x00020000UL    /* GPIO reset - active low */
 #define PMSC_CTRL0_GPDCE        0x00040000UL    /* GPIO De-bounce Clock Enable */
+#define PMSC_CTRL0_GPDRN        0x00080000UL    /* GPIO De-bounce Reset - active low */
 #define PMSC_CTRL0_KHZCLEN      0x00800000UL    /* Kilohertz Clock Enable */
 #define PMSC_CTRL0_PLL2_SEQ_EN  0x01000000UL    /* Enable PLL2 on/off sequencing by SNIFF mode */
 #define PMSC_CTRL0_SOFTRESET_OFFSET 3           /* In bytes */

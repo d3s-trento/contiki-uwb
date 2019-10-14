@@ -276,7 +276,9 @@ dw1000_arch_init()
    * After initialisation SPI rate can be increased for optimum performance.
    */
   dw1000_arch_reset(); /* Target specific drive of RSTn line into DW1000 low for a period.*/
-  if(dwt_initialise(DWT_LOADUCODE) == DWT_ERROR) {
+  if(dwt_initialise(DWT_LOADUCODE | DWT_READ_OTP_PID | DWT_READ_OTP_LID |
+                    DWT_READ_OTP_BAT | DWT_READ_OTP_TMP) 
+          == DWT_ERROR) {
     printf("DW1000 INIT FAILED\n");
     while(1) {
       /* If the init function fails, we stop here */

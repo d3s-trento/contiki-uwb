@@ -40,10 +40,23 @@
 #include "dw1000.h"
 #include "dw1000-arch.h"
 #include "core/net/linkaddr.h"
+#include "contiki-conf.h"
 
 #ifndef DW1000_RANGING_H
 #define DW1000_RANGING_H
 
+/*---------------------------------------------------------------------------*/
+
+#ifdef DW1000_CONF_COMPENSATE_BIAS
+#define DW1000_COMPENSATE_BIAS DW1000_CONF_COMPENSATE_BIAS
+#else
+#define DW1000_COMPENSATE_BIAS 1
+#endif
+
+/* (Re)initialise the ranging module.
+ *
+ * Needs to be called before issuing or serving ranging requests and
+ * after changing radio parameters. */
 void dw1000_ranging_init();
 
 /*---------------------------------------------------------------------------*/
@@ -64,11 +77,5 @@ typedef struct {
   double distance;
   double raw_distance;
 } ranging_data_t;
-
-/* Reconfigure the ranging module based on the radio configuration specified.
- *
- * return 0 if success, -1 if datarate unsupported and -2 is channel unsupported
- */
-int8_t dw1000_range_reconfigure(dwt_config_t *config);
 
 #endif /* DW1000_RANGING_H */

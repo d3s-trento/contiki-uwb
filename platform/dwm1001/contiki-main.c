@@ -61,6 +61,7 @@
 /*---------------------------------------------------------------------------*/
 #include "deca_device_api.h"
 #include "dw1000-arch.h"
+#include "dw1000-config.h"
 /*---------------------------------------------------------------------------*/
 #define DEBUG 1
 /*---------------------------------------------------------------------------*/
@@ -128,9 +129,8 @@ board_init(void)
 #endif
 }
 /*---------------------------------------------------------------------------*/
-/* This function must be called after initializing the DW1000 radio */
 static void
-set_uwb_rf_params(void)
+configure_addresses(void)
 {
   uint8_t ext_addr[8];
   uint32_t part_id, lot_id;
@@ -192,6 +192,18 @@ main(void)
 #endif //NRF_SHOW_RESETREASON
 
   board_init();
+
+  /* Enable the FPU */
+    __asm volatile
+    (
+     "LDR.W R0, =0xE000ED88             \n"
+     "LDR R1, [R0]                      \n"
+     "ORR R1, R1, #(0xF << 20)          \n"
+     "STR R1, [R0]                      \n"
+     "DSB                               \n"
+     "ISB                               \n"
+    );
+
   leds_init();
 
   clock_init();
@@ -247,9 +259,10 @@ main(void)
   netstack_init(); /* Init the full UWB network stack */
 #else
   dw1000_arch_init(); /* Only initialize the radio hardware, not the network stack */
+  dw1000_reset_cfg(); /* and set the default configuration */
 #endif /* BLE_WITH_IPV6 */
   
-  set_uwb_rf_params(); /* Set the link layer addresses and the PAN ID */
+  configure_addresses(); /* Set the link layer addresses and the PAN ID */
 
 #if UWB_WITH_IPV6 == 1
   memcpy(&uip_lladdr.addr, &linkaddr_node_addr, sizeof(uip_lladdr.addr));

@@ -56,6 +56,7 @@
 #include "leds.h"
 #include "lcd.h"
 #include "dw1000-arch.h"
+#include "dw1000-config.h"
 #include "deca_usb.h"
 /*---------------------------------------------------------------------------*/
 #include "stm32f10x.h"
@@ -85,7 +86,7 @@ fade_leds(void)
 /*---------------------------------------------------------------------------*/
 /* This function must be called after initializing the DW1000 radio */
 static void
-set_rf_params(void)
+configure_addresses(void)
 {
   uint8_t ext_addr[8];
   uint32_t part_id, lot_id;
@@ -160,7 +161,7 @@ main(void)
   netstack_init();
 
   /* Set the link layer addresses and the PAN ID */
-  set_rf_params();
+  configure_addresses();
 
 #if NETSTACK_CONF_WITH_IPV6
   memcpy(&uip_lladdr.addr, &linkaddr_node_addr, sizeof(uip_lladdr.addr));

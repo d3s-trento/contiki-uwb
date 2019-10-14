@@ -46,6 +46,9 @@
 #ifdef PROJECT_CONF_H
 #include PROJECT_CONF_H
 #endif /* PROJECT_CONF_H */
+
+#include "platform-conf.h"
+
 /*---------------------------------------------------------------------------*/
 /* Compiler configurations */
 #define CCIF

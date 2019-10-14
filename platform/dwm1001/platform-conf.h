@@ -122,6 +122,16 @@ typedef uint32_t uip_stats_t;
 typedef uint32_t rtimer_clock_t;
 #define RTIMER_CLOCK_DIFF(a,b)     ((int32_t)((a)-(b)))
 
+
+
+#ifndef DW1000_CONF_RX_ANT_DLY
+#define DW1000_CONF_RX_ANT_DLY 16455 // TODO: needs calibration
+#endif
+
+#ifndef DW1000_CONF_TX_ANT_DLY
+#define DW1000_CONF_TX_ANT_DLY 16455 // TODO: needs calibration
+#endif
+
 /** @} */
 /*---------------------------------------------------------------------------*/
 /** @}

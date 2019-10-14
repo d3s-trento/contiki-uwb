@@ -18,7 +18,7 @@ C_SOURCE_FILES += $(NRF52_SDK_ROOT)/components/drivers_nrf/nrf_drv_spi.c
 # DecaWave DW1000 Drivers
 CONTIKIDIRS += $(UWB_MAIN_DIR)/dev/dw1000 $(UWB_MAIN_DIR)/dev/dw1000/decadriver
 CONTIKI_SOURCEFILES += deca_device.c deca_params_init.c deca_range_tables.c
-CONTIKI_SOURCEFILES += dw1000.c dw1000-ranging.c
+CONTIKI_SOURCEFILES += dw1000.c dw1000-ranging.c dw1000-config.c dw1000-util.c cir.c
 
 ifeq ($(NRF52_USE_RTT),1)
 ### Use the existing debug I/O in cpu/arm/common

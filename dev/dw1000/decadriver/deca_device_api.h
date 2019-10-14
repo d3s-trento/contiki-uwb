@@ -122,6 +122,11 @@ typedef signed long int32;
 #define DWT_LEDS_ENABLE      0x01
 #define DWT_LEDS_INIT_BLINK  0x02
 
+// Defined constants for "lna_pa" bit field parameter passed to dwt_setlnapamode() function
+#define DWT_LNA_PA_DISABLE     0x00
+#define DWT_LNA_ENABLE         0x01
+#define DWT_PA_ENABLE          0x02
+
 //frame filtering configuration options
 #define DWT_FF_NOTYPE_EN            0x000           // no frame types allowed (FF disabled)
 #define DWT_FF_COORD_EN             0x002           // behave as coordinator (can receive frames with no dest address (PAN ID has to match))
@@ -141,6 +146,7 @@ typedef signed long int32;
 #define DWT_INT_RFTO            0x00020000          // frame wait timeout
 #define DWT_INT_RXOVRR          0x00100000          // receiver overrun
 #define DWT_INT_RXPTO           0x00200000          // preamble detect timeout
+#define DWT_INT_GPIO            0x00400000          // GPIO interrupt
 #define DWT_INT_SFDT            0x04000000          // SFD timeout
 #define DWT_INT_ARFE            0x20000000          // frame rejected (due to frame filtering configuration)
 
@@ -159,14 +165,46 @@ typedef signed long int32;
 #define DWT_WAKE_WK      0x2                        // wake up on WAKEUP PIN
 #define DWT_SLP_EN       0x1                        // enable sleep/deep sleep functionality
 
+//DWT_DW_POWER_ON should be used when dwt_initialise is called on cold power up of DW IC
+//When DW IC is being initialised after wake up then some of the init steps can be skipped
 //DW1000 INIT configuration parameters
-#define DWT_LOADUCODE     0x1
-#define DWT_LOADNONE      0x0
+#define DWT_LOADNONE         0x00    // no loading of micro-code or reading of OTP values
+#define DWT_LOADUCODE        0x01    // this can be called on power up or after wake up to load ucode
+#define DWT_DW_WAKE_UP       0x02    // init after wake up - will not load ucode / ucode will not run
+#define DWT_DW_WUP_NO_UCODE  0x04    // init after wake up - ucode has not already been loaded / ucode is not used
+#define DWT_DW_WUP_RD_OTPREV 0x08    // init after wakeup - read OTP rev after wake up
+#define DWT_READ_OTP_PID     0x10    // read part ID from OTP
+#define DWT_READ_OTP_LID     0x20    // read lot ID from OTP
+#define DWT_READ_OTP_BAT     0x40    // read ref voltage from OTP
+#define DWT_READ_OTP_TMP     0x80    // read ref temperature from OTP
+
 
 //DW1000 OTP operating parameter set selection
 #define DWT_OPSET_64LEN   0x0
 #define DWT_OPSET_TIGHT   0x1
 #define DWT_OPSET_DEFLT   0x2
+
+//GPIOs
+#define DWT_GxP0 0x00000001UL    /* GPIO0 Only changed if the GxM0 mask bit has a value of 1 for the write operation*/
+#define DWT_GxP1 0x00000002UL    /* GPIO1.*/
+#define DWT_GxP2 0x00000004UL    /* GPIO2.*/
+#define DWT_GxP3 0x00000008UL    /* GPIO3.*/
+#define DWT_GxP4 0x00000100UL    /* GPIO4.*/
+#define DWT_GxP5 0x00000200UL    /* GPIO5.*/
+#define DWT_GxP6 0x00000400UL    /* GPIO6.*/
+#define DWT_GxP7 0x00000800UL    /* GPIO7.*/
+#define DWT_GxP8 0x00010000UL    /* GPIO8 */
+
+#define DWT_GxM0 0x00000010UL    /* Mask for GPIO0 */
+#define DWT_GxM1 0x00000020UL    /* Mask for GPIO1 */
+#define DWT_GxM2 0x00000040UL    /* Mask for GPIO2 */
+#define DWT_GxM3 0x00000080UL    /* Mask for GPIO3 */
+#define DWT_GxM4 0x00001000UL    /* Mask for GPIO4 */
+#define DWT_GxM5 0x00002000UL    /* Mask for GPIO5 */
+#define DWT_GxM6 0x00004000UL    /* Mask for GPIO6 */
+#define DWT_GxM7 0x00008000UL    /* Mask for GPIO7 */
+#define DWT_GxM8 0x00100000UL    /* Mask for GPIO8 */
+
 
 // Call-back data RX frames flags
 #define DWT_CB_DATA_RX_FLAG_RNG 0x1 // Ranging bit
@@ -254,6 +292,9 @@ typedef struct
 /*                                                 REMOVED API LIST                                                 */
 /********************************************************************************************************************/
 /*
+ * From version 5.0.0:
+ *  - dwt_getinitxtaltrim: Replaced by the function dwt_getxtaltrim which returns current xtal trim value
+ *
  * From version 4.0.0:
  *  - dwt_setGPIOforEXTTRX: Replaced by dwt_setlnapamode to get equivalent functionality.
  *  - dwt_setGPIOdirection: Renamed to dwt_setgpiodirection.
@@ -282,6 +323,19 @@ typedef struct
 /********************************************************************************************************************/
 
 /*! ------------------------------------------------------------------------------------------------------------------
+ * @fn dwt_apiversion()
+ *
+ * @brief This function returns the version of the API as defined by DW1000_DRIVER_VERSION
+ *
+ * input parameters
+ *
+ * output parameters
+ *
+ * returns version (DW1000_DRIVER_VERSION)
+ */
+int32 dwt_apiversion(void);
+
+/*! ------------------------------------------------------------------------------------------------------------------
  * @fn dwt_setlocaldataptr()
  *
  * @brief This function sets the local data structure pointer to point to the element in the local array as given by the index.
@@ -296,9 +350,9 @@ typedef struct
 int dwt_setlocaldataptr(unsigned int index);
 
 /*! ------------------------------------------------------------------------------------------------------------------
- * @fn dwt_getpartid()
+ * @fn dwt_geticrefvolt()
  *
- * @brief This is used to return the read part ID of the device
+ * @brief This is used to return the read V measured @ 3.3 V value recorded in OTP address 0x8 (VBAT_ADDRESS)
  *
  * NOTE: dwt_initialise() must be called prior to this function so that it can return a relevant value.
  *
@@ -306,7 +360,37 @@ int dwt_setlocaldataptr(unsigned int index);
  *
  * output parameters
  *
- * returns the 32 bit part ID value as programmed in the factory
+ * returns the 8 bit V meas value as programmed in the factory
+ */
+uint8 dwt_geticrefvolt(void);
+
+/*! ------------------------------------------------------------------------------------------------------------------
+ * @fn dwt_geticreftemp()
+ *
+ * @brief This is used to return the read T measured @ 23 C value recorded in OTP address 0x9 (VTEMP_ADDRESS)
+ *
+ * NOTE: dwt_initialise() must be called prior to this function so that it can return a relevant value.
+ *
+ * input parameters
+ *
+ * output parameters
+ *
+ * returns the 8 bit T meas value as programmed in the factory
+ */
+uint8 dwt_geticreftemp(void);
+
+/*! ------------------------------------------------------------------------------------------------------------------
+ * @fn dwt_getpartid()
+ *
+ * @brief This is used to return the read part ID (or chip ID) of the device
+ *
+ * NOTE: dwt_initialise() must be called prior to this function so that it can return a relevant value (stored in OTP).
+ *
+ * input parameters
+ *
+ * output parameters
+ *
+ * returns the 32 bit part ID (or chip ID) value as programmed in the factory
  */
 uint32 dwt_getpartid(void);
 
@@ -377,14 +461,27 @@ void dwt_setfinegraintxseq(int enable);
  *       dwt_setfinegraintxseq().
  *
  * input parameters
- * @param lna - 1 to enable LNA functionality, 0 to disable it
- * @param pa - 1 to enable PA functionality, 0 to disable it
+ * @param lna_pa - bit field: bit 0 if set will enable LNA functionality,
+ *                          : bit 1 if set will enable PA functionality,
+ *                          : to disable LNA/PA set the bits to 0
+ * output parameters
+ *
+ * no return value
+ */
+void dwt_setlnapamode(int lna_pa);
+
+/*! ------------------------------------------------------------------------------------------------------------------
+ * @fn dwt_enablegpioclocks()
+ *
+ * @brief This is used to senable GPIO clocks. The clocks are needed to ensure correct GPIO operation
+ *
+ * input parameters
  *
  * output parameters
  *
  * no return value
  */
-void dwt_setlnapamode(int lna, int pa);
+void dwt_enablegpioclocks(void);
 
 /*! ------------------------------------------------------------------------------------------------------------------
  * @fn dwt_setgpiodirection()
@@ -417,28 +514,70 @@ void dwt_setgpiodirection(uint32 gpioNum, uint32 direction);
 void dwt_setgpiovalue(uint32 gpioNum, uint32 value);
 
 /*! ------------------------------------------------------------------------------------------------------------------
+ * @fn dwt_getgpiovalue()
+ *
+ * @brief This is used to get GPIO value, returns (1) or (0) depending if the GPIO is high or low
+ *
+ * input parameters
+ * @param gpioNum    -   this is the GPIO to configure - see DWT_GxP0... DWT_GxP8
+ *
+ * output parameters
+ *
+ * return int (1 or 0)
+ */
+int dwt_getgpiovalue(uint32 gpioNum);
+
+/*! ------------------------------------------------------------------------------------------------------------------
  * @fn dwt_initialise()
  *
  * @brief This function initiates communications with the DW1000 transceiver
  * and reads its DEV_ID register (address 0x00) to verify the IC is one supported
  * by this software (e.g. DW1000 32-bit device ID value is 0xDECA0130).  Then it
- * does any initial once only device configurations needed for use and initialises
+ * does any initial once only device configurations needed for its use and initialises
  * as necessary any static data items belonging to this low-level driver.
  *
+ * This function does not need to be called after DW1000 device is woken up from DEEPSLEEP,
+ * the device will preserve register values e.g. LDO, UCODE, XTAL. However if needed this
+ * function can be called to initialise internal structure  dw1000local[] if it has not been preserved
+ * (e.g. if micro was in sleep and its RAM data (containing dw1000local structure was not preserved during sleep)
+ *
  * NOTES:
- * 1.this function needs to be run before dwt_configuresleep, also the SPI frequency has to be < 3MHz
- * 2.it also reads and applies LDO tune and crystal trim values from OTP memory
+ * 1. When DW1000 is powered on this function needs to be run before dwt_configuresleep,
+ *    also the SPI frequency has to be < 3MHz
+ * 2. It reads and applies LDO tune and crystal trim values from OTP memory
+ * 3. If accurate RX timestamping is needed microcode/LDE must be loaded
  *
  * input parameters
  * @param config    -   specifies what configuration to load
- *                  DWT_LOADUCODE     0x1 - load the LDE microcode from ROM - enabled accurate RX timestamp
- *                  DWT_LOADNONE      0x0 - do not load any values from OTP memory
- *
+ *                  DWT_LOADNONE         0x00 - do not load any values from OTP memory
+ *                  DWT_LOADUCODE        0x01 - load the LDE microcode from ROM - enable accurate RX timestamp
+ *                  DWT_DW_WAKE_UP       0x02 - just initialise dw1000local[] values (e.g. DW1000 has woken up)
+ *                  DWT_DW_WUP_NO_UCODE  0x04 - if microcode/LDE algorithm has not already been loaded (on power up) e.g. when LDE is not used
+ *                  DWT_READ_OTP_PID     0x10 - read part ID from OTP
+ *                  DWT_READ_OTP_LID     0x20 - read lot ID from OTP
+ *                  DWT_READ_OTP_BAT     0x40 - read ref voltage from OTP
+ *                  DWT_READ_OTP_TMP     0x80 - read ref temperature from OTP
  * output parameters
  *
  * returns DWT_SUCCESS for success, or DWT_ERROR for error
  */
-int dwt_initialise(uint16 config) ;
+int dwt_initialise(int config) ;
+
+/*! ------------------------------------------------------------------------------------------------------------------
+ * @fn dwt_configurefor64plen()
+ *  - Use default OPS table should be used with following register modifications:
+ *    These modifications optimise the default OPS configuration further for 64 length preamble use case
+ *
+ * NOTE: These register settings are not preserved during SLEEP/DEEPSLEEP, thus they should be programmed again after wake up
+ *
+ * input parameters
+ * @param prf
+ *
+ * output parameters
+ *
+ * no return value
+ */
+void dwt_configurefor64plen(int prf);
 
 /*! ------------------------------------------------------------------------------------------------------------------
  * @fn dwt_configure()
@@ -564,13 +703,14 @@ void dwt_writetxfctrl(uint16 txFrameLength, uint16 txBufferOffset, int ranging);
  * @brief This call initiates the transmission, input parameter indicates which TX mode is used see below
  *
  * input parameters:
- * @param mode - is a bitmask for which the following values can be combined to define the operation
- *               DWT_START_TX_IMMEDIATE (0)            - to begin transmission immediatelty.
- *               DWT_START_TX_DELAYED   (to set bit 0) - to begin TX at pre-configured delay time
- *               DWT_RESPONSE_EXPECTED  (to set bit 1) - to turn the receiver on automatically (after the TX) after a pre-programmed delay
+ * @param mode - if mode = DWT_START_TX_IMMEDIATE - immediate TX (no response expected)
+ *               if mode = DWT_START_TX_DELAYED - delayed TX (no response expected)
+ *               if mode = DWT_START_TX_IMMEDIATE | DWT_RESPONSE_EXPECTED - immediate TX (response expected - so the receiver will be automatically turned on after TX is done)
+ *               if mode = DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED - delayed TX (response expected - so the receiver will be automatically turned on after TX is done)
+ *
  * output parameters
  *
- * returns DWT_SUCCESS for success, or DWT_ERROR for error (e.g. a delayed transmission will fail if the delayed time has passed)
+ * returns DWT_SUCCESS for success, or DWT_ERROR for error (e.g. a delayed transmission will be cancelled if the delayed time has passed)
  */
 int dwt_starttx(uint8 mode) ;
 
@@ -853,6 +993,7 @@ void dwt_setrxtimeout(uint16 time);
  * @param  timeout - Preamble detection timeout, expressed in multiples of PAC size. The counter automatically adds 1 PAC
  *                   size to the value set. Min value that can be set is 1 (i.e. a timeout of 2 PAC size).
  *
+ *                   Note: value of 0 disables the preamble timeout
  * output parameters
  *
  * no return value
@@ -1077,13 +1218,14 @@ void dwt_lowpowerlistenisr(void);
  *
  * input parameters:
  * @param bitmask - sets the events which will generate interrupt
- * @param enable - if set the interrupts are enabled else they are cleared
+ * @param operation - if set to 1 the interrupts (only the ones selected in the bitmask) are enabled else they are cleared
+ *                  - if set to 2 the interrupts in the bitmask are forced to selected state - i.e. the mask is written to the register directly.
  *
  * output parameters
  *
  * no return value
  */
-void dwt_setinterrupt( uint32 bitmask, uint8 enable);
+void dwt_setinterrupt(uint32 bitmask, uint8 operation);
 
 /*! ------------------------------------------------------------------------------------------------------------------
  * @fn dwt_setpanid()
@@ -1155,7 +1297,7 @@ void dwt_geteui(uint8 *eui64);
  *
  * no return value
  */
-void dwt_otpread(uint32 address, uint32 *array, uint8 length);
+void dwt_otpread(uint16 address, uint32 *array, uint8 length);
 
 /*! ------------------------------------------------------------------------------------------------------------------
  * @fn dwt_enableframefilter()
@@ -1403,20 +1545,18 @@ void dwt_setleds(uint8 mode);
 void dwt_setxtaltrim(uint8 value);
 
 /*! ------------------------------------------------------------------------------------------------------------------
- * @fn dwt_getinitxtaltrim()
+ * @fn dwt_getxtaltrim()
  *
- * @brief This function returns the value of XTAL trim that has been applied during initialisation (dwt_init). This can
- *        be either the value read in OTP memory or a default value.
- *
- * NOTE: The value returned by this function is the initial value only! It is not updated on dwt_setxtaltrim calls.
+ * @brief This function returns current value of XTAL trim. If this is called after dwt_initalise it will return the OTP value
+ * if OTP value is non-zero or FS_XTALT_MIDRANGE if OTP value is zero (not programmed).
  *
  * input parameters
  *
  * output parameters
  *
- * returns the XTAL trim value set upon initialisation
+ * returns the current XTAL trim value
  */
-uint8 dwt_getinitxtaltrim(void);
+uint8 dwt_getxtaltrim(void);
 
 /*! ------------------------------------------------------------------------------------------------------------------
  * @fn dwt_configcwmode()
@@ -1450,12 +1590,8 @@ void dwt_configcontinuousframemode(uint32 framerepetitionrate);
 /*! ------------------------------------------------------------------------------------------------------------------
  * @fn dwt_readtempvbat()
  *
- * @brief this function reads the battery voltage and temperature of the MP
- * The values read here will be the current values sampled by DW1000 AtoD converters.
- * Note on Temperature: the temperature value needs to be converted to give the real temperature
- * the formula is: 1.13 * reading - 113.0
- * Note on Voltage: the voltage value needs to be converted to give the real voltage
- * the formula is: 0.0057 * reading + 2.3
+ * @brief this function reads the raw battery voltage and temperature values of the DW IC
+ * The values read here will be the current values sampled by DW IC AtoD converters.
  *
  * NB: To correctly read the temperature this read should be done with xtal clock
  * however that means that the receiver will be switched off, if receiver needs to be on then
@@ -1469,6 +1605,70 @@ void dwt_configcontinuousframemode(uint32 framerepetitionrate);
  * returns  (temp_raw<<8)|(vbat_raw)
  */
 uint16 dwt_readtempvbat(uint8 fastSPI);
+
+/*! ------------------------------------------------------------------------------------------------------------------
+ * @fn dwt_convertrawtemperature()
+ *
+ * @brief  this function takes in a raw temperature value and applies the conversion factor
+ * to give true temperature. The dwt_initialise needs to be called before call to this to
+ * ensure pdw1000local->tempP contains the SAR_LTEMP value from OTP.
+ *
+ * input parameters:
+ * @param raw_temp - this is the 8-bit raw temperature value as read by dwt_readtempvbat
+ *
+ * output parameters:
+ *
+ * returns: temperature sensor value (degrees)
+ */
+float dwt_convertrawtemperature(uint8 raw_temp);
+
+/*! ------------------------------------------------------------------------------------------------------------------
+ * @fn dwt_convertdegtemptoraw()
+ *
+ * @brief  this function takes in an externally measured temperature in 10ths of degrees Celcius
+ * and applies the conversion factor to give a value in IC temperature units, as produced by the SAR A/D.
+ * The dwt_initialise needs to be called before call to this to ensure pdw1000local->tempP contains the SAR_LTEMP value from OTP.
+ *
+ * input parameters:
+ * @param externaltemp - this is the an externally measured temperature in 10ths of degrees Celcius to convert
+ *
+ * output parameters:
+ *
+ * returns: temperature sensor value in DW IC temperature units (1.14°C steps)
+ */
+uint8 dwt_convertdegtemptoraw(int16 realtemp);
+
+/*! ------------------------------------------------------------------------------------------------------------------
+ * @fn dwt_convertrawvoltage()
+ *
+ * @brief this function takes in a raw voltage value and applies the conversion factor
+ * to give true voltage. The dwt_initialise needs to be called before call to this to
+ * ensure pdw1000local->vBatP contains the SAR_LVBAT value from OTP
+ *
+ * input parameters:
+ * @param raw_voltage - this is the 8-bit raw voltage value as read by dwt_readtempvbat
+ *
+ * output parameters:
+ *
+ * returns: voltage sensor value (volts)
+ */
+float dwt_convertrawvoltage(uint8 raw_voltage);
+
+/*! ------------------------------------------------------------------------------------------------------------------
+ * @fn dwt_convertvoltstoraw()
+ *
+ * @brief  this function takes in a true voltage in millivolts and applies the conversion factor to
+ * give a raw DW IC value. The dwt_initialise needs to be called before call to this to
+ * ensure pdw1000local->vBatP contains the SAR_LVBAT value from OTP.
+ *
+ * input parameters:
+ * @param realvolt - this is the a true voltage in millivolts to convert
+ *
+ * output parameters:
+ *
+ * returns: voltage sensor value in DW IC voltage units
+ */
+uint8 dwt_convertvoltstoraw(int32 realvolt);
 
 /*! ------------------------------------------------------------------------------------------------------------------
  * @fn dwt_readwakeuptemp()
@@ -1521,16 +1721,19 @@ uint32 dwt_calcbandwidthtempadj(uint16 target_count);
  * @brief this function determines the corrected power setting (TX_POWER setting) for the
  * DW1000 which changes over temperature.
  *
+ * Note: only ch2 or ch5 are supported, if other channel is used - the COMP factor should be calculated and adjusted
+ *
  * input parameters:
- * @param channel - uint8 - the channel at which compensation of power level will be applied
+ * @param channel - uint8 - the channel at which compensation of power level will be applied: 2 or 5
  * @param ref_powerreg - uint32 - the TX_POWER register value recorded when reference measurements were made
- * @param current_temperature - double - the current ambient temperature in degrees Celcius
- * @param reference_temperature - double - the temperature at which reference measurements were made
+ * @param delta_temp - int - the difference between current ambient temperature (raw value units)
+ *                                  and the temperature at which reference measurements were made (raw value units)
+
  * output parameters: None
  *
  * returns: (uint32) The corrected TX_POWER register value
  */
-uint32 dwt_calcpowertempadj(uint8 channel, uint32 ref_powerreg, double current_temperature, double reference_temperature);
+uint32 dwt_calcpowertempadj(uint8 channel, uint32 ref_powerreg, int delta_temp);
 
 /*! ------------------------------------------------------------------------------------------------------------------
  * @fn dwt_calcpgcount()

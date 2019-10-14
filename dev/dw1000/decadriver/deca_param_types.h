@@ -48,7 +48,19 @@ extern const uint32 tx_config[NUM_CH];
 extern const uint8 dwnsSFDlen[NUM_BR]; //length of SFD for each of the bitrates
 extern const uint32 digital_bb_config[NUM_PRF][NUM_PACS];
 extern const uint8 chan_idx[NUM_CH_SUPPORTED];
-extern const double txpwr_compensation[NUM_CH];
+
+#define TEMP_COMP_FACTOR_CH2 (327) //(INT) (0.0798 * 4096)
+#define TEMP_COMP_FACTOR_CH5 (607) //(INT) (0.1482 * 4096)
+#define SAR_TEMP_TO_CELCIUS_CONV (1.14)
+#define SAR_VBAT_TO_VOLT_CONV (1.0/173)
+
+#define DCELCIUS_TO_SAR_TEMP_CONV ((int)((0.10/1.14)*256))
+#define MVOLT_TO_SAR_VBAT_CONV (173.0/1000)
+
+#define MIXER_GAIN_STEP (0.5)
+#define DA_ATTN_STEP    (2.5)
+
+#define MIX_DA_FACTOR   (DA_ATTN_STEP/MIXER_GAIN_STEP)
 
 #define PEAK_MULTPLIER  (0x60) //3 -> (0x3 * 32) & 0x00E0
 #define N_STD_FACTOR    (13)
@@ -56,9 +68,6 @@ extern const double txpwr_compensation[NUM_CH];
 
 #define LDE_PARAM3_16 (0x1607)
 #define LDE_PARAM3_64 (0x0607)
-
-#define MIXER_GAIN_STEP (0.5)
-#define DA_ATTN_STEP    (2.5)
 
 extern const uint16 lde_replicaCoeff[PCODES];
 

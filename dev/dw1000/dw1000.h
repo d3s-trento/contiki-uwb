@@ -46,86 +46,8 @@
 #include "stdint.h"
 #include "stdbool.h"
 #include "core/net/linkaddr.h"
+#include "contiki-conf.h"
 
-/*---------------------------------------------------------------------------*/
-/*
- * Default DW1000 Configuration:
- *
- * Channel: 4
- * PRF: 16M
- * Preamble Length (PLEN): 128
- * Preamble Acquisition Count (PAC): 8
- * SFD Mode: Standard-compliant
- * Bit Rate: 6.8 Mbps
- * Physical Header Mode: Standard-compliant
- * SFD Timeout: 129 + 8 - 8
- * TX/RX Preamble Code: 7
- *
- */
-
-#ifdef DW1000_CONF_COMPENSATE_BIAS
-#define DW1000_COMPENSATE_BIAS DW1000_CONF_COMPENSATE_BIAS
-#else
-#define DW1000_COMPENSATE_BIAS 1
-#endif
-
-#ifdef DW1000_CONF_CHANNEL
-#define DW1000_CHANNEL DW1000_CONF_CHANNEL
-#else
-#define DW1000_CHANNEL 5
-#endif
-
-#ifdef DW1000_CONF_PRF
-#define DW1000_PRF DW1000_CONF_PRF
-#else
-#define DW1000_PRF DWT_PRF_64M
-#endif
-
-#ifdef DW1000_CONF_PLEN
-#define DW1000_PLEN DW1000_CONF_PLEN
-#else
-#define DW1000_PLEN DWT_PLEN_128
-#endif
-
-#ifdef DW1000_CONF_PAC
-#define DW1000_PAC DW1000_CONF_PAC
-#else
-#define DW1000_PAC DWT_PAC8
-#endif
-
-#ifdef DW1000_CONF_SFD_MODE
-#define DW1000_SFD_MODE DW1000_CONF_SFD_MODE
-#else
-#define DW1000_SFD_MODE 0
-#endif
-
-#ifdef DW1000_CONF_DATA_RATE
-#define DW1000_DATA_RATE DW1000_CONF_DATA_RATE
-#else
-#define DW1000_DATA_RATE DWT_BR_6M8
-#endif
-
-#ifdef DW1000_CONF_PHR_MODE
-#define DW1000_PHR_MODE DW1000_CONF_PHR_MODE
-#else
-#define DW1000_PHR_MODE DWT_PHRMODE_STD
-#endif
-
-/* The following values should be computed/selected depending on other parameters
- * configuration. For instance, the preamble code depends on the channel being
- * used. Moreover, for every channel there are at least 2 preamble codes available.
- */
-#ifdef DW1000_CONF_PREAMBLE_CODE
-#define DW1000_PREAMBLE_CODE DW1000_CONF_PREAMBLE_CODE
-#else
-#define DW1000_PREAMBLE_CODE 17
-#endif
-
-#ifdef DW1000_CONF_SFD_TIMEOUT
-#define DW1000_SFD_TIMEOUT DW1000_CONF_SFD_TIMEOUT
-#else
-#define DW1000_SFD_TIMEOUT (128 + 1 + 8 - 8)
-#endif
 
 /*---------------------------------------------------------------------------*/
 #define DW1000_CRC_LEN 2
@@ -176,7 +98,5 @@ extern const struct radio_driver dw1000_driver;
 typedef enum {DW1000_RNG_SS, DW1000_RNG_DS} dw1000_rng_type_t;
 
 bool range_with(linkaddr_t *dst, dw1000_rng_type_t type);
-
-int dw1000_configure(dwt_config_t *cfg);
 
 #endif /* DW1000_H */
