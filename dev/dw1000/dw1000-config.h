@@ -121,10 +121,21 @@ dw1000_configure_ant_dly(uint16_t rx_dly, uint16_t tx_dly);
 void
 dw1000_reset_cfg();
 
-/* Get the recommended tx config for the given radio config and the status of
- * the smart TX power control feature */
+/* Get the recommended tx config for the given radio config and the smart TX 
+ * power control feature. 
+ *
+ * Returns false if the requested configuration is not supported.
+ */
 bool
 dw1000_get_recommended_tx_cfg(const dwt_config_t* const cfg, bool smart, dwt_txconfig_t* tx_cfg);
+
+/* Applies the recommended TX parameters for the current radio configuration
+ * and the requested smart TX power control feature.
+ *
+ * Returns false if the requested configuration is not supported.
+ */
+bool
+dw1000_set_recommended_tx_cfg(bool smart);
 
 /* Get the current (cached) radio configuration */
 const dwt_config_t*

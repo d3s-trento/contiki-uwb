@@ -141,7 +141,10 @@ dw1000_reset_cfg() {
 
 
 /* Get the recommended tx config for the given radio config and the smart TX 
- * power control feature */
+ * power control feature. 
+ *
+ * Returns false if the requested configuration is not supported.
+ */
 bool
 dw1000_get_recommended_tx_cfg(const dwt_config_t* const cfg, bool smart, dwt_txconfig_t* tx_cfg) {
   int ch_idx;
@@ -180,6 +183,24 @@ dw1000_get_recommended_tx_cfg(const dwt_config_t* const cfg, bool smart, dwt_txc
 
   return true;
 }
+
+/* Applies the recommended TX parameters for the current radio configuration
+ * and the requested smart TX power control feature.
+ *
+ * Returns false if the requested configuration is not supported.
+ */
+bool
+dw1000_set_recommended_tx_cfg(bool smart) {
+  dwt_txconfig_t tmp;
+
+  if (!dw1000_get_recommended_tx_cfg(&current_cfg, smart, &tmp)) {
+    return false;
+  }
+  
+  dw1000_configure_tx(&tmp, smart);
+  return true;
+}
+
 
 /* Perform the same checks as above about the static configuration */
 
