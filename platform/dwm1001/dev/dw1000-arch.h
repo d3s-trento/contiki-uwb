@@ -41,8 +41,6 @@
 /*---------------------------------------------------------------------------*/
 /* DW1000 IRQ (EXTI9_5_IRQ) handler type. */
 typedef void (*dw1000_isr_t)(void);
-/* DW1000 IRQ handler declaration. */
-extern dw1000_isr_t dw1000_isr;
 /* Function to set a new DW1000 EXTI ISR handler */ 
 void dw1000_set_isr(dw1000_isr_t new_dw1000_isr);
 /*---------------------------------------------------------------------------*/

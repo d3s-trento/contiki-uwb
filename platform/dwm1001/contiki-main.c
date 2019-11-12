@@ -122,11 +122,10 @@ board_init(void)
   /* Initialize the SoftDevice handler module */
   SOFTDEVICE_HANDLER_INIT(NRF_CLOCK_LFCLKSRC_XTAL_20_PPM, NULL);
 #endif
-#ifdef PLATFORM_HAS_BUTTON
+  // needed for button and for the DW1000 interrupt
   if (!nrf_drv_gpiote_is_init()) {
     nrf_drv_gpiote_init();
   }
-#endif
 }
 /*---------------------------------------------------------------------------*/
 static void

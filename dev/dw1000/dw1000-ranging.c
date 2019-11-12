@@ -186,9 +186,9 @@ const static ranging_conf_t ranging_conf_6M8 = {
 
 /* DS timeouts */
   .rx_dly_b = 0,
-  .b = 550,           // evb1000 can do 450 ; nosoftdevice can do 500
-  .to_b = 650,        // evb1000 can do 550 ; nosoftdevice can do 600
-  .to_c = 600,        // evb1000 can do 400 ; nosoftdevice can do 550
+  .b = 500,           // evb1000 can do 450
+  .to_b = 600,        // evb1000 can do 550
+  .to_c = 500,        // evb1000 can do 400
 
   .finish_delay = 1, /* assumes millisecond clock tick! */
 
@@ -771,12 +771,13 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
     PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
 
     PRINTF_RNG("dwr: process: my %d their %d, ost %d st %d ss %d\n", my_seqn, recv_seqn, old_state, state, status);
-    old_state = 0;
+#if PRINTF_RNG == 0
+    if(state == S_RESET || state == S_ABORT) {
+      PRINTF_RNG_FAILED("dwr: reset: my %d their %d, ost %d st %d ss %d\n", my_seqn, recv_seqn, old_state, state, status);
+    }
+#endif
     status = 0;
     if(state == S_RESET || state == S_ABORT) {
-#if PRINTF_RNG == 0
-      PRINTF_RNG_FAILED("dwr: reset: my %d their %d, ost %d st %d ss %d\n", my_seqn, recv_seqn, old_state, state, status);
-#endif
       ranging_data.status = 0;
     } else if(state == S_RANGING_DONE || state == S_RANGING_DONE_MSG4) {
       double tof;

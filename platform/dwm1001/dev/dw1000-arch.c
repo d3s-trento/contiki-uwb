@@ -35,7 +35,6 @@
 
 #include "nrf.h"
 #include "nrf_spi.h"
-#include "nrf_gpiote.h"
 #include "nrf_drv_spi.h"
 #include "nrf_drv_gpiote.h"
 #include "nrf_delay.h"
@@ -56,7 +55,7 @@
 #include "deca_types.h"
 #include "deca_regs.h"
 /*---------------------------------------------------------------------------*/
-#define DEBUG_LEDS 1
+#define DEBUG_LEDS 0
 #undef LEDS_TOGGLE
 #if DEBUG_LEDS
 #define LEDS_TOGGLE(x) leds_toggle(x)
@@ -90,57 +89,51 @@
   }
 /*---------------------------------------------------------------------------*/
 static const nrf_drv_spi_t spi = NRF_DRV_SPI_INSTANCE(SPI_INSTANCE);  /* SPI instance. */
-static volatile int dw1000_irqn_status;
 /*---------------------------------------------------------------------------*/
-/* DW1000 external interrup handler */
-static void dw1000_irq_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action);
-/*---------------------------------------------------------------------------*/
-/* Declaration of static functions */
-static int8_t dw1000_get_exti_int_status(uint32_t exti_line);
+/* Forward declarations */
 static void dw1000_spi_init_slow_rate(void);
 static void dw1000_spi_init_fast_rate(void);
 /*---------------------------------------------------------------------------*/
-/* Set the DW1000 ISR to NULL by default */
-dw1000_isr_t dw1000_isr = NULL;
+static dw1000_isr_t dw1000_isr = NULL; // no ISR by default
+static volatile int dw1000_irqn_status;
 /*---------------------------------------------------------------------------*/
+/* DW1000 interrupt handler */
 static void
 dw1000_irq_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
   ENERGEST_ON(ENERGEST_TYPE_IRQ);
+  dw1000_irqn_status = 0; // we are in the interrupt handler, we set the
+                          // interrupt status to 'disabled' so that the
+                          // SPI functions do not disable/enable it in vain
+                          // (which is slow on this platform as it requires
+                          // a function call)
   do {
     if(dw1000_isr != NULL) {
       dw1000_isr();
     }
   } while(nrf_drv_gpiote_in_is_set(DW1000_IRQ_EXTI) == true);
+  dw1000_irqn_status = 1; // Marking it 'enabled' again
   ENERGEST_OFF(ENERGEST_TYPE_IRQ);
-}
-/*---------------------------------------------------------------------------*/
-static int8_t
-dw1000_get_exti_int_status(uint32_t exti_line)
-{
-  uint32_t mask = (1 << DW1000_IRQ_EXTI);
-  return (nrf_gpiote_int_is_enabled(mask) >> DW1000_IRQ_EXTI) & 0xFF;
 }
 /*---------------------------------------------------------------------------*/
 int
 dw1000_disable_interrupt(void)
 {
-
-  int8_t irqn_status;
-  irqn_status = dw1000_get_exti_int_status(DW1000_IRQ_EXTI);
-  
-  if(irqn_status != 0) {
+  if(dw1000_irqn_status != 0) {
     nrf_drv_gpiote_in_event_disable(DW1000_IRQ_EXTI);
     //nrf_drv_gpiote_in_event_enable(DW1000_IRQ_EXTI, false);
     dw1000_irqn_status = 0;
+    return 1; // previous status was 'enabled'
   }
-  return irqn_status;
+  else {
+    return 0; // previous status was 'disabled'
+  }
 }
 /*---------------------------------------------------------------------------*/
 void
-dw1000_enable_interrupt(int irqn_status)
+dw1000_enable_interrupt(int previous_irqn_status)
 {
-  if(irqn_status != 0) {
+  if(previous_irqn_status != 0) {
     nrf_drv_gpiote_in_event_enable(DW1000_IRQ_EXTI, true);
     dw1000_irqn_status = 1;
   }
@@ -168,23 +161,7 @@ dw1000_spi_init_fast_rate(void)
 void
 dw1000_set_isr(dw1000_isr_t new_dw1000_isr)
 {
-  int8_t irqn_status;
-
-  irqn_status = dw1000_get_exti_int_status(DW1000_IRQ_EXTI);
-
-  /* Disable DW1000 EXT Interrupt */
-  if(irqn_status) {
-    dw1000_disable_interrupt();
-  }
-  dw1000_disable_interrupt();
-
-  /* Set ISR Handler */
   dw1000_isr = new_dw1000_isr;
-
-  /* Re-enable DW1000 EXT Interrupt state */
-  if(irqn_status) {
-    dw1000_enable_interrupt(irqn_status);
-  }
 }
 /*---------------------------------------------------------------------------*/
 void
