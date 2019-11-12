@@ -21,12 +21,11 @@
 #include "lcd.h"
 /*---------------------------------------------------------------------------*/
 /* Declaration of static functions */
-static int8_t dw1000_get_exti_int_status(uint32_t exti_line);
 static void dw1000_select(void);
 static void dw1000_deselect(void);
 /*---------------------------------------------------------------------------*/
 /* Set the DW1000 ISR to NULL by default */
-dw1000_isr_t dw1000_isr = NULL;
+static dw1000_isr_t dw1000_isr = NULL;
 /*---------------------------------------------------------------------------*/
 /* DW1000 Interrupt pin handler */
 void
@@ -44,11 +43,11 @@ EXTI9_5_IRQHandler(void)
   ENERGEST_OFF(ENERGEST_TYPE_IRQ);
 }
 /*---------------------------------------------------------------------------*/
-static int8_t
+static inline int8_t
 dw1000_get_exti_int_status(uint32_t exti_line)
 {
   /* Check the parameters */
-  assert_param(IS_GET_EXTI_LINE(exti_line));
+  //assert_param(IS_GET_EXTI_LINE(exti_line));
 
   return (int8_t)(EXTI->IMR & exti_line);
 }

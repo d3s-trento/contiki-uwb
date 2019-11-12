@@ -177,17 +177,17 @@ typedef struct {
 *              <------------- DS3
 */
 
-/* EXPERIMENTAL VALUE */
+/* The following are tuned for 128us preamble */
 const static ranging_conf_t ranging_conf_6M8 = {
 /* SS and DS timeouts */
-  .a = 500,
-  .rx_dly_a = 0,
-  .to_a = 550,
+  .a = 500,           // evb1000 can do 400
+  .rx_dly_a = 100,    // timeout starts after this
+  .to_a = 500,        // evb1000 can do 400
 
 /* DS timeouts */
-  .rx_dly_b = 0,
-  .b = 500,           // evb1000 can do 450
-  .to_b = 600,        // evb1000 can do 550
+  .b = 500,           // evb1000 can do 400
+  .rx_dly_b = 100,    // timeout starts after this
+  .to_b = 500,        // evb1000 can do 400
   .to_c = 500,        // evb1000 can do 400
 
   .finish_delay = 1, /* assumes millisecond clock tick! */
@@ -202,8 +202,8 @@ const static ranging_conf_t ranging_conf_110K = {
   .to_a = 4000,
 
 /* DS timeouts */
-  .rx_dly_b = 0,
   .b = 3000,
+  .rx_dly_b = 0,
   .to_b = 4500,
   .to_c = 3500, /* 3000 kind of works, too */
 
@@ -361,8 +361,7 @@ dw1000_range_with(linkaddr_t *lladdr, dw1000_rng_type_t type)
   tx_buf_set_dst();
   tx_buf_set_src();
 
-  /* Set expected response's delay and timeout.
-   * As this example only handles one incoming frame with always the same delay and timeout, those values can be set here once for all. */
+  /* Set expected response's delay and timeout.*/
   dwt_setrxaftertxdelay(ranging_conf.rx_dly_a);
   dwt_setrxtimeout(ranging_conf.to_a);
 
@@ -460,6 +459,7 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
       int ret = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
       if(ret != DWT_SUCCESS) {
         status = 14;
+        PRINTF_RNG_FAILED("dwr: error in tx of SS1.\n");
         goto abort;
       }
       return; /* In this case, no other processing nor state change are needed */
