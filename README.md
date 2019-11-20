@@ -157,10 +157,19 @@ the implementation on **platform/evb1000/dev/dw1000-arch.[ch]**. These functions
 ## Publications
 This port has been published as a poster at [EWSN'18](https://ewsn2018.networks.imdea.org).
 
-* **[Poster: Enabling Contiki on Ultra-Wideband Radios](http://pablocorbalan.com/docs/posters/ewsn18-contikiuwb.pdf)**.
+* **[Poster: Enabling Contiki on Ultra-Wideband Radios](http://pablocorbalan.com/files/posters/contikiuwb-ewsn18.pdf)**.
 Pablo Corbalán, Timofei Istomin, and Gian Pietro Picco. In Proceedings of the 15th International Conference on Embedded Wireless Systems and Networks (EWSN), Madrid (Spain), February 2018.
 
 Please, consider citing this poster when using this port in your work.
+```
+@inproceedings{contiki-uwb,
+ title = {{Poster: Enabling Contiki on Ultra-wideband Radios}},
+ author = {Corbal\'{a}n, Pablo and Istomin, Timofei and Picco, Gian Pietro},
+ booktitle = {Proceedings of the International Conference on Embedded Wireless Systems and Networks},
+ series = {EWSN'18},
+ year = {2018},
+}
+```
 
 ## License
 This port makes use of low-level drivers provided by DecaWave and STMicroelectronics. These drivers are licensed on a separate terms.
