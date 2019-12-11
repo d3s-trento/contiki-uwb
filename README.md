@@ -49,7 +49,7 @@ To use this port, clone the Contiki OS GitHub repository.
 $ git clone https://github.com/contiki-os/contiki
 ```
 
-Then, you may set `CONTIKI` and `UWB_MAIN_DIR` in your `PATH` as:
+Then, set `CONTIKI` and `UWB_MAIN_DIR` environment variables as:
 ```
 export CONTIKI=/path/to/contiki
 export UWB_MAIN_DIR=/path/to/contiki-uwb
@@ -98,7 +98,7 @@ $ cd examples/ranging/
 $ make TARGET=dwm1001
 ```
 
-To flash your device with the compiled application, connect the device to the computer through USB
+To flash your device with the compiled application, connect the device to the computer through USB.
 Then, simply run:
 
 ```
