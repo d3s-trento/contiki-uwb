@@ -131,7 +131,7 @@ dw1000_reset_cfg() {
   tmp.power = DW1000_CONF_TX_POWER;
 #endif
 #if defined(DW1000_CONF_PG_DELAY)
-  tmp.power = DW1000_CONF_PG_DELAY;
+  tmp.PGdly = DW1000_CONF_PG_DELAY;
 #endif
   dw1000_configure_tx(&tmp, smart);
 
