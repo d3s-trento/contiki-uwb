@@ -114,7 +114,8 @@ typedef uint32_t uip_stats_t;
 /* Clock (time) comparison macro */
 #define CLOCK_LT(a, b)  ((signed long)((a) - (b)) < 0)
 
-#define RTIMER_ARCH_SECOND 62500
+#define RTIMER_ARCH_SECOND 1000000L
+
 /*
  * rtimer.h typedefs rtimer_clock_t as unsigned short. We need to define
  * RTIMER_CLOCK_DIFF to override this
