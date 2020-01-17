@@ -61,7 +61,8 @@
 #define CDC_DATA_MAX_PACKET_SIZE       64    /* Endpoint IN & OUT Packet size */
 #define CDC_CMD_PACKET_SZE             8     /* Control Endpoint Packet size */
 
-#define CDC_IN_FRAME_INTERVAL          (1)    /*ZS change 5 to 1 / * Number of frames between IN transfers * / */
+// Tim: originally CDC_IN_FRAME_INTERVAL was set to 1, but 2 makes the whole thing way more reliable
+#define CDC_IN_FRAME_INTERVAL          (2)    /*ZS change 5 to 1 / * Number of frames between IN transfers * / */
 /*ZS - need to make buffer larger to handle Accumulator data (largest data here is 1016*4+1 = 4065 + 3 control messages from PC VCP driver) */
 /*#define APP_RX_DATA_SIZE               2048 / * Total size of IN buffer: */
 #define APP_RX_DATA_SIZE               (2048*5) /* Total size of IN buffer:

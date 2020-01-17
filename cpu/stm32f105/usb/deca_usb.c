@@ -23,6 +23,15 @@ CDC_IF_Prop_TypeDef VCP_fops =
   DW_VCP_DataRx
 };
 
+/* These are external variables imported from CDC core to be used for IN
+   transfer management. */
+extern uint8_t APP_Rx_Buffer[];   /* Write CDC received data in this buffer.
+                                     These data will be sent over USB IN endpoint
+                                     in the CDC core functions. */
+extern uint32_t APP_Rx_ptr_in;    /* Increment this pointer or roll it back to
+                                     start address when writing received data
+                                     in the buffer APP_Rx_Buffer. */
+extern uint32_t APP_Rx_ptr_out;
 extern uint32_t APP_Rx_length;
 
 uint16_t
@@ -50,13 +59,55 @@ DW_VCP_Ctrl(uint32_t Cmd, uint8_t *Buf, uint32_t Len)
 }
 /*example functions to interface to USB VCOM */
 /**
- * @brief  DW_VCP_DataTx
- *         CDC received data to be send over USB IN endpoint are managed in
- *         this function.
+ * @brief  DW_VCP_DataTx - send data over USB (all or nothing)
  * @param  Buf: Buffer of data to be sent
  * @param  Len: Number of data to be sent (in bytes)
  * @retval Result of the operation: USBD_OK if all operations are OK else VCP_FAIL
  */
+uint16_t
+DW_VCP_DataTx(uint8_t *Buf, uint32_t Len)
+{
+  int in, out;
+  int buf_len;
+
+  out = APP_Rx_ptr_out;
+  in = APP_Rx_ptr_in;
+
+  if (out == APP_RX_DATA_SIZE) {
+    out = 0;
+  }
+
+  if(out > in) /* rollback */
+  { 
+    buf_len = APP_RX_DATA_SIZE - out + in;
+  }
+  else 
+  {
+    buf_len = in - out;
+  }
+
+  if((buf_len + Len) >= APP_RX_DATA_SIZE - CDC_DATA_IN_PACKET_SIZE) {
+    return USBD_FAIL;
+  }
+
+
+  int l;
+  /* Get the data to be sent */
+  for(l = 0; l < Len; l++) {
+    APP_Rx_Buffer[in++] = Buf[l];
+    /* Increment the in pointer */
+    if(in >= APP_RX_DATA_SIZE) {
+      in = 0;
+    }
+  }
+
+  APP_Rx_ptr_in = in;
+
+  return USBD_OK;
+}
+
+#if 0
+// old function
 uint16_t
 DW_VCP_DataTx(uint8_t *Buf, uint32_t Len)
 {
@@ -82,6 +133,9 @@ DW_VCP_DataTx(uint8_t *Buf, uint32_t Len)
 
   return USBD_OK;
 }
+#endif
+
+
 /**
  * @brief  DW_VCP_DataRx
  *         Data received over USB OUT endpoint are sent over CDC interface
