@@ -53,7 +53,7 @@ Note that the ranging mechanisms are currently implemented using short IEEE 802.
 
 To use this port, clone the Contiki-UWB GitHub repository.
 ```
-$ git clone https://github.com/d3s-trento/contiki-uwb
+$ git clone https://github.com/d3s-trento/contiki-uwb.git
 ```
 
 Inside the `contiki-uwb` directory, initialise the Contiki submodule:
