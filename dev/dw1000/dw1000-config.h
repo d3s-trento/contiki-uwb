@@ -2,6 +2,7 @@
 #define DW1000_CONFIG_H
 
 #include "deca_device_api.h"
+#include "deca_regs.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include "contiki-conf.h"

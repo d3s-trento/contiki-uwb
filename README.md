@@ -1,8 +1,11 @@
-# DecaWave EVB1000/DWM1001 Contiki Port 
+# DecaWave EVB1000/DWM1001 Contiki Port with integrated Glossy and Crystal
 
-## Overview
-This repository contains a Contiki port for the DecaWave EVB1000 and DWM1001 platforms. 
-Contiki is an open source operating system that runs on constrained embedded systems and provides standardized low-power wireless communication.
+## Overview 
+[Contiki](https://github.com/contiki-os/contiki) is an open source operating system that runs on constrained embedded systems and provides standardized low-power wireless communication.
+
+This repository contains a Contiki OS port for the DecaWave EVB1000 and DWM1001 platforms and
+includes our implementations of Glossy and Crystal communication protocols and UWB ranging primitives.
+
 
 ## Port Features
 This port includes support for:
@@ -15,6 +18,9 @@ This port includes support for:
 * IPv6 stack over UWB [to be tested]
 * Single-sided Two-way Ranging (SS-TWR)
 * Double-sided Two-way Ranging (DS-TWR)
+* [Glossy](https://ieeexplore.ieee.org/document/5779066), a fast flooding and synchronisation primitive
+* [Crystal](https://dl.acm.org/doi/10.1145/2994551.2994558), a fast and reliable data collection protocol based on Glossy.
+
 
 Note that the ranging mechanisms are currently implemented using short IEEE 802.15.4 addresses.
 
@@ -24,10 +30,12 @@ Note that the ranging mechanisms are currently implemented using short IEEE 802.
 │   └── stm32f105
 ├── dev
 │   └── dw1000
+│       ├── crystal
+│       └── glossy
 ├── examples
 │   ├── range-collect
 │   ├── ranging
-│   ├── sensniff
+│   └── sensniff
 └── platform
     ├── evb1000
     └── dwm1001
@@ -37,23 +45,25 @@ Note that the ranging mechanisms are currently implemented using short IEEE 802.
 ## Requirements
 * For both platforms
   * [GNU Arm Embedded Toolchain](https://developer.arm.com/open-source/gnu-toolchain/gnu-rm)
-  * [Contiki OS](https://github.com/contiki-os/contiki)
 * For EVB1000
   * [ST-Link V2 Tools](https://github.com/texane/stlink)
 * For DWM1001
   * [Nordic nRF5 IoT SDK v0.9.x](https://developer.nordicsemi.com/nRF5_IoT_SDK/nRF5_IoT_SDK_v0.9.x)
   * [SEGGER J-Link](https://www.segger.com/downloads/jlink/)
 
-To use this port, clone the Contiki OS GitHub repository.
+To use this port, clone the Contiki-UWB GitHub repository.
 ```
-$ git clone https://github.com/contiki-os/contiki
+$ git clone https://github.com/d3s-trento/contiki-uwb
 ```
 
-Then, set `CONTIKI` and `UWB_MAIN_DIR` environment variables as:
+Inside the `contiki-uwb` directory, initialise the Contiki submodule:
 ```
-export CONTIKI=/path/to/contiki
-export UWB_MAIN_DIR=/path/to/contiki-uwb
+$ git submodule update --init contiki
 ```
+
+Then, either set `UWB_CONTIKI` environment variable pointing at the
+`contiki-uwb` directory or define it in your application Makefile (you can use
+`examples/ranging/Makefile` as a template).
 
 For DWM1001, set also the following environment variables:
 ```
@@ -68,8 +78,10 @@ We include three main examples showing:
 - how to use the Rime stack for data collection together with ranging: **examples/range-collect**
 - and a sniffer port for **sensniff** that can be used to debug your applications.
 
-Note that other general Contiki examples directly available in the original Contiki OS GitHub repository, e.g,
-the Rime stack examples, can also be used on the DecaWave EVB1000 platform.
+Note that other general Contiki examples directly available in the original
+Contiki OS GitHub repository, e.g, the Rime stack examples, can also be used on
+the DecaWave EVB1000 platform. To use them, start by copying them to `contiki-uwb/examples`
+and adjust the Makefile appropriately.
 
 ### Build and program your first example
 #### EVB1000
@@ -143,6 +155,13 @@ If your application does not need to perform ranging, you can disable ranging in
 ```
 By default, ranging is enabled.
 
+If you want to use Glossy and/or Crystal, define the following in your application Makefile:
+```
+UWB_WITH_GLOSSY = 1
+```
+This will include Glossy and Crystal into the compilation process and exclude all other Contiki stacks.
+
+
 ## Porting to other Platforms / MCUs
 This port can be easily adapted for other platforms and MCUs based on the DW1000 transceiver. The radio driver only requires platform-specific implementations for the following functions:
 * writetospi(cnt, header, length, buffer)
@@ -170,6 +189,11 @@ Please, consider citing this poster when using this port in your work.
  year = {2018},
 }
 ```
+
+A research paper about our Glossy and Crystal implementations for DW1000 has been accepted for publishing at EWSN'2020.
+
+* **Concurrent Transmissions for Multi-hop Communication on Ultra-wideband Radios**.
+Diego Lobba, Matteo Trobinger, Davide Vecchia, Timofei Istomin, Gian Pietro Picco (University of Trento).
 
 ## License
 This port makes use of low-level drivers provided by DecaWave and STMicroelectronics. These drivers are licensed on a separate terms.

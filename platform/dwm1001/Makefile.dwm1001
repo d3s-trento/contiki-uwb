@@ -1,9 +1,5 @@
-ifndef CONTIKI
-	$(error CONTIKI not defined! You must specify where CONTIKI resides!)
-endif
+# DWM1001 platform makefile
 
-# we assume that the UWB-related contiki files are located next to the contiki dir
-UWB_MAIN_DIR ?= $(CONTIKI)/..
 
 CONTIKI_TARGET_DIRS += . dev config
 CONTIKI_SOURCEFILES += contiki-main.c leds-arch.c nrf52dk-sensors.c button-sensor.c temperature-sensor.c
@@ -16,9 +12,9 @@ INC_PATHS += components/drivers_nrf/spi_master
 C_SOURCE_FILES += $(NRF52_SDK_ROOT)/components/drivers_nrf/nrf_drv_spi.c
 
 # DecaWave DW1000 Drivers
-CONTIKIDIRS += $(UWB_MAIN_DIR)/dev/dw1000 $(UWB_MAIN_DIR)/dev/dw1000/decadriver
+CONTIKIDIRS += $(UWB_CONTIKI)/dev/dw1000 $(UWB_CONTIKI)/dev/dw1000/decadriver
 CONTIKI_SOURCEFILES += deca_device.c deca_params_init.c deca_range_tables.c
-CONTIKI_SOURCEFILES += dw1000.c dw1000-ranging.c dw1000-config.c dw1000-util.c cir.c
+CONTIKI_SOURCEFILES += dw1000.c dw1000-ranging.c dw1000-config.c dw1000-util.c dw1000-cir.c
 
 ifeq ($(NRF52_USE_RTT),1)
 ### Use the existing debug I/O in cpu/arm/common

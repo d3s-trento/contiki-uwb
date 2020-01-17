@@ -2,8 +2,6 @@ DEFINES+=PROJECT_CONF_H=\"project-conf.h\"
 
 CONTIKI_PROJECT = sensniff
 
-TARGETDIRS += ../../platform
-
 PROJECT_SOURCEFILES += sensniff-rdc.c netstack.c
 PROJECTDIRS += pool $(TARGET)
 
@@ -23,8 +21,8 @@ CONTIKI_WITH_RIME = 1
 
 all: $(CONTIKI_PROJECT)
 
-CONTIKI ?= ../../contiki
-include $(CONTIKI)/Makefile.include
+UWB_CONTIKI ?= ../..
+include $(UWB_CONTIKI)/Makefile.uwb
 
 PYTHON ?= python
 SENSNIFF = $(CONTIKI)/tools/sensniff/sensniff.py

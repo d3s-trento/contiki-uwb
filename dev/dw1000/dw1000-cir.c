@@ -38,7 +38,7 @@
  */
 
 
-#include "cir.h"
+#include "dw1000-cir.h"
 #include "contiki.h"
 #include "deca_regs.h"
 #include "deca_device_api.h"

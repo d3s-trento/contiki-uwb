@@ -1,3 +1,4 @@
+#include "deca_device_api.h"
 #include "dw1000-util.h"
 #include <math.h>
 
@@ -146,3 +147,31 @@ dw1000_get_ppm_offset(const dwt_config_t *dwt_config)
     float offset_ppm = offset_hz * hz_to_ppm_channel_mul;
     return offset_ppm;
 }
+
+
+uint8_t
+dw1000_get_best_trim_code(float curr_offset_ppm, uint8_t curr_trim)
+{
+
+#define CLKOFFSET_PPM_PER_TRIM    (1.45)
+#define JITTER_GUARD              (0.1)
+
+// Desired CFO is 0ppm
+#define CLKOFFSET_WANTED      (0)
+
+    if (curr_offset_ppm > CLKOFFSET_PPM_PER_TRIM/2+JITTER_GUARD ||
+        curr_offset_ppm < -CLKOFFSET_PPM_PER_TRIM/2-JITTER_GUARD
+        ) {
+        // estimate in PPM
+        int8_t trim_adjust = (int8_t)round((float)(CLKOFFSET_WANTED + curr_offset_ppm)/(float)CLKOFFSET_PPM_PER_TRIM);
+        //printf("ppm offset %f, trim c %u, adj %d\n", curr_offset_ppm, (unsigned int)curr_trim, (int)trim_adjust);
+        curr_trim -= trim_adjust;
+
+        if (curr_trim < 1)
+            curr_trim = 1;
+        else if (curr_trim > 31)
+            curr_trim = 31;
+    }
+    return curr_trim;
+}
+

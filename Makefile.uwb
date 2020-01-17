@@ -1,0 +1,26 @@
+# Please define UWB_CONTIKI pointing to the contiki-uwb directory in
+# your application Makefile
+
+# we assume that the contiki dir is inside the uwb_contiki dir
+CONTIKI = $(UWB_CONTIKI)/contiki
+
+UWB_MODULES += core/net
+
+# If requested, include Glossy and Crystal and disable other stacks
+ifeq ($(UWB_WITH_GLOSSY),1)
+  CFLAGS += -DNETSTACK_CONF_WITH_GLOSSY=1
+  UWB_MODULES += dev/dw1000/glossy dev/dw1000/crystal
+  CFLAGS+=-DNETSTACK_CONF_NETWORK=dummynet_driver
+  CONTIKI_WITH_IPV6 = 0
+  CONTIKI_WITH_RIME = 0
+endif
+
+
+# convert UWB_MODULES to Contiki's MODULES
+MODULES += $(addprefix ../,$(UWB_MODULES))
+
+TARGETDIRS += $(UWB_CONTIKI)/platform
+
+# include the original Contiki Makefile
+include $(CONTIKI)/Makefile.include
+

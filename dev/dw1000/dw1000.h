@@ -40,11 +40,9 @@
 #ifndef DW1000_H
 #define DW1000_H
 /*---------------------------------------------------------------------------*/
-#include "dev/radio.h"
-#include "deca_device_api.h"
-#include "deca_regs.h"
-#include "stdint.h"
 #include "stdbool.h"
+/*---------------------------------------------------------------------------*/
+#include "deca_device_api.h"
 #include "core/net/linkaddr.h"
 #include "contiki-conf.h"
 
@@ -97,6 +95,7 @@ extern const struct radio_driver dw1000_driver;
 
 typedef enum {DW1000_RNG_SS, DW1000_RNG_DS} dw1000_rng_type_t;
 
+/* Ranging */
 bool range_with(linkaddr_t *dst, dw1000_rng_type_t type);
 
 #endif /* DW1000_H */
