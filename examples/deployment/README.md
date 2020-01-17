@@ -74,6 +74,5 @@ Variable `node_id` is then made directly
 available once importing the `sys/node-id.h` Contiki header.
 
 ```c
-deployment_load_ieee_addr();
 deployment_set_node_id_ieee_addr();
 ```
