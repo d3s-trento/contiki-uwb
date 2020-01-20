@@ -111,7 +111,7 @@ Note that we have only tested Glossy with the datarate of 6.8 Mbps
 and the preamble length of up to 128.
 
 
-## `simgen.py` - Generating test batches
+### `simgen.py` - Generating test batches
 
 To make it easier to generate batches of tests, 
 the `simgen.py` program present
@@ -124,3 +124,7 @@ set of configuration parameters specified in the
 required by the testbed we use at the University of
 Trento, but the same script might be useful even with
 other testbeds.
+
+### Node ID mapping
+To use the application you should provide MAC address to Node ID mapping
+as described in the `../deployment/README.md` file.
