@@ -14,10 +14,10 @@ The program accounts for two types of nodes:
 Once the process starts, it checks whether the device is the
 initiator.
 
-* If it is not, it waits some time Tr and then it
+* If it is not, it waits some time `Tr` and then it
   goes to the `glossy_thread`.
 
-* If it is, the device waits a time Ti, Ti > Tr, to be
+* If it is, the device waits a time `Ti`, `Ti > Tr`, to be
   sure receivers are booted, after which it continues to
   the `glossy_thread`.
 
@@ -25,7 +25,7 @@ Within `glossy_thread` a receiver keeps scanning the channel until
 receiving a packet from the initiator, after which it can synchronise 
 to it and schedule synchronised listening phases.
 
-An initiator instead, issues a Glossy flood to flood a packet
+An initiator instead, issues a Glossy session to flood a packet
 identified by a sequence number. When the flood ends, the node
 waits until the next period before transmitting a new packet.
 
@@ -81,45 +81,46 @@ Parameters include:
 
 * the payload length to be used within the application (default to 115).
 
-
 In case no settings are defined related to Glossy in the `project-conf.h`
 file, the protocol will use the *TX only Version* with *Static Slot Estimation* as default values.
 
-### NOTE
+### `project-conf.h` – main configuration file
 
 The project comes with no `project-conf.h` file. This is
-to allow the simgen.py script generate it. This also means that radio
+to allow the `simgen.py` script generate it. This also means that radio
 configurations stated in `radio-conf.h` **ARE NOT TAKEN
 INTO ACCOUNT** by default, since this header is supposed to be included 
 in the `project-conf.h` file.
 
-If the user desires to define
-a specific project-conf to be used, they can
-rename the `project-conf-template.h` file to `project-conf.h`,
-define Glossy parameters to their liking and compile the
+If you want to manually compile the test, you can copy
+the `project-conf-template.h` file to `project-conf.h`,
+define Glossy parameters to your liking and compile the
 project issuing the make command.
+
+### Radio configuration
 
 Within the `radio-conf.h` file, communication parameters
 for the DW1000 radio chip are defined.
-As mentioned previously, if no project-conf is employed, the
-radio configuration is set to some default values, so it will
-work anyhow.
+As mentioned previously, if no `project-conf.h` is employed, the
+radio configuration is set to the default values of Contiki-UWB, 
+so it should somehow work. You can always check the radio configuration
+employed by looking at the log the nodes produce. They print the radio
+configuration at boot.
 
+Note that we have only tested Glossy with the datarate of 6.8 Mbps
+and the preamble length of up to 128.
 
-### Compilation and running on the UniTn testbed
-
-To compile the appication is required to issue the `make`
-command.
-
-Within the project folder a `glossy_test.json` file is present.
-By default a subset of testbed nodes is considered and paths
-to dependency files (`python_script` file and application binary)
-are **relative paths**.
 
 ## `simgen.py` - Performing planned tests
 
-To make (hopefully) easier the process of planning tests on
-the UniTn testbed, the `simgen.py` program present
-in the `test_tools` folder should be used.
+To make it easier to generate batches of tests, 
+the `simgen.py` program present
+in the `test_tools` folder might be used.
 
 Check out its README to know more on its usage.
+It generates a number of test binaries for the
+set of configuration parameters specified in the
+`params.py` file. It also produces test descriptors
+required by the testbed we use at the University of
+Trento, but the same script might be useful even with
+other testbeds.
