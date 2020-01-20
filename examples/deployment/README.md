@@ -14,10 +14,10 @@ The folder must have the following file:
   file should be created too.
 
 Insert the ID and the corresponding MAC address of nodes
-deployed to the `id_addr_list` array.
+deployed to the `deployment_id_addr_list` array.
 
 ```c
- static struct id_addr id_addr_list[] = {
+ static struct id_addr deployment_id_addr_list[] = {
 
    {1, {0x00, 0x12, 0x4b, 0x00, 0x06, 0x0d ,0xb5, 0xf0}},
    {2, {0x00, 0x12, 0x4b, 0x00, 0x06, 0x0d ,0xb4, 0x59}},
@@ -68,8 +68,8 @@ PROJECTDIRS += ../deployment ../deployment/$(TESTBED)
 PROJECT_SOURCEFILES += deployment.c
 ```
 
-Within the code, issue the following calls to load the
-MAC address and set the corresponding node-id.
+Within the code, issue the following call to 
+set the node ID based on its MAC address.
 Variable `node_id` is then made directly
 available once importing the `sys/node-id.h` Contiki header.
 
