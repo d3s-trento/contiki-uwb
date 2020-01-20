@@ -1,6 +1,6 @@
-# Glossy Test - A simple application the evaluate Glossy
+# Glossy Test - A simple application to evaluate Glossy
 
-Glossy Test allows the evaluation of the Glossy implementation for the DW1000
+Glossy Test allows evaluation of the Glossy implementation for the DW1000
 built for the Contiki OS.
 
 
@@ -111,7 +111,7 @@ Note that we have only tested Glossy with the datarate of 6.8 Mbps
 and the preamble length of up to 128.
 
 
-## `simgen.py` - Performing planned tests
+## `simgen.py` - Generating test batches
 
 To make it easier to generate batches of tests, 
 the `simgen.py` program present
