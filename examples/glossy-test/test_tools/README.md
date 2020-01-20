@@ -173,16 +173,19 @@ folder.
 
 ## A practical use case
 
-1. Write the `params.py` file and define relative paths to
-   the `glossy_test.c` file and the destination directory;
+1. Create a directory for a specific set of experiments you want to run
+2. Write the `params.py` file there and define relative paths to
+   the `glossy_test.c` file and the destination directory (which is "." in our case);
    define the duration of simulations using `ts_init`,
    the set of testbed nodes to use and the set
    of testbed nodes to be use as initiators.
 
-2. Execute `simgen.py` (`-fg` if you are sure to overwrite possible
+2. Execute the `test_tools/simgen.py` (`-fg` if you are sure to overwrite possible
    folders already existing).
 
 3. Browse each new simulation's folder and schedule the simulation
    to the testbed.
+   
+You can use the example provided in `exps/example_experiment/params.py` as a template.
 
 
