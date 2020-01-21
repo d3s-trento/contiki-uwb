@@ -10,9 +10,6 @@ The folder must have the following file:
 * `node-map.c` containing node's addresses and the corresponding
    logical id
 
-* in order to run the `deployment-test` project the `project-conf.h`
-  file should be created too.
-
 Insert the ID and the corresponding MAC address of nodes
 deployed to the `deployment_id_addr_list` array.
 
