@@ -14,7 +14,7 @@ Insert the ID and the corresponding MAC address of nodes
 deployed to the `deployment_id_addr_list` array.
 
 ```c
- static struct id_addr deployment_id_addr_list[] = {
+ static const struct id_addr deployment_id_addr_list[] = {
 
    {1, {0x00, 0x12, 0x4b, 0x00, 0x06, 0x0d ,0xb5, 0xf0}},
    {2, {0x00, 0x12, 0x4b, 0x00, 0x06, 0x0d ,0xb4, 0x59}},

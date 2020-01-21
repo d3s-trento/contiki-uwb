@@ -1,6 +1,6 @@
 #include "deployment.h"
 
-struct id_addr deployment_id_addr_list[] = {
+static const struct id_addr deployment_id_addr_list[] = {
 
     // Address-to-id mapping
     //
