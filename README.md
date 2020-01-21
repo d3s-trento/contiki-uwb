@@ -16,7 +16,7 @@ This port includes support for:
 * LEDs
 * Rime stack over UWB
 * IPv6 stack over UWB [to be tested]
-* Single-sided Two-way Ranging (SS-TWR)
+* Single-sided Two-way Ranging (SS-TWR) with frequency offset compensation
 * Double-sided Two-way Ranging (DS-TWR)
 * [Glossy](https://ieeexplore.ieee.org/document/5779066), a fast flooding and synchronisation primitive (only EVB1000)
 * [Crystal](https://dl.acm.org/doi/10.1145/2994551.2994558), a fast and reliable data collection protocol based on Glossy (only EVB1000)
