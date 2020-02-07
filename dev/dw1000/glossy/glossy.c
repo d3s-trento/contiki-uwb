@@ -53,10 +53,6 @@
 /*---------------------------------------------------------------------------*/
 #include <string.h>
 /*---------------------------------------------------------------------------*/
-// Print MACRO at compile time!
-// ref: https://stackoverflow.com/questions/1562074/how-do-i-show-the-value-of-a-define-at-compile-time
-#define XSTR(x) #x
-#define STR(x) XSTR(x)
 
 /*---------------------------------------------------------------------------*/
 
@@ -124,14 +120,14 @@
 /*                          GLOSSY CONFIGURATION                             */
 /*---------------------------------------------------------------------------*/
 /*
- * GLOSSY_VERSION_EMPLOYED_CONF:   GLOSSY_TX_ONLY_VERSION  |
+ * GLOSSY_VERSION_CONF:   GLOSSY_TX_ONLY_VERSION  |
  *                                 GLOSSY_STANDARD_VERSION
  */
-#ifdef GLOSSY_VERSION_EMPLOYED_CONF
-#define GLOSSY_VERSION_EMPLOYED GLOSSY_VERSION_EMPLOYED_CONF
+#ifdef GLOSSY_VERSION_CONF
+#define GLOSSY_VERSION GLOSSY_VERSION_CONF
 #else
-#define GLOSSY_VERSION_EMPLOYED GLOSSY_TX_ONLY_VERSION       // default Glossy version
-#endif /* GLOSSY_VERSION_EMPLOYED_CONF */
+#define GLOSSY_VERSION GLOSSY_TX_ONLY_VERSION       // default Glossy version
+#endif /* GLOSSY_VERSION_CONF */
 /*---------------------------------------------------------------------------*/
 /* If set to 1 the slot is dynamically estimated based on Rx-Tx and
  * Tx-Rx pairs.
@@ -156,26 +152,6 @@
 #endif
 
 
-/*---------------------------------------------------------------------------*/
-/*                           OUTPUT CONFIGURATION MACROS                     */
-/*---------------------------------------------------------------------------*/
-#pragma message ("DW1000_CHANNEL:            "   STR( DW1000_CHANNEL))
-#pragma message ("DW1000_PRF:                "   STR( DW1000_PRF))
-#pragma message ("DW1000_PREAMBLE_LEN:       "   STR( DW1000_PLEN ))
-#pragma message ("DW1000_RX_PAC:             "   STR( DW1000_PAC ))
-#pragma message ("DW1000_RX_PREAMBLE_CODE:   "   STR( DW1000_PREAMBLE_CODE ))
-#pragma message ("DW1000_TX_PREAMBLE_CODE:   "   STR( DW1000_PREAMBLE_CODE ))
-#pragma message ("DW1000_SFD_MODE:           "   STR( DW1000_SFD_MODE ))
-#pragma message ("DW1000_PHR_MODE:           "   STR( DW1000_PHR_MODE ))
-#pragma message ("DW1000_DATA_RATE:          "   STR( DW1000_DATA_RATE ))
-#pragma message ("DW1000_SFD_TIMEOUT:        "   STR( DW1000_SFD_TIMEOUT ))
-#pragma message ("DW1000_SMART_TX_POWER_6M8: "   STR( DW1000_SMART_TX_POWER_6M8 ))
-#pragma message ("DW1000_CONF_TX_POWER:      "   STR( DW1000_CONF_TX_POWER ))
-#pragma message ("DW1000_CONF_PG_DELAY:      "   STR( DW1000_CONF_PG_DELAY ))
-#pragma message ("GLOSSY_VERSION:            "   STR( GLOSSY_VERSION_EMPLOYED ))
-#pragma message ("GLOSSY_DYN_SLOT_ESTIMATE:  "   STR( GLOSSY_DYNAMIC_SLOT_ESTIMATE ))
-#pragma message ("GLOSSY_RX_OPT:             "   STR( GLOSSY_RX_OPT ))
-#pragma message ("GLOSSY_LOG_LEVEL:          "   STR( GLOSSY_LOG_LEVEL ))
 /*---------------------------------------------------------------------------*/
 /*                           GLOSSY PACKET                                   */
 /*---------------------------------------------------------------------------*/
@@ -309,7 +285,21 @@ typedef struct glossy_context_t {
 /** \def Define the guard time when glossy is optizimed for just-in-time rx.
  */
 #define GLOSSY_RX_OPT_GUARD_UUS         (10 + GLOSSY_LOOSEN_GUARDS_UUS)
-#pragma message ("GLOSSY_RX_OPT_GUARD_UUS    "   STR( GLOSSY_RX_OPT_GUARD_UUS ))
+
+
+/*---------------------------------------------------------------------------*/
+/*                           OUTPUT CONFIGURATION MACROS                     */
+/*---------------------------------------------------------------------------*/
+#if UWB_CONTIKI_PRINT_DEF
+#include "print-def.h"
+#pragma message STRDEF(GLOSSY_VERSION)
+#pragma message STRDEF(GLOSSY_DYNAMIC_SLOT_ESTIMATE)
+#pragma message STRDEF(GLOSSY_RX_OPT)
+#pragma message STRDEF(GLOSSY_LOG_LEVEL)
+#pragma message STRDEF(GLOSSY_RX_OPT_GUARD_UUS)
+#endif
+
+
 /*---------------------------------------------------------------------------*/
 /**
  * \def Convert a ~4ns accurate time to a 1 UWB microsecond accurate time.
@@ -941,7 +931,7 @@ glossy_start(const uint16_t initiator_id,
         g_header.max_n_tx      = n_tx_max;
         g_header.config        = 0x0;
         GLOSSY_SET_SYNC(g_header.config, sync);
-        GLOSSY_SET_VERSION(g_header.config, GLOSSY_VERSION_EMPLOYED);
+        GLOSSY_SET_VERSION(g_header.config, GLOSSY_VERSION);
 
         // store the current header in the context
         g_context.pkt_header = g_header;
@@ -1195,7 +1185,7 @@ void glossy_version_print(void)
 {
     LOG("GLOSSY_VERSION", "%x , with dynamic slot est. %d, "
         "SmartTx %d\n",
-            GLOSSY_VERSION_EMPLOYED, GLOSSY_DYNAMIC_SLOT_ESTIMATE,
+            GLOSSY_VERSION, GLOSSY_DYNAMIC_SLOT_ESTIMATE,
             DW1000_SMART_TX_POWER_6M8);
 }
 /*---------------------------------------------------------------------------*/

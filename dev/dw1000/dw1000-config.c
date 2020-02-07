@@ -296,4 +296,19 @@ dw1000_print_cfg() {
   printf("  TX ant delay: %u\n",   current_tx_ant_dly);
 }
 
+#if UWB_CONTIKI_PRINT_DEF
+#include "print-def.h"
 
+#pragma message STRDEF(DW1000_CHANNEL)
+#pragma message STRDEF(DW1000_PRF)
+#pragma message STRDEF(DW1000_PLEN)
+#pragma message STRDEF(DW1000_PAC)
+#pragma message STRDEF(DW1000_PREAMBLE_CODE)
+#pragma message STRDEF(DW1000_SFD_MODE)
+#pragma message STRDEF(DW1000_PHR_MODE)
+#pragma message STRDEF(DW1000_DATA_RATE)
+#pragma message STRDEF(DW1000_SFD_TIMEOUT)
+#pragma message STRDEF(DW1000_SMART_TX_POWER_6M8)
+#pragma message STRDEF(DW1000_CONF_TX_POWER)
+#pragma message STRDEF(DW1000_CONF_PG_DELAY)
+#endif
