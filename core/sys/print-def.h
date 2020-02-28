@@ -37,19 +37,34 @@
 #endif
 
 
-// TODO: actually follow the log level
-
 #include <stdio.h>
 
-#define ERR(format, ...) do {printf("["LOG_PREFIX"] ERR:" format "\n" __VA_OPT__(,) __VA_ARGS__);} while(0)
-#define WARN(format, ...) do {printf("["LOG_PREFIX"] WARN:" format "\n" __VA_OPT__(,) __VA_ARGS__);} while(0)
-#define DBG(format, ...) do {printf("["LOG_PREFIX"] DBG:" format "\n" __VA_OPT__(,) __VA_ARGS__);} while(0)
+#if LOG_LEVEL >= LOG_ERR
+#define ERR(format, ...) do {printf("["LOG_PREFIX"] ERR:" format __VA_OPT__(,) __VA_ARGS__);} while(0)
+#else
+#define ERR(...) do {} while(0)
+#endif
 
-
+#if LOG_LEVEL >= LOG_WARN
+#define WARN(format, ...) do {printf("["LOG_PREFIX"] WARN:" format __VA_OPT__(,) __VA_ARGS__);} while(0)
 /* "Soft" assertions.
  * Use WARNIF(condition) to print a warning if the condition holds
  */
 #define WARNIF(x) do {if (x) WARN("Check (" #x ") failed in %s (%s:%d)\n", __func__, __FILE__, __LINE__);} while(0)
+#else
+#define WARN(...) do {} while(0)
+#define WARNIF(...) do {} while(0)
+#endif
+
+#if LOG_LEVEL >= LOG_DBG
+#define DBG(format, ...) do {printf("["LOG_PREFIX"] DBG:" format __VA_OPT__(,) __VA_ARGS__);} while(0)
+#define DBGF() do {printf("["LOG_PREFIX"] DBG: %s:%d\n", __func__, __LINE__ );} while(0)
+#else
+#define DBG(...) do {} while(0)
+#define DBGF(...) do {} while(0)
+#endif
+
+
 
 #endif // PRINT_DEF_H
 
