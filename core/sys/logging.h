@@ -3,7 +3,7 @@
 
 /*
  * You may set LOG_PREFIX and LOG_LEVEL on a file-by-file basis.
- * Make sure to set them before including this header file.
+ * To do so, define them before including this header file.
  */
 
 #define LOG_NONE 1          // no printing
