@@ -144,7 +144,6 @@ CFLAGS += -Wall #-Wextra
 CFLAGS += -nostdlib -s -ffunction-sections 
 CFLAGS += -fdata-sections -MD
 
-LDFLAGS += -lm
 LDFLAGS += -mthumb -mcpu=cortex-m3 -march=armv7-m -mfloat-abi=soft
 LDFLAGS += -L$(LINKER_SCRIPT_INCLUDES) -T $(LINKER_SCRIPT) 
 LDFLAGS += -Wl,--gc-sections
@@ -159,7 +158,7 @@ LDFLAGS += -Wl,-Map=$(@:.elf=-$(TARGET).map)
 
 %.elf: $(CPU_START_SOURCEFILES)  %.co $(CONTIKI_OBJECTFILES) $(PROJECT_OBJECTFILES) $(PROJECT_LIBRARIES) contiki-$(TARGET).a $(LDSCRIPT)
 	$(TRACE_LD)
-	$(Q)$(LD) $(LDFLAGS) ${filter-out $(LDSCRIPT) %.a,$^} ${filter %.a,$^} $(TARGET_LIBFILES) -o $@
+	$(Q)$(LD) $(LDFLAGS) ${filter-out $(LDSCRIPT) %.a,$^} ${filter %.a,$^} $(TARGET_LIBFILES) -lm -o $@
 
 %.hex: %.elf
 	$(OBJCOPY) -O ihex $< $@
