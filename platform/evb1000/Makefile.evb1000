@@ -1,7 +1,7 @@
 # EVB1000 platform makefile
 
 
-CONTIKI_TARGET_DIRS = . dev 
+CONTIKI_TARGET_DIRS = . dev
 CONTIKI_TARGET_DIRS += evb-newlib
 
 CONTIKI_TARGET_SOURCEFILES += contiki-main.c
@@ -16,7 +16,7 @@ CONTIKI_TARGET_SOURCEFILES += dw1000-arch.c
 # Decawave Driver
 CONTIKIDIRS += $(UWB_CONTIKI)/dev/dw1000 $(UWB_CONTIKI)/dev/dw1000/decadriver
 CONTIKI_TARGET_SOURCEFILES += deca_device.c deca_params_init.c deca_range_tables.c
-CONTIKI_TARGET_SOURCEFILES += dw1000.c dw1000-ranging.c dw1000-config.c dw1000-util.c dw1000-cir.c
+CONTIKI_TARGET_SOURCEFILES += dw1000.c dw1000-ranging.c dw1000-config.c dw1000-util.c dw1000-cir.c dw1000-diag.c
 
 CONTIKI_SOURCEFILES += $(CONTIKI_TARGET_SOURCEFILES)
 
@@ -42,7 +42,7 @@ FILE_INCLUDES += stm32f10x_conf.h
 FILE_INCLUDES_PATHS = $(addprefix -include ,$(FILE_INCLUDES))
 
 ###############################################################################
-# Login Command 
+# Login Command
 ###############################################################################
 
 # Check if we are running under Windows
@@ -64,7 +64,7 @@ login:
 
 
 ###############################################################################
-# Upload Command 
+# Upload Command
 ###############################################################################
 
 STFLASH = st-flash

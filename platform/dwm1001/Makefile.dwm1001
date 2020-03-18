@@ -14,7 +14,7 @@ C_SOURCE_FILES += $(NRF52_SDK_ROOT)/components/drivers_nrf/nrf_drv_spi.c
 # DecaWave DW1000 Drivers
 CONTIKIDIRS += $(UWB_CONTIKI)/dev/dw1000 $(UWB_CONTIKI)/dev/dw1000/decadriver
 CONTIKI_SOURCEFILES += deca_device.c deca_params_init.c deca_range_tables.c
-CONTIKI_SOURCEFILES += dw1000.c dw1000-ranging.c dw1000-config.c dw1000-util.c dw1000-cir.c
+CONTIKI_SOURCEFILES += dw1000.c dw1000-ranging.c dw1000-config.c dw1000-util.c dw1000-cir.c dw1000-diag.c
 
 ifeq ($(NRF52_USE_RTT),1)
 ### Use the existing debug I/O in cpu/arm/common
@@ -80,19 +80,19 @@ $(info LINKER_SCRIPT is $(LINKER_SCRIPT))
 ###############################################################################
 
 ifeq ($(CONTIKI_WITH_RIME),1)
-	CFLAGS += -DUWB_WITH_RIME=1 
+	CFLAGS += -DUWB_WITH_RIME=1
 endif
 
 ifeq ($(CONTIKI_WITH_IPV6),1)
 	ifneq ($(NRF52_WITHOUT_SOFTDEVICE),1)
-		CFLAGS += -DBLE_WITH_IPV6=1 
+		CFLAGS += -DBLE_WITH_IPV6=1
 	else
-		CFLAGS += -DUWB_WITH_IPV6=1 
+		CFLAGS += -DUWB_WITH_IPV6=1
 	endif
 endif
 
 ###############################################################################
-# Login Command 
+# Login Command
 ###############################################################################
 
 # Check if we are running under Windows
@@ -114,14 +114,13 @@ login:
 
 
 ###############################################################################
-# Upload Command 
+# Upload Command
 ###############################################################################
 
 motelist:
 	@$(JLINK) -CommanderScript $(dir $(target_makefile))/listEmulator.jlink | awk 'BEGIN {printf("Index\tS/N\n----------------------------\n")} \
 match($$0, "J-Link\\[([[:digit:]]+)\\].*Serial number: ([[:digit:]]*)", m) {printf(" %s\t%s\n",m[1],m[2])}'
 
-%.upload: %.hex %.jlink 
+%.upload: %.hex %.jlink
 	@echo Flashing: $^
 	$(JLINK) $(JLINK_OPTS) -CommanderScript $*.jlink
-
