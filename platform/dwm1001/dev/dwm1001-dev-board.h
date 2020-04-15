@@ -10,6 +10,9 @@
  * the file.
  *
  */
+
+#include "nrfx_config.h"
+
 #ifndef DWM1001_DEV_H
 #define DWM1001_DEV_H
 
@@ -49,25 +52,26 @@
 #define SPI_INSTANCE  1 /* SPI instance index */
 
 /*---------------------------------------------------------------------------*/
-#define DWM1001_USER_BUTTON       2
-#define BUTTON_PULL    NRF_GPIO_PIN_PULLUP
-
-#define BUTTONS_ACTIVE_STATE 0
-
-#define DWM1001_BUTTON_MASK (1 << DWM1001_USER_BUTTON)
 
 /* SPIM1 connected to DW1000 */
-#define SPIM1_SCK_PIN   16  /* DWM1001 SPIM1 sck connected to DW1000 */
-#define SPIM1_MOSI_PIN  20  /* DWM1001 SPIM1 mosi connected to DW1000 */
-#define SPIM1_MISO_PIN  18  /* DWM1001 SPIM1 miso connected to DW1000 */
-#define SPIM1_IRQ_PRIORITY APP_IRQ_PRIORITY_LOW /* */
-#define SPIM1_SS_PIN    XX  /*  Not used with DMW1001 */
+#define SPI1_SCK_PIN   16  /* DWM1001 SPIM1 sck connected to DW1000 */
+#define SPI1_MOSI_PIN  20  /* DWM1001 SPIM1 mosi connected to DW1000 */
+#define SPI1_MISO_PIN  18  /* DWM1001 SPIM1 miso connected to DW1000 */
+#define SPI1_IRQ_PRIORITY 6 // APP_IRQ_PRIORITY_LOW /* */
+// #define SPI1_SS_PIN    XX  /*  Not used with DMW1001 */
 
 /* Low frequency clock source to be used by the SoftDevice */
 #define NRF_CLOCK_LFCLKSRC      { .source = NRF_CLOCK_LF_SRC_XTAL, \
                                   .rc_ctiv = 0, \
                                   .rc_temp_ctiv = 0, \
                                   .xtal_accuracy = NRF_CLOCK_LF_XTAL_ACCURACY_20_PPM }
+
+/*---------------------------------------------------------------------------*/
+/* UART configuration, comunication parater are in nrfx_config and sdk_config */
+#define UART0_TX_PIN_NUMBER 5
+#define UART0_RX_PIN_NUMBER 11
+
+#define UART0_ENABLED NRFX_UART0_ENABLED
 
 /* Following define is leaved as reference.. */
 /* #define RX_PIN_NUMBER  11 */

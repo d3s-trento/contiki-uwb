@@ -44,9 +44,8 @@
 /*---------------------------------------------------------------------------*/
 #include <stdint.h>
 #include "nordic_common.h"
-#include "nrf_drv_gpiote.h"
+#include "nrfx_gpiote.h"
 #include "nrf_assert.h"
-#include "boards.h"
 #include "contiki.h"
 #include "lib/sensors.h"
 #include "button-sensor.h"
@@ -73,7 +72,7 @@ static int btn_state = 0;
  *
  */
 static void
-gpiote_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
+gpiote_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
   //int id = pin;
 
@@ -89,7 +88,7 @@ gpiote_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
   /*
    * Start measuring duration on falling edge, stop on rising edge.
    */
-  if(nrf_drv_gpiote_in_is_set(pin) == 0) {
+  if(nrfx_gpiote_in_is_set(pin) == 0) {
     btn_timer.start = clock_time();
     btn_timer.duration = 0;
   } else {
@@ -112,18 +111,18 @@ config(int type, int c)
 {
   switch(type) {
     case SENSORS_HW_INIT: {
-      nrf_drv_gpiote_in_config_t config = GPIOTE_CONFIG_IN_SENSE_TOGGLE(false);
+      nrfx_gpiote_in_config_t config = NRFX_GPIOTE_CONFIG_IN_SENSE_TOGGLE(false);
       config.pull = NRF_GPIO_PIN_PULLUP;
-      nrf_drv_gpiote_in_init(DWM1001_USER_BUTTON, &config, gpiote_event_handler);
+      nrfx_gpiote_in_init(DWM1001_USER_BUTTON, &config, gpiote_event_handler);
       timer_set(&(btn_timer.debounce), DEBOUNCE_DURATION);
       return 1;
     }
     case SENSORS_ACTIVE: {
       if(c) {
-        nrf_drv_gpiote_in_event_enable(DWM1001_USER_BUTTON, true);
+        nrfx_gpiote_in_event_enable(DWM1001_USER_BUTTON, true);
         btn_state = 1;
       } else {
-        nrf_drv_gpiote_in_event_disable(DWM1001_USER_BUTTON);
+        nrfx_gpiote_in_event_disable(DWM1001_USER_BUTTON);
         btn_state = 0;
       }
       return 1;
@@ -147,7 +146,7 @@ value(int type)
 {
 
   if(type == BUTTON_SENSOR_VALUE_STATE) {
-    return nrf_drv_gpiote_in_is_set(DWM1001_USER_BUTTON) == 0 ?
+    return nrfx_gpiote_in_is_set(DWM1001_USER_BUTTON) == 0 ?
            BUTTON_SENSOR_VALUE_PRESSED : BUTTON_SENSOR_VALUE_RELEASED;
 
   } else if(type == BUTTON_SENSOR_VALUE_DURATION) {

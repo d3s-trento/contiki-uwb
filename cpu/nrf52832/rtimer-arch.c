@@ -37,22 +37,26 @@
  * \author
  *      Wojciech Bober <wojciech.bober@nordicsemi.no>
  */
+#include "dwm1001-dev-board.h"
+/*---------------------------------------------------------------------------*/
+#include "nrf.h"
+#include "nrfx_timer.h"
+#include "app_error.h"
+/*---------------------------------------------------------------------------*/
+#include "contiki.h"
 /*---------------------------------------------------------------------------*/
 #include <stdint.h>
 #include <stddef.h>
-#include "nrf.h"
-#include "nrf_drv_timer.h"
-#include "app_error.h"
-#include "contiki.h"
-#include "platform-conf.h"
 
-static const nrf_drv_timer_t timer = NRF_DRV_TIMER_INSTANCE(PLATFORM_TIMER_INSTANCE_ID); /**< Timer instance used for rtimer */
+static const nrfx_timer_t timer = NRFX_TIMER_INSTANCE(PLATFORM_TIMER_INSTANCE_ID); /**< Timer instance used for rtimer */
+static const nrfx_timer_config_t timer_default_config = NRFX_TIMER_DEFAULT_CONFIG;
+// APP_TIMER_DEF(m_single_shot_timer_id);
 
 /**
  * \brief Handler for timer events.
  *
  * \param event_type type of an event that should be handled
- * \param p_context opaque data pointer passed from nrf_drv_timer_init()
+ * \param p_context opaque data pointer passed from nrfx_timer_init()
  */
 static void
 timer_event_handler(nrf_timer_event_t event_type, void* p_context)
@@ -74,9 +78,9 @@ timer_event_handler(nrf_timer_event_t event_type, void* p_context)
 void
 rtimer_arch_init(void)
 {
-  ret_code_t err_code = nrf_drv_timer_init(&timer, NULL, timer_event_handler);
+  ret_code_t err_code = nrfx_timer_init(&timer, &timer_default_config, timer_event_handler);
   APP_ERROR_CHECK(err_code);
-  nrf_drv_timer_enable(&timer);
+  nrfx_timer_enable(&timer);
 }
 /*---------------------------------------------------------------------------*/
 /**
@@ -91,7 +95,7 @@ rtimer_arch_init(void)
 void
 rtimer_arch_schedule(rtimer_clock_t t)
 {
-  nrf_drv_timer_compare(&timer, NRF_TIMER_CC_CHANNEL1, t, true);
+  nrfx_timer_compare(&timer, NRF_TIMER_CC_CHANNEL1, t, true);
 }
 /*---------------------------------------------------------------------------*/
 /**
@@ -102,7 +106,8 @@ rtimer_arch_schedule(rtimer_clock_t t)
 rtimer_clock_t
 rtimer_arch_now()
 {
-  return nrf_drv_timer_capture(&timer, NRF_TIMER_CC_CHANNEL0);
+  // return app_timer_cnt_get();
+  return nrfx_timer_capture(&timer, NRF_TIMER_CC_CHANNEL0);
 }
 /*---------------------------------------------------------------------------*/
 /**

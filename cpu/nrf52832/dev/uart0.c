@@ -41,15 +41,18 @@
  */
 #include <stdlib.h>
 #include "nrf.h"
-#include "nrf_drv_config.h"
-#include "nrf_drv_uart.h"
+#include "nrf52832_peripherals.h"
+#include "nrfx_uart.h"
 #include "app_util_platform.h"
 #include "app_error.h"
+#include "nrf_delay.h"
 
 #include "contiki.h"
 #include "dev/uart0.h"
 #include "dev/watchdog.h"
 #include "lib/ringbuf.h"
+
+static nrfx_uart_t m_uart =  NRFX_UART_INSTANCE(0);
 
 #define TXBUFSIZE 128
 static uint8_t rx_buffer[1];
@@ -61,19 +64,19 @@ static uint8_t txbuf_data[TXBUFSIZE];
 
 /*---------------------------------------------------------------------------*/
 static void
-uart_event_handler(nrf_drv_uart_event_t * p_event, void * p_context)
+uart_event_handler(nrfx_uart_event_t const * p_event, void * p_context)
 {
   ENERGEST_ON(ENERGEST_TYPE_IRQ);
 
-  if (p_event->type == NRF_DRV_UART_EVT_RX_DONE) {
+  if (p_event->type == NRFX_UART_EVT_RX_DONE) {
     if (uart0_input_handler != NULL) {
       uart0_input_handler(p_event->data.rxtx.p_data[0]);
     }
-    (void)nrf_drv_uart_rx(rx_buffer, 1);
-  } else if (p_event->type == NRF_DRV_UART_EVT_TX_DONE) {
+    (void)nrfx_uart_rx(&m_uart, rx_buffer, 1);
+  } else if (p_event->type == NRFX_UART_EVT_TX_DONE) {
     if (ringbuf_elements(&txbuf) > 0) {
       uint8_t c = ringbuf_get(&txbuf);
-      nrf_drv_uart_tx(&c, 1);
+      nrfx_uart_tx(&m_uart, &c, 1);
     }
   }
 
@@ -89,7 +92,7 @@ uart0_set_input(int (*input)(unsigned char c))
 void
 uart0_writeb(unsigned char c)
 {
-  if (nrf_drv_uart_tx(&c, 1) == NRF_ERROR_BUSY) {
+  if (nrfx_uart_tx(&m_uart, &c, 1) == NRF_ERROR_BUSY) {
     while (ringbuf_put(&txbuf, c) == 0) {
       __WFE();
     }
@@ -103,14 +106,19 @@ uart0_writeb(unsigned char c)
 void
 uart0_init(unsigned long ubr)
 {
-  nrf_drv_uart_config_t config = NRF_DRV_UART_DEFAULT_CONFIG;
-  ret_code_t retcode = nrf_drv_uart_init(&config, uart_event_handler);
+  nrfx_uart_config_t config = NRFX_UART_DEFAULT_CONFIG;
+  config.pseltxd = UART0_TX_PIN_NUMBER;
+  config.pselrxd = UART0_RX_PIN_NUMBER;
+
+  ret_code_t retcode = nrfx_uart_init(&m_uart, &config, uart_event_handler);
   APP_ERROR_CHECK(retcode);
 
   ringbuf_init(&txbuf, txbuf_data, sizeof(txbuf_data));
 
-  nrf_drv_uart_rx_enable();
-  nrf_drv_uart_rx(rx_buffer, 1);
+  nrfx_uart_rx_enable(&m_uart);
+  nrfx_uart_rx(&m_uart, rx_buffer, 1);
+
+  nrf_delay_ms(10);
 }
 /**
  * @}

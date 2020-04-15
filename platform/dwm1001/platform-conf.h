@@ -44,22 +44,14 @@
  *         Wojciech Bober <wojciech.bober@nordicsemi.no>
  *
  */
+
+#include "dwm1001-dev-board.h"
+
+#include "nrf_gpio.h"
+
 #ifndef PLATFORM_CONF_H_
 #define PLATFORM_CONF_H_
 
-/*
- * boards.h file define macro to control LED, to avoid conflicts here we undefine them and in some
- * cases redefine as empty line...
- */
-#include "boards.h"
-
-#undef LEDS_OFF
-#define LEDS_OFF(...)
-
-#undef LEDS_ON
-#undef LED_IS_ON
-#undef LEDS_INVERT
-#undef LEDS_CONFIGURE
 
 #define PLATFORM_HAS_BATTERY                    0
 #define PLATFORM_HAS_RADIO                      0
@@ -81,6 +73,13 @@
 /* Notify various examples that we have Buttons */
 #define PLATFORM_HAS_BUTTON      1
 
+/* configre button's macro*/
+#define DWM1001_USER_BUTTON       2
+#define BUTTON_PULL    NRF_GPIO_PIN_PULLUP
+#define BUTTONS_ACTIVE_STATE 0
+#define DWM1001_BUTTON_MASK (1 << DWM1001_USER_BUTTON)
+
+
 /**
  * \brief nRF52 RTC instance to be used for Contiki clock driver.
  * \note RTC 0 is used by the SoftDevice.
@@ -101,7 +100,9 @@
  * Those values are not meant to be modified by the user
  * @{
  */
-#define CLOCK_CONF_SECOND 128
+// #define CLOCK_CONF_SECOND 128
+#define CLOCK_CONF_SECOND NRFX_RTC_DEFAULT_CONFIG_FREQUENCY
+// #define CLOCK_CONF_SECOND 1024
 
 /* Compiler configurations */
 #define CCIF

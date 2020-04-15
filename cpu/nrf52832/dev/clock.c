@@ -43,34 +43,49 @@
  *         Wojciech Bober <wojciech.bober@nordicsemi.no>
  *
  */
+#include "dwm1001-dev-board.h"
+/*---------------------------------------------------------------------------*/
+#include "nrf.h"
+#include "nrf52832_peripherals.h"
+#include "nrfx_rtc.h"
+#include "nrfx_clock.h"
+#include "nrf_delay.h"
+#include "app_error.h"
+/*---------------------------------------------------------------------------*/
+#include "contiki.h"
 /*---------------------------------------------------------------------------*/
 #include <stdint.h>
 #include <stdbool.h>
-#include "nrf.h"
-#include "nrf_drv_config.h"
-#include "nrf_drv_rtc.h"
-#include "nrf_drv_clock.h"
-#include "nrf_delay.h"
-#include "app_error.h"
-#include "contiki.h"
-#include "platform-conf.h"
 
 /*---------------------------------------------------------------------------*/
-const nrf_drv_rtc_t rtc = NRF_DRV_RTC_INSTANCE(PLATFORM_RTC_INSTANCE_ID); /**< RTC instance used for platform clock */
+const nrfx_rtc_t rtc   = NRFX_RTC_INSTANCE(PLATFORM_RTC_INSTANCE_ID); /**< RTC instance used for platform clock */
+// APP_TIMER_DEF(timer_id);
 /*---------------------------------------------------------------------------*/
-static volatile uint32_t ticks;
+// static volatile uint32_t ticks;
 void clock_update(void);
 
-#define TICKS (RTC1_CONFIG_FREQUENCY/CLOCK_CONF_SECOND)
+#define TICKS (NRFX_RTC_DEFAULT_CONFIG_FREQUENCY/CLOCK_CONF_SECOND)
+
+// Transform app_timer ticks into ms
+// #define CLOCK_APP_TIMER_MS(TICK)                                              
+//   ((uint32_t)(((1000 * (APP_TIMER_CONFIG_RTC_FREQUENCY + 1)) * (TICK)) -      
+//               ((1000 * (APP_TIMER_CONFIG_RTC_FREQUENCY + 1)) / 2)) /          
+//    ((uint64_t)APP_TIMER_CLOCK_FREQ))
+
+
+/* empty event handelr needed by nrfx_clock driver */
+void clock_event_handler(nrfx_clock_evt_type_t event)
+{
+}
 
 /**
  * \brief Function for handling the RTC0 interrupts
  * \param int_type Type of interrupt to be handled
  */
 static void
-rtc_handler(nrf_drv_rtc_int_type_t int_type)
+rtc_handler(nrfx_rtc_int_type_t int_type)
 {
-  if (int_type == NRF_DRV_RTC_INT_TICK) {
+  if (int_type == NRFX_RTC_INT_TICK) {
     clock_update();
   }
 }
@@ -81,10 +96,12 @@ rtc_handler(nrf_drv_rtc_int_type_t int_type)
 static void
 lfclk_config(void)
 {
-  ret_code_t err_code = nrf_drv_clock_init(NULL);
+  // TODO app_timer does not handle lfclk clock
+  ret_code_t err_code = nrfx_clock_init(clock_event_handler);
   APP_ERROR_CHECK(err_code);
+  nrfx_clock_enable();
 
-  nrf_drv_clock_lfclk_request();
+  nrfx_clock_lfclk_start();
 }
 #endif
 
@@ -94,23 +111,39 @@ lfclk_config(void)
 static void
 rtc_config(void)
 {
-  uint32_t err_code;
 
   //Initialize RTC instance
-  err_code = nrf_drv_rtc_init(&rtc, NULL, rtc_handler);
+  // app_timer_init();
+  ret_code_t err_code;
+  // err_code = app_timer_create(&timer_id,
+  //                             APP_TIMER_MODE_REPEATED,
+  //                             rtc_handler);
+  // APP_ERROR_CHECK(err_code);
+
+  // err_code = app_timer_start(timer_id, APP_TIMER_TICKS(1), NULL);
+  // APP_ERROR_CHECK(err_code);
+
+  // Setup the RTC config
+  static nrfx_rtc_config_t app_rtc_config;
+  app_rtc_config.interrupt_priority = NRFX_RTC_DEFAULT_CONFIG_IRQ_PRIORITY;
+  app_rtc_config.prescaler = RTC_FREQ_TO_PRESCALER(NRFX_RTC_DEFAULT_CONFIG_FREQUENCY);
+  app_rtc_config.reliable = NRFX_RTC_DEFAULT_CONFIG_RELIABLE;
+  app_rtc_config.tick_latency = NRFX_RTC_US_TO_TICKS(NRFX_RTC_MAXIMUM_LATENCY_US, NRFX_RTC_DEFAULT_CONFIG_FREQUENCY);
+
+  err_code = nrfx_rtc_init(&rtc, &app_rtc_config, rtc_handler);
   APP_ERROR_CHECK(err_code);
 
   //Enable tick event & interrupt
-  nrf_drv_rtc_tick_enable(&rtc, true);
+  nrfx_rtc_tick_enable(&rtc, true);
 
   //Power on RTC instance
-  nrf_drv_rtc_enable(&rtc);
+  nrfx_rtc_enable(&rtc);
 }
 /*---------------------------------------------------------------------------*/
 void
 clock_init(void)
 {
-  ticks = 0;
+  // ticks = 0;
 #ifndef SOFTDEVICE_PRESENT
   lfclk_config();
 #endif
@@ -120,13 +153,14 @@ clock_init(void)
 CCIF clock_time_t
 clock_time(void)
 {
-  return (clock_time_t)(ticks & 0xFFFFFFFF);
+  return nrfx_rtc_counter_get(&rtc);
+  // return (clock_time_t)(CLOCK_APP_TIMER_MS(app_timer_cnt_get()));
 }
 /*---------------------------------------------------------------------------*/
 void
 clock_update(void)
 {
-  ticks++;
+  // ticks++;
   if (etimer_pending()) {
     etimer_request_poll();
   }
@@ -135,7 +169,8 @@ clock_update(void)
 CCIF unsigned long
 clock_seconds(void)
 {
-  return (unsigned long)ticks/CLOCK_CONF_SECOND;
+  return nrfx_rtc_counter_get(&rtc)/CLOCK_CONF_SECOND;
+  // return (CLOCK_APP_TIMER_MS(app_timer_cnt_get()) / CLOCK_CONF_SECOND);
 }
 /*---------------------------------------------------------------------------*/
 void

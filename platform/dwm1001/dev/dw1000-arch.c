@@ -33,28 +33,30 @@
  *
  */
 
+#include "dwm1001-dev-board.h"
+/*---------------------------------------------------------------------------*/
 #include "nrf.h"
-#include "nrf_spi.h"
-#include "nrf_drv_spi.h"
-#include "nrf_drv_gpiote.h"
+#include "nrfx_spi.h"
+#include "nrfx_gpiote.h"
 #include "nrf_delay.h"
-#include "nrf_drv_config.h"
 #include "app_util_platform.h"
 #include "app_error.h"
 /*---------------------------------------------------------------------------*/
 #include "contiki.h"
 #include "sys/clock.h"
+/*---------------------------------------------------------------------------*/
 #include "leds.h"
-#include "dwm1001-dev-board.h"
-#include "leds.h"
-#include "dw1000-arch.h"
-#include <stdio.h>
-#include <string.h>
 /*---------------------------------------------------------------------------*/
 #include "deca_device_api.h"
 #include "deca_types.h"
 #include "deca_regs.h"
 /*---------------------------------------------------------------------------*/
+#include <stdio.h>
+#include <string.h>
+/*---------------------------------------------------------------------------*/
+#include "dw1000-arch.h"
+
+
 #define DEBUG_LEDS 0
 #undef LEDS_TOGGLE
 #if DEBUG_LEDS
@@ -63,32 +65,33 @@
 #define LEDS_TOGGLE(x)
 #endif
 /*---------------------------------------------------------------------------*/
-#define NRF_DRV_SPI_DEFAULT_CONFIG_2M(id)                    \
+#define NRFX_SPI_DEFAULT_CONFIG_2M			     \
   {                                                          \
-    .sck_pin      = SPIM1_SCK_PIN,      \
-    .mosi_pin     = SPIM1_MOSI_PIN,     \
-    .miso_pin     = SPIM1_MISO_PIN,     \
-    .ss_pin       = NRF_DRV_SPI_PIN_NOT_USED,                \
-    .irq_priority = SPIM1_IRQ_PRIORITY, \
-    .orc          = 0xFF,                                    \
-    .frequency    = NRF_DRV_SPI_FREQ_2M,                     \
-    .mode         = NRF_DRV_SPI_MODE_0,                      \
-    .bit_order    = NRF_DRV_SPI_BIT_ORDER_MSB_FIRST,         \
+   .sck_pin      = SPI1_SCK_PIN,			     \
+   .mosi_pin     = SPI1_MOSI_PIN,			     \
+   .miso_pin     = SPI1_MISO_PIN,			     \
+   .ss_pin       = SPI_CS_PIN,				     \
+   .irq_priority = SPI1_IRQ_PRIORITY,			     \
+   .orc          = 0xFF,				     \
+   .frequency    = NRF_SPI_FREQ_2M,			     \
+   .mode         = NRF_SPI_MODE_0,			     \
+   .bit_order    = NRF_SPI_BIT_ORDER_MSB_FIRST,		     \
   }
-#define NRF_DRV_SPI_DEFAULT_CONFIG_8M(id)                    \
+
+#define NRFX_SPI_DEFAULT_CONFIG_8M			     \
   {                                                          \
-    .sck_pin      = SPIM1_SCK_PIN,      \
-    .mosi_pin     = SPIM1_MOSI_PIN,     \
-    .miso_pin     = SPIM1_MISO_PIN,     \
-    .ss_pin       = NRF_DRV_SPI_PIN_NOT_USED,                \
-    .irq_priority = SPIM1_IRQ_PRIORITY, \
-    .orc          = 0xFF,                                    \
-    .frequency    = NRF_DRV_SPI_FREQ_8M,                     \
-    .mode         = NRF_DRV_SPI_MODE_0,                      \
-    .bit_order    = NRF_DRV_SPI_BIT_ORDER_MSB_FIRST,         \
+   .sck_pin      = SPI1_SCK_PIN,			     \
+   .mosi_pin     = SPI1_MOSI_PIN,			     \
+   .miso_pin     = SPI1_MISO_PIN,			     \
+   .ss_pin       = SPI_CS_PIN,				     \
+   .irq_priority = SPI1_IRQ_PRIORITY,			     \
+   .orc          = 0xFF,				     \
+   .frequency    = NRF_SPI_FREQ_8M,			     \
+   .mode         = NRF_SPI_MODE_0,			     \
+   .bit_order    = NRF_SPI_BIT_ORDER_MSB_FIRST,		     \
   }
 /*---------------------------------------------------------------------------*/
-static const nrf_drv_spi_t spi = NRF_DRV_SPI_INSTANCE(SPI_INSTANCE);  /* SPI instance. */
+static const nrfx_spi_t spi = NRFX_SPI_INSTANCE(SPI_INSTANCE);  /* SPI instance. */
 /*---------------------------------------------------------------------------*/
 /* Forward declarations */
 static void dw1000_spi_init_slow_rate(void);
@@ -99,7 +102,7 @@ static volatile int dw1000_irqn_status;
 /*---------------------------------------------------------------------------*/
 /* DW1000 interrupt handler */
 static void
-dw1000_irq_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
+dw1000_irq_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
   ENERGEST_ON(ENERGEST_TYPE_IRQ);
   dw1000_irqn_status = 0; // we are in the interrupt handler, we set the
@@ -111,7 +114,7 @@ dw1000_irq_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
     if(dw1000_isr != NULL) {
       dw1000_isr();
     }
-  } while(nrf_drv_gpiote_in_is_set(DW1000_IRQ_EXTI) == true);
+  } while(nrfx_gpiote_in_is_set(DW1000_IRQ_EXTI) == true);
   dw1000_irqn_status = 1; // Marking it 'enabled' again
   ENERGEST_OFF(ENERGEST_TYPE_IRQ);
 }
@@ -120,8 +123,8 @@ int
 dw1000_disable_interrupt(void)
 {
   if(dw1000_irqn_status != 0) {
-    nrf_drv_gpiote_in_event_disable(DW1000_IRQ_EXTI);
-    //nrf_drv_gpiote_in_event_enable(DW1000_IRQ_EXTI, false);
+    nrfx_gpiote_in_event_disable(DW1000_IRQ_EXTI);
+    //nrfx_gpiote_in_event_enable(DW1000_IRQ_EXTI, false);
     dw1000_irqn_status = 0;
     return 1; // previous status was 'enabled'
   }
@@ -134,7 +137,7 @@ void
 dw1000_enable_interrupt(int previous_irqn_status)
 {
   if(previous_irqn_status != 0) {
-    nrf_drv_gpiote_in_event_enable(DW1000_IRQ_EXTI, true);
+    nrfx_gpiote_in_event_enable(DW1000_IRQ_EXTI, true);
     dw1000_irqn_status = 1;
   }
 }
@@ -142,19 +145,17 @@ dw1000_enable_interrupt(int previous_irqn_status)
 static void
 dw1000_spi_init_slow_rate(void)
 {
-  nrf_drv_spi_config_t spi_config = NRF_DRV_SPI_DEFAULT_CONFIG_2M(SPI_INSTANCE);
-  spi_config.ss_pin = SPI_CS_PIN;
-  APP_ERROR_CHECK(nrf_drv_spi_init(&spi, &spi_config, NULL ));
+  nrfx_spi_config_t spi_config = NRFX_SPI_DEFAULT_CONFIG_2M;
+  APP_ERROR_CHECK(nrfx_spi_init(&spi, &spi_config, NULL, NULL));
   nrf_delay_ms(2);
 }
 /*---------------------------------------------------------------------------*/
-static void 
+static void
 dw1000_spi_init_fast_rate(void)
 {
-  nrf_drv_spi_uninit(&spi);
-  nrf_drv_spi_config_t spi_config = NRF_DRV_SPI_DEFAULT_CONFIG_8M(SPI_INSTANCE);
-  spi_config.ss_pin = SPI_CS_PIN;
-  APP_ERROR_CHECK(nrf_drv_spi_init(&spi, &spi_config, NULL));
+  nrfx_spi_uninit(&spi);
+  nrfx_spi_config_t spi_config = NRFX_SPI_DEFAULT_CONFIG_8M;
+  APP_ERROR_CHECK(nrfx_spi_init(&spi, &spi_config, NULL, NULL));
   nrf_delay_ms(2);
 }
 /*---------------------------------------------------------------------------*/
@@ -182,7 +183,7 @@ dw1000_spi_read(uint16 hdrlen, const uint8 *hdrbuf, uint32 len, uint8 *buf)
 
   /* Disable DW1000 EXT Interrupt */
   irqn_status = dw1000_disable_interrupt();
-  
+
   /* Temporal buffers for the SPI write/read operation */
   uint8_t hbuf[total_len];
   uint8_t dbuf[total_len];
@@ -195,7 +196,15 @@ dw1000_spi_read(uint16 hdrlen, const uint8 *hdrbuf, uint32 len, uint8 *buf)
   memset(dbuf, 0, total_len);
 
   /* Write header and read data */
-  nrf_drv_spi_transfer(&spi, hbuf, hdrlen + len, dbuf, hdrlen + len);
+  //nrf_drv_spi_transfer(&spi, hbuf, hdrlen + len, dbuf, hdrlen + len);
+  nrfx_spi_xfer_desc_t const spi_xfer_desc =
+    {
+     .p_tx_buffer = hbuf,
+     .tx_length   = hdrlen + len,
+     .p_rx_buffer = dbuf,
+     .rx_length   = hdrlen + len,
+    };
+  nrfx_spi_xfer(&spi, &spi_xfer_desc, 0);
 
   memcpy(buf, dbuf + hdrlen, len);
 
@@ -222,7 +231,15 @@ dw1000_spi_write(uint16 hdrlen, const uint8 *hdrbuf, uint32 len, const uint8 *bu
   memcpy(hbuf + hdrlen, buf, len);
 
   /* Write header */
-  nrf_drv_spi_transfer(&spi, hbuf, total_len, NULL, 0);
+  //nrf_drv_spi_transfer(&spi, hbuf, total_len, NULL, 0);
+  nrfx_spi_xfer_desc_t const spi_xfer_desc =
+    {
+     .p_tx_buffer = hbuf,
+     .tx_length   = total_len,
+     .p_rx_buffer = NULL,
+     .rx_length   = 0,
+    };
+  nrfx_spi_xfer(&spi, &spi_xfer_desc, 0);
 
   /* Re-enable DW1000 EXT Interrupt state */
   dw1000_enable_interrupt(irqn_status);
@@ -242,10 +259,10 @@ dw1000_arch_init()
    * NOTE: The DW1000 IRQ Pin should be Pull Down to
    * prevent unnecessary EXT Interrupt while DW1000
    * goes to sleep mode */
-  nrf_drv_gpiote_in_config_t in_config = GPIOTE_CONFIG_IN_SENSE_LOTOHI(true);
+  nrfx_gpiote_in_config_t in_config = NRFX_GPIOTE_CONFIG_IN_SENSE_LOTOHI(true);
   in_config.pull = NRF_GPIO_PIN_PULLDOWN;
-  nrf_drv_gpiote_in_init(DW1000_IRQ_EXTI, &in_config, dw1000_irq_handler);
-  nrf_drv_gpiote_in_event_enable(DW1000_IRQ_EXTI, true);
+  nrfx_gpiote_in_init(DW1000_IRQ_EXTI, &in_config, dw1000_irq_handler);
+  nrfx_gpiote_in_event_enable(DW1000_IRQ_EXTI, true);
   dw1000_irqn_status = 1;
 
   /* Reset and initialise DW1000.
@@ -254,7 +271,7 @@ dw1000_arch_init()
    */
   dw1000_arch_reset(); /* Target specific drive of RSTn line into DW1000 low for a period.*/
   if(dwt_initialise(DWT_LOADUCODE | DWT_READ_OTP_PID | DWT_READ_OTP_LID |
-                    DWT_READ_OTP_BAT | DWT_READ_OTP_TMP) 
+                    DWT_READ_OTP_BAT | DWT_READ_OTP_TMP)
           == DWT_ERROR) {
     printf("DW1000 INIT FAILED\n");
     while(1) {
@@ -273,7 +290,7 @@ dw1000_arch_reset()
   /* Clear the RST pin to reset the DW1000 */
   nrf_gpio_pin_clear(DW1000_RST);
 
-  /* TO CHECK: DO WE NEED THE FOLLOWING? 
+  /* TO CHECK: DO WE NEED THE FOLLOWING?
    * From the GitHub repository */
   // nrf_delay_ms(200);
   // nrf_gpio_pin_set(DW1000_RST);

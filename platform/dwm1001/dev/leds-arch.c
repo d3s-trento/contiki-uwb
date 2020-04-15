@@ -47,11 +47,11 @@
 
 #include "dwm1001-dev-board.h"
 
+#include "nrf_gpio.h"
+
 #include "contiki.h"
 #include "dev/leds.h"
 #include <stdio.h>
-
-#include "nrf_gpio.h"
 
 void
 switch_leds_off(unsigned int mask) {

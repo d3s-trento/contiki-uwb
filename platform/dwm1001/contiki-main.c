@@ -37,8 +37,7 @@
 #include <stdint.h>
 /*---------------------------------------------------------------------------*/
 #include "nordic_common.h"
-#include "nrf_drv_config.h"
-#include "nrf_drv_gpiote.h"
+#include "nrfx_gpiote.h"
 #ifdef SOFTDEVICE_PRESENT
 #include "softdevice_handler.h"
 #if NETSTACK_CONF_WITH_IPV6
@@ -63,19 +62,23 @@
 #include "dw1000-arch.h"
 #include "dw1000-config.h"
 /*---------------------------------------------------------------------------*/
+#include "nrf_log.h"
+#include "nrf_log_ctrl.h"
+#include "nrf_log_default_backends.h"
+/*---------------------------------------------------------------------------*/
 #define DEBUG 1
 /*---------------------------------------------------------------------------*/
 #if NETSTACK_CONF_WITH_IPV6
 #include "uip-debug.h"
 #include "net/ipv6/uip-ds6.h"
-#else //NETSTACK_CONF_WITH_IPV6
+#endif //NETSTACK_CONF_WITH_IPV6
+
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
 #else //DEBUG
 #define PRINTF(...)
 #endif //DEBUG
-#endif //NETSTACK_CONF_WITH_IPV6
 /*---------------------------------------------------------------------------*/
 #if defined(SOFTDEVICE_PRESENT) && PLATFORM_INDICATE_BLE_STATE && NETSTACK_CONF_WITH_IPV6
 PROCESS(ble_iface_observer, "BLE interface observer");
@@ -123,8 +126,8 @@ board_init(void)
   SOFTDEVICE_HANDLER_INIT(NRF_CLOCK_LFCLKSRC_XTAL_20_PPM, NULL);
 #endif
   // needed for button and for the DW1000 interrupt
-  if (!nrf_drv_gpiote_is_init()) {
-    nrf_drv_gpiote_init();
+  if (!nrfx_gpiote_is_init()) {
+    nrfx_gpiote_init();
   }
 }
 /*---------------------------------------------------------------------------*/
@@ -151,13 +154,16 @@ configure_addresses(void)
   /* Populate linkaddr_node_addr (big-endian) */
   memcpy(&linkaddr_node_addr, &ext_addr[8 - LINKADDR_SIZE], LINKADDR_SIZE);
 
-#if !BLE_WITH_IPV6
+#if NETSTACK_CONF_RADIO == dw1000_driver
+
   NETSTACK_RADIO.set_value(RADIO_PARAM_PAN_ID, IEEE802154_PANID);
   NETSTACK_RADIO.set_object(RADIO_PARAM_64BIT_ADDR, ext_addr, 8);
-  NETSTACK_RADIO.set_value(RADIO_PARAM_16BIT_ADDR, 
-      (ext_addr[6]) << 8 | (ext_addr[7])); // converting from big-endian format
+  NETSTACK_RADIO.set_value(RADIO_PARAM_16BIT_ADDR,
+			   (ext_addr[6]) << 8 | (ext_addr[7])); // converting from big-endian format
 
-#else /* !BLE_WITH_IPV6 */
+
+#else /* NETSTACK_CONF_RADIO == dw1000_driver */
+
 
   /* Set up the IEEE 802.15.4 PANID, short and long address
    * to be able to enable HW frame filtering
@@ -171,12 +177,25 @@ configure_addresses(void)
   int i;
 
   for(i = 0; i < 8; i++) {
-    little_endian[i] = ((uint8_t *)src)[7 - i];
+    little_endian[i] = ((uint8_t *)ext_addr)[7 - i];
   }
   dwt_seteui(little_endian);
-#endif /* !BLE_WITH_IPV6 */
+#endif /* NETSTACK_CONF_RADIO == dw1000_driver */
 
 }
+/*---------------------------------------------------------------------------*/
+/**@brief Function for initializing the nrf log module.
+ */
+static void log_init(void)
+{
+#if defined(NRF_LOG_ENABLED) && NRF_LOG_ENABLED == 1
+    ret_code_t err_code = NRF_LOG_INIT(NULL);
+    APP_ERROR_CHECK(err_code);
+
+    NRF_LOG_DEFAULT_BACKENDS_INIT();
+#endif //defined(NRF_LOG_ENABLED) && NRF_LOG_ENABLED == 1
+}
+
 /*---------------------------------------------------------------------------*/
 /**
  * \brief Main function for nRF52dk platform.
@@ -203,6 +222,7 @@ main(void)
      "ISB                               \n"
     );
 
+  log_init();
   leds_init();
 
   clock_init();
@@ -214,7 +234,7 @@ main(void)
   /* Seed value is ignored since hardware RNG is used. */
   random_init(0);
 
-#ifdef UART0_ENABLED
+#if defined(UART0_ENABLED) && UART0_ENABLED == 1
   uart0_init();
 #if SLIP_ARCH_CONF_ENABLE
   slip_arch_init(0);
@@ -238,11 +258,11 @@ main(void)
 	 );
 #endif //NRF_SHOW_RESETREASON
 
-#if UWB_WITH_RIME == 1
+#if NETSTACK_CONF_RADIO == dw1000_driver && NETSTACK_CONF_NETWORK == rime_driver
   PRINTF("Network stack: Rime over UWB\n");
-#elif UWB_WITH_IPV6 == 1
+#elif NETSTACK_CONF_RADIO == dw1000_driver && NETSTACK_CONF_NETWORK == sicslowpan_driver
   PRINTF("Network stack: IPv6 over UWB\n");
-#elif BLE_WITH_IPV6 == 1
+#elif NETSTACK_CONF_MAC == ble_ipsp_mac_driver
   PRINTF("Network stack: IPv6 over BLE\n");
 #endif
 
@@ -254,23 +274,21 @@ main(void)
   ENERGEST_ON(ENERGEST_TYPE_CPU);
 #endif
 
-#ifndef BLE_WITH_IPV6
+#if NETSTACK_CONF_RADIO == dw1000_driver
   netstack_init(); /* Init the full UWB network stack */
-#else
-  dw1000_arch_init(); /* Only initialize the radio hardware, not the network stack */
-  dw1000_reset_cfg(); /* and set the default configuration */
-#endif /* BLE_WITH_IPV6 */
-  
+
   configure_addresses(); /* Set the link layer addresses and the PAN ID */
 
-#if UWB_WITH_IPV6 == 1
+#if defined(NETSTACK_CONF_WITH_IPV6) && NETSTACK_CONF_WITH_IPV6==1
   memcpy(&uip_lladdr.addr, &linkaddr_node_addr, sizeof(uip_lladdr.addr));
   queuebuf_init();
   process_start(&tcpip_process, NULL);
-#endif /* UWB_WITH_IPV6 == 1 */
+#endif /* NETSTACK_CONF_NETWORK == sicslowpan_driver //IPV6 */
 
   printf("Short address: 0x%02x%02x\n",
-    linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1]);
+	 linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1]);
+
+#else  /*  NETSTACK_CONF_RADIO == dw1000_driver */
 
 #if defined(SOFTDEVICE_PRESENT) && NETSTACK_CONF_WITH_IPV6
   ble_stack_init();
@@ -284,7 +302,14 @@ main(void)
   memcpy(&uip_lladdr.addr, &linkaddr, sizeof(uip_lladdr.addr));
   process_start(&ble_iface_observer, NULL);
   process_start(&tcpip_process, NULL);
+
+  /* BLE stack is used so also dw1000 chip need intialization */
+  dw1000_arch_init(); /* Only initialize the radio hardware, not the network stack */
+  dw1000_reset_cfg(); /* and set the default configuration */
+
+
 #endif /* defined(SOFTDEVICE_PRESENT) && NETSTACK_CONF_WITH_IPV6 */
+#endif /*  NETSTACK_CONF_RADIO == dw1000_driver */
 
   process_start(&sensors_process, NULL);
   autostart_start(autostart_processes);
