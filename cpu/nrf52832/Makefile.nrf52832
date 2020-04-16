@@ -241,7 +241,8 @@ vpath %.S $(ASM_PATHS)
 
 OBJECTS = $(C_OBJECTS) $(ASM_OBJECTS)
 
-TARGET_LIBS= nrf52832.a $(NRF52_SDK_ROOT)/components/iot/ble_6lowpan/lib/ble_6lowpan.a
+
+TARGET_LIBS= nrf52832.a #$(NRF52_SDK_ROOT)/components/iot/ble_6lowpan/lib/ble_6lowpan.a
 
 ### Don't treat the .elf as intermediate
 .PRECIOUS: %.hex %.bin
@@ -257,7 +258,7 @@ CUSTOM_RULE_LINK=1
 %.elf: $(TARGET_STARTFILES) %.co $(PROJECT_OBJECTFILES) $(PROJECT_LIBRARIES) contiki-$(TARGET).a $(TARGET_LIBS)
 	$(TRACE_LD)
 	$(Q)$(CC) $(LDFLAGS) ${filter %o %.co %.a,$^} -lm -o $@
-	
+
 # Assemble files
 $(OBJECT_DIRECTORY)/%.o: %.S
 	@echo Compiling file: $(notdir $<)
