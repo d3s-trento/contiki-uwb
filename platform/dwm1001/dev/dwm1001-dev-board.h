@@ -12,6 +12,7 @@
  */
 
 #include "nrfx_config.h"
+#include "serial_baudrate.h"
 
 #ifndef DWM1001_DEV_H
 #define DWM1001_DEV_H
@@ -73,65 +74,10 @@
 
 #define UART0_ENABLED NRFX_UART0_ENABLED
 
-/* Following define is leaved as reference.. */
-/* #define RX_PIN_NUMBER  11 */
-/* #define TX_PIN_NUMBER  5 */
-/* #define CTS_PIN_NUMBER 7 */
-/* #define RTS_PIN_NUMBER 6 */
-
-/* #define HWFC           true */
-
-/* #define SPIS_MISO_PIN   28  /\* SPI MISO signal. *\/ */
-/* #define SPIS_CSN_PIN    12  /\* SPI CSN signal. *\/ */
-/* #define SPIS_MOSI_PIN   25  /\* SPI MOSI signal. *\/ */
-/* #define SPIS_SCK_PIN    29  /\* SPI SCK signal. *\/ */
-
-/* #define SPIM0_SCK_PIN   2   /\* SPI clock GPIO pin number. *\/ */
-/* #define SPIM0_MOSI_PIN  3   /\* SPI Master Out Slave In GPIO pin number. *\/ */
-/* #define SPIM0_MISO_PIN  4   /\* SPI Master In Slave Out GPIO pin number. *\/ */
-/* #define SPIM0_SS_PIN    5   /\* SPI Slave Select GPIO pin number. *\/ */
-
-
-/* #define SPIM2_SCK_PIN   12  /\* SPI clock GPIO pin number. *\/ */
-/* #define SPIM2_MOSI_PIN  13  /\* SPI Master Out Slave In GPIO pin number. *\/ */
-/* #define SPIM2_MISO_PIN  14  /\* SPI Master In Slave Out GPIO pin number. *\/ */
-/* #define SPIM2_SS_PIN    15  /\* SPI Slave Select GPIO pin number. *\/ */
-
-/* /\* UART symbolic constants *\/ */
-/* /\* NOTE - using pins from the RPI interface connector *\/ */
-/* /\*        NOT compatible with RPi Gateway builds *\/ */
-/* #define TX_PIN_NUM      5   /\* DWM1001 module pin 20, DEV board name RXD *\/ */
-/* #define RX_PIN_NUM      11    /\* DWM1001 module pin 18, DEV board name TXD *\/ */
-/* #define RTS_PIN_NUM     UART_PIN_DISCONNECTED */
-/* #define CTS_PIN_NUM     UART_PIN_DISCONNECTED */
-
-/* /\* serialization APPLICATION board - temp. setup for running serialized MEMU tests *\/ */
-/* #define SER_APP_RX_PIN              23    /\* UART RX pin number. *\/ */
-/* #define SER_APP_TX_PIN              24    /\* UART TX pin number. *\/ */
-/* #define SER_APP_CTS_PIN             2     /\* UART Clear To Send pin number. *\/ */
-/* #define SER_APP_RTS_PIN             25    /\* UART Request To Send pin number. *\/ */
-
-/* #define SER_APP_SPIM0_SCK_PIN       27     /\* SPI clock GPIO pin number. *\/ */
-/* #define SER_APP_SPIM0_MOSI_PIN      2      /\* SPI Master Out Slave In GPIO pin number *\/ */
-/* #define SER_APP_SPIM0_MISO_PIN      26     /\* SPI Master In Slave Out GPIO pin number *\/ */
-/* #define SER_APP_SPIM0_SS_PIN        23     /\* SPI Slave Select GPIO pin number *\/ */
-/* #define SER_APP_SPIM0_RDY_PIN       25     /\* SPI READY GPIO pin number *\/ */
-/* #define SER_APP_SPIM0_REQ_PIN       24     /\* SPI REQUEST GPIO pin number *\/ */
-
-/* /\* serialization CONNECTIVITY board *\/ */
-/* #define SER_CON_RX_PIN              24    /\* UART RX pin number. *\/ */
-/* #define SER_CON_TX_PIN              23    /\* UART TX pin number. *\/ */
-/* #define SER_CON_CTS_PIN             25    /\* UART Clear To Send pin number. Not used if HWFC is set to false. *\/ */
-/* #define SER_CON_RTS_PIN             2     /\* UART Request To Send pin number. Not used if HWFC is set to false. *\/ */
-
-/* #define SER_CON_SPIS_SCK_PIN        27    /\* SPI SCK signal. *\/ */
-/* #define SER_CON_SPIS_MOSI_PIN       2     /\* SPI MOSI signal. *\/ */
-/* #define SER_CON_SPIS_MISO_PIN       26    /\* SPI MISO signal. *\/ */
-/* #define SER_CON_SPIS_CSN_PIN        23    /\* SPI CSN signal. *\/ */
-/* #define SER_CON_SPIS_RDY_PIN        25    /\* SPI READY GPIO pin number. *\/ */
-/* #define SER_CON_SPIS_REQ_PIN        24    /\* SPI REQUEST GPIO pin number. *\/ */
-
-/* #define SER_CONN_CHIP_RESET_PIN     11    /\* Pin used to reset connectivity chip *\/ */
-
+#ifdef UART_CONF_BAUDRATE
+#define UART_DEFAULT_BAUDRATE UART_CONF_BAUDRATE
+#else
+#define UART_DEFAULT_BAUDRATE NRF5_SERIAL_BAUDRATE_115200 /*defined in serial_baudarte.h*/
+#endif
 
 #endif /* DWM1001_DEV_H */
