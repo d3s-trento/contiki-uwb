@@ -71,7 +71,7 @@
 #define PRINTF_RNG(...) do {} while(0)
 #endif
 
-#define DEBUG_RNG_FAILED 0
+#define DEBUG_RNG_FAILED 1
 #if DEBUG_RNG_FAILED
 #include <stdio.h>
 #define PRINTF_RNG_FAILED(...) printf(__VA_ARGS__)
@@ -185,10 +185,10 @@ const static ranging_conf_t ranging_conf_6M8 = {
   .to_a = 500,        // evb1000 can do 400
 
 /* DS timeouts */
-  .b = 500,           // evb1000 can do 400
+  .b = 550,           // evb1000 can do 400
   .rx_dly_b = 100,    // timeout starts after this
-  .to_b = 500,        // evb1000 can do 400
-  .to_c = 500,        // evb1000 can do 400
+  .to_b = 550,        // evb1000 can do 400
+  .to_c = 550,        // evb1000 can do 400
 
   .finish_delay = 1, /* assumes millisecond clock tick! */
 
