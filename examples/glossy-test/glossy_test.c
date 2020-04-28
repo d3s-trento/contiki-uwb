@@ -54,9 +54,6 @@
 /*---------------------------------------------------------------------------*/
 #include "deployment.h"
 /*---------------------------------------------------------------------------*/
-#define XSTR(x) #x
-#define STR(x) XSTR(x)
-/*---------------------------------------------------------------------------*/
 #ifndef INITIATOR_ID
 #error No initiator id given. Define the INITIATOR_ID macro
 #endif /* INITIATOR_ID */
@@ -98,15 +95,18 @@
 /*---------------------------------------------------------------------------*/
 /*                          PRINT MACRO DEFINITIONS                          */
 /*---------------------------------------------------------------------------*/
-#pragma message ("INITIATOR_ID:             "   STR( INITIATOR_ID ))
-#pragma message ("PAYLOAD_DATA_LEN:         "   STR( PAYLOAD_DATA_LEN ))
-#pragma message ("GLOSSY_N_TX:              "   STR( GLOSSY_N_TX ))
-#pragma message ("GLOSSY_PERIOD:            "   STR( GLOSSY_PERIOD ))
-#pragma message ("GLOSSY_SLOT:              "   STR( GLOSSY_T_SLOT ))
-#pragma message ("GLOSSY_GUARD:             "   STR( GLOSSY_T_GUARD ))
-#pragma message ("START_DELAY_INITIATOR:    "   STR( START_DELAY_INITIATOR ))
-#pragma message ("START_DELAY_RECEIVER:     "   STR( START_DELAY_RECEIVER ))
-#pragma message ("APP_FREQ_ADJ:             "   STR( APP_FREQ_ADJ ))
+#if UWB_CONTIKI_PRINT_DEF
+#include "print-def.h"
+#pragma message STRDEF(INITIATOR_ID)
+#pragma message STRDEF(PAYLOAD_DATA_LEN)
+#pragma message STRDEF(GLOSSY_N_TX)
+#pragma message STRDEF(GLOSSY_PERIOD)
+#pragma message STRDEF(GLOSSY_T_SLOT)
+#pragma message STRDEF(GLOSSY_T_GUARD)
+#pragma message STRDEF(START_DELAY_INITIATOR)
+#pragma message STRDEF(START_DELAY_RECEIVER)
+#pragma message STRDEF(APP_FREQ_ADJ)
+#endif
 /*---------------------------------------------------------------------------*/
 #define WAIT_UNTIL(time) \
 {\
@@ -374,7 +374,6 @@ PROCESS_THREAD(glossy_test, ev, data)
     node_id = OVERRIDE_NODE_ID;
 #else
     deployment_set_node_id_ieee_addr();
-    deployment_print_id_info();
 #endif
 
     if (node_id == 0) {
