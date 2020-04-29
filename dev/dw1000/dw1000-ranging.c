@@ -55,6 +55,10 @@
 /*---------------------------------------------------------------------------*/
 #if DW1000_RANGING_ENABLED
 
+#if LINKADDR_SIZE > 2
+#warning The ranging module will use 16-bit addresses. Make sure they are unique in your deployment!
+#endif
+
 #define DEBUG 0
 #if DEBUG
 #include <stdio.h>
@@ -185,10 +189,10 @@ const static ranging_conf_t ranging_conf_6M8 = {
   .to_a = 500,        // evb1000 can do 400
 
 /* DS timeouts */
-  .b = 500,           // evb1000 can do 400
+  .b = 550,           // evb1000 can do 400
   .rx_dly_b = 100,    // timeout starts after this
-  .to_b = 500,        // evb1000 can do 400
-  .to_c = 500,        // evb1000 can do 400
+  .to_b = 550,        // evb1000 can do 400
+  .to_c = 550,        // evb1000 can do 400
 
   .finish_delay = 1, /* assumes millisecond clock tick! */
 
@@ -219,11 +223,11 @@ static double hertz_to_ppm_multiplier;
 
 static ranging_conf_t ranging_conf;
 /*---------------------------------------------------------------------------*/
-#define tx_buf_set_src() do { tx_buf[7] = linkaddr_node_addr.u8[1]; tx_buf[8] = linkaddr_node_addr.u8[0]; } while(0)
-#define tx_buf_set_dst() do { tx_buf[5] = ranging_with.u8[1]; tx_buf[6] = ranging_with.u8[0]; } while(0)
+#define tx_buf_set_src() do { tx_buf[7] = linkaddr_node_addr.u8[LINKADDR_SIZE-1]; tx_buf[8] = linkaddr_node_addr.u8[LINKADDR_SIZE-2]; } while(0)
+#define tx_buf_set_dst() do { tx_buf[5] = ranging_with.u8[LINKADDR_SIZE-1]; tx_buf[6] = ranging_with.u8[LINKADDR_SIZE-2]; } while(0)
 #define tx_buf_set_dst_from_src() do { tx_buf[5] = rx_buf[7]; tx_buf[6] = rx_buf[8]; } while(0)
-#define rx_buf_check_dst() (rx_buf[5] == linkaddr_node_addr.u8[1] && rx_buf[6] == linkaddr_node_addr.u8[0]) /* TODO: check also PANID */
-#define rx_buf_check_src() (rx_buf[7] == ranging_with.u8[1] && rx_buf[8] == ranging_with.u8[0])
+#define rx_buf_check_dst() (rx_buf[5] == linkaddr_node_addr.u8[LINKADDR_SIZE-1] && rx_buf[6] == linkaddr_node_addr.u8[LINKADDR_SIZE-2]) /* TODO: check also PANID */
+#define rx_buf_check_src() (rx_buf[7] == ranging_with.u8[LINKADDR_SIZE-1] && rx_buf[8] == ranging_with.u8[LINKADDR_SIZE-2])
 /*---------------------------------------------------------------------------*/
 static inline uint64_t
 get_rx_timestamp_u64(void)
@@ -487,8 +491,8 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
       tx_buf[IDX_TYPE] = MSG_TYPE_DS1;
       tx_buf_set_src();
       tx_buf_set_dst_from_src();
-      ranging_with.u8[1] = rx_buf[7];
-      ranging_with.u8[0] = rx_buf[8];
+      ranging_with.u8[LINKADDR_SIZE-1] = rx_buf[7];
+      ranging_with.u8[LINKADDR_SIZE-2] = rx_buf[8];
 
       dwt_writetxdata(PKT_LEN_DS1, tx_buf, 0); /* Zero offset in TX buffer. */
       dwt_writetxfctrl(PKT_LEN_DS1, 0, 1); /* Zero offset in TX buffer, ranging. */
