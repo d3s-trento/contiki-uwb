@@ -11,23 +11,40 @@ ifeq ($(NRF52_JLINK_PATH),)
 endif
 endif
 
+define newline
+
+
+endef
+
+ifdef NRF52_WITHOUT_SOFTDEVICE
+$(error "NRF52_WITHOUT_SOFTDEVICE is forbiden.$(newline)NRF52_SOFTDEVICE (that have inverted logic and different values) should used")
+endif
+
 $(info SDK: $(NRF52_SDK_ROOT))
 
 ifeq ($(NRF52_DK_REVISION),)
   NRF52_DK_REVISION=pca10040
 endif
 
-ifdef NRF52_WITHOUT_SOFTDEVICE
-$(warning NRF52_WITHOUT_SOFTDEVICE is ignored during this refactory)
+NRF52_SOFTDEVICE ?= 0
+
+#validate NRF52_SOFTDEVICE values
+ifeq (,$(filter $(NRF52_SOFTDEVICE), 0 132 ))
+  $(error NRF52_SOFTDEVICE admitted value are: 0, 132)
 endif
 
-# ifneq ($(NRF52_WITHOUT_SOFTDEVICE),1)
-#   LINKER_SCRIPT := $(CONTIKI_CPU)/ld/nrf52-pca10040-sd.ld
-# else
+
+ifeq ($(NRF52_SOFTDEVICE),0)
+$(info TODO check if there is an updated script)
   LINKER_SCRIPT := $(CONTIKI_CPU)/ld/nrf52.ld
-#endif
+else
+  LINKER_SCRIPT := $(CONTIKI_CPU)/ld/ble_app_template_gcc_nrf52.ld
+  NRF52_SOFTDEVICE_HEX := $(NRF52_SDK_ROOT)/components/softdevice/s$(NRF52_SOFTDEVICE)/hex/s$(NRF52_SOFTDEVICE)_nrf52_7.0.1_softdevice.hex
+${info SOFTDEVICE: $(NRF52_SOFTDEVICE_HEX)}
+endif
 
 ${info LINKER_SCRIPT: $(LINKER_SCRIPT)}
+
 
 OUTPUT_FILENAME := $(CONTIKI_PROJECT)
 MAKEFILE_NAME := $(MAKEFILE_LIST)
@@ -63,14 +80,10 @@ endif
 remduplicates = $(strip $(if $1,$(firstword $1) $(call remduplicates,$(filter-out $(firstword $1),$1))))
 
 ### CPU-dependent directories
-CONTIKI_CPU_DIRS += . dev #compat
+CONTIKI_CPU_DIRS += . dev ble #compat
 
 ### CPU-dependent source files
 CONTIKI_CPU_SOURCEFILES += clock.c rtimer-arch.c uart0.c putchar.c watchdog.c
-
-# ifneq ($(NRF52_WITHOUT_SOFTDEVICE),1)
-# CONTIKI_CPU_SOURCEFILES += ble-core.c ble-mac.c
-# endif
 
 CONTIKI_SOURCEFILES += $(CONTIKI_CPU_SOURCEFILES)
 
@@ -95,6 +108,7 @@ INC_PATHS += components/libraries/delay
 INC_PATHS += components/libraries/ringbuf
 INC_PATHS += components/libraries/atomic
 INC_PATHS += components/libraries/queue/
+INC_PATHS += components/libraries/pwr_mgmt
 
 INC_PATHS += components/toolchain/cmsis/include
 
@@ -136,13 +150,35 @@ NRF_C_SOURCE_FILES += external/fprintf/nrf_fprintf.c
 NRF_C_SOURCE_FILES += external/fprintf/nrf_fprintf_format.c
 
 
-# ifneq ($(NRF52_WITHOUT_SOFTDEVICE),1)
-# NRF_C_SOURCE_FILES += components/softdevice/common/softdevice_handler/softdevice_handler.c \
-# #                   $(NRF52_SDK_ROOT)/components/ble/common/ble_advdata.c
-# else
+ifneq ($(NRF52_SOFTDEVICE),0)
+INC_PATHS += components/softdevice/common
+INC_PATHS += components/ble/common
+INC_PATHS += components/iot/common
+INC_PATHS += components/softdevice/s$(NRF52_SOFTDEVICE)/headers
+INC_PATHS += components/softdevice/s$(NRF52_SOFTDEVICE)/headers/nrf52/
+
+NRF_C_SOURCE_FILES += $(NRF52_SDK_ROOT)/components/ble/common/ble_advdata.c
+
+#this suppose Softcevie is used for BLE
+CONTIKI_CPU_SOURCEFILES += ble-core.c ble-mac.c
+
+#softdevice flags
+CFLAGS += -DSOFTDEVICE_PRESENT
+CFLAGS += -DS$(NRF52_SOFTDEVICE)
+CFLAGS += -DBLE_STACK_SUPPORT_REQD
+
+ASMFLAGS += -DSOFTDEVICE_PRESENT
+ASMFLAGS += -DS$(NRF52_SOFTDEVICE)
+ASMFLAGS += -DBLE_STACK_SUPPORT_REQD
+
+else
+
+#no softdevice
 NRF_C_SOURCE_FILES += components/libraries/fifo/app_fifo.c \
 #                   $(NRF52_SDK_ROOT)/components/libraries/util/app_util_platform.c
-#endif
+INC_PATHS += components/drivers_nrf/nrf_soc_nosd
+INC_PATHS += components/libraries/fifo
+endif
 
 #assembly files common to all targets
 ASM_SOURCE_FILES += $(NRF52_SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52.S
@@ -151,18 +187,6 @@ ASM_SOURCE_FILES += $(NRF52_SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52.S
 INC_PATHS += integration/nrfx/legacy
 NRF_C_SOURCE_FILES += integration/nrfx/legacy/nrf_drv_uart.c
 
-#ifneq ($(NRF52_WITHOUT_SOFTDEVICE),1)
-# INC_PATHS += components/softdevice/s1xx_iot/headers
-# INC_PATHS += components/softdevice/s1xx_iot/headers/nrf52
-# INC_PATHS += components/softdevice/common/softdevice_handler
-# INC_PATHS += components/ble/common
-# INC_PATHS += components/iot/common
-# INC_PATHS += components/iot/ble_ipsp
-#else
-INC_PATHS += components/drivers_nrf/nrf_soc_nosd
-INC_PATHS += components/libraries/fifo
-#endif
-
 EXTERNALDIRS += $(addprefix $(NRF52_SDK_ROOT)/, $(INC_PATHS))
 
 # Sorting removes duplicates
@@ -170,14 +194,6 @@ BUILD_DIRECTORIES := $(sort $(OUTPUT_BINARY_DIRECTORY) $(LISTING_DIRECTORY))
 
 # Clean files and directories
 CLEAN += bin_$(TARGET) lst_$(TARGET) nrf52832.a *.elf *.hex
-
-#flags common to all targets
-# ifneq ($(NRF52_WITHOUT_SOFTDEVICE),1)
-# $(error SOFTDEVICE not ported yet...)
-# CFLAGS += -DSOFTDEVICE_PRESENT
-# CFLAGS += -DS132
-# CFLAGS += -DBLE_STACK_SUPPORT_REQD
-# endif
 
 ifeq ($(SMALL),1)
 CFLAGS += -Os
@@ -210,12 +226,6 @@ LDFLAGS += -Wl,--gc-sections
 # # use newlib in nano version
 LDFLAGS += --specs=nano.specs #-lc -lnosys
 
-# Assembler flags
-# ifneq ($(NRF52_WITHOUT_SOFTDEVICE),1)
-# ASMFLAGS += -DSOFTDEVICE_PRESENT
-# ASMFLAGS += -DS132
-# ASMFLAGS += -DBLE_STACK_SUPPORT_REQD
-# endif
 ASMFLAGS += -g3
 ASMFLAGS += -mcpu=cortex-m4
 ASMFLAGS += -mthumb -mabi=aapcs
@@ -226,7 +236,7 @@ ASMFLAGS += -DFLOAT_ABI_HARD
 ASMFLAGS += -DNRF52
 ASMFLAGS += -DNRF52832_XXAA
 ASMFLAGS += -DNRF52_PAN_74
-#ASMFLAGS += -DNRF_SD_BLE_API_VERSION=6
+ASMFLAGS += -DNRF_SD_BLE_API_VERSION=6
 ASMFLAGS += -DSWI_DISABLE0
 
 C_SOURCE_FILES += $(addprefix $(NRF52_SDK_ROOT)/, $(NRF_C_SOURCE_FILES) )
@@ -291,12 +301,16 @@ $(OBJECT_DIRECTORY)/%.o: %.S
 	@echo Flashing: $^
 	$(JLINK) $(JLINK_OPTS) -CommanderScript $*.jlink
 
-# softdevice.jlink:
-# 	sed -e 's,#OUTPUT_FILENAME#,$(NRF52_SOFTDEVICE),' $(CONTIKI_CPU)/flash.jlink > $@
+softdevice.jlink: 
+ifndef NRF52_SOFTDEVICE_HEX
+	$(error miss softdevice to use)
+else
+	sed -e 's,#OUTPUT_FILENAME#,$(NRF52_SOFTDEVICE_HEX),' $(CONTIKI_CPU)/flash.jlink > $@
+endif
 
-# softdevice.flash: softdevice.jlink
-# 	@echo Flashing: $(notdir $(NRF52_SOFTDEVICE))
-# 	$(JLINK) $(JLINK_OPTS) -CommanderScript $^
+softdevice.flash: softdevice.jlink
+	@echo Flashing: $(notdir $(NRF52_SOFTDEVICE_HEX))
+	$(JLINK) $(JLINK_OPTS) -CommanderScript $^
 
 erase:
 	$(JLINK) $(JLINK_OPTS) -CommanderScript $(CONTIKI_CPU)/erase.jlink

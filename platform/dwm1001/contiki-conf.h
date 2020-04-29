@@ -64,30 +64,17 @@
 /* #define XSTR(x) STR(x) */
 /* #define STR(x) #x */
 
-/* #pragma message "NETSTACK_CONF_RADIO: " XSTR(NETSTACK_CONF_RADIO) "//" */
-/* #pragma message "NETSTACK_CONF_MAC: " XSTR(NETSTACK_CONF_MAC) "//" */
-
-/* #ifdef NETSTACK_CONF_RADIO */
-/* #warning "NETSTACK_CONF_RADIO is " XSTR(NETSTACK_CONF_RADIO) */
-/* /\* #else *\/ */
-/* /\* #warning conf radio is defined *\/ */
-/* #endif */
-
 //if is not set deafult radio is dw1000
-#if !defined(NETSTACK_CONF_RADIO) && (!defined(NETSTACK_CONF_MAC) || NETSTACK_CONF_MAC != ble_ipsp_mac_driver)
+#ifndef NETSTACK_CONF_RADIO
 #define NETSTACK_CONF_RADIO dw1000_driver
 #endif
 
 
 #define HW_ACKS 0
 /*---------------------------------------------------------------------------*/
-#if NETSTACK_CONF_RADIO == dw1000_driver
+//#if NETSTACK_CONF_RADIO == dw1000_driver
 #include "uwb_stack.h"
-#elif NETSTACK_CONF_MAC == ble_ipsp_mac_driver  //BLE_WITH_IPV6 == 1
-/* next is a warning with intention to stop compilation, it is a attmept to mantain BLE branch */
-#warning message "ATTENTION THIS IF BRANCH IS NOT TESTED"
-#include "ble_stack.h"
-#endif
+//#endif
 /*---------------------------------------------------------------------------*/
 /**
  * \name Generic Configuration directives

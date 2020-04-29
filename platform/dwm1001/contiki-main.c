@@ -36,22 +36,19 @@
 #include <stdio.h>
 #include <stdint.h>
 /*---------------------------------------------------------------------------*/
-#include "nordic_common.h"
-#include "nrfx_gpiote.h"
-#ifdef SOFTDEVICE_PRESENT
-#include "softdevice_handler.h"
-#if NETSTACK_CONF_WITH_IPV6
-#include "ble/ble-core.h"
-#include "ble/ble-mac.h"
-#endif /* NETSTACK_CONF_WITH_IPV6 */
-#endif /*SOFTDEVICE_PRESENT*/
-/*---------------------------------------------------------------------------*/
 #include "contiki.h"
 #include "contiki-net.h"
 #include "custom_board.h"
 #include "dwm1001-dev-board.h"
 #include "leds.h"
 #include "lib/sensors.h"
+/*---------------------------------------------------------------------------*/
+#include "nordic_common.h"
+#include "nrfx_gpiote.h"
+/*---------------------------------------------------------------------------*/
+#include "nrf_log.h"
+#include "nrf_log_ctrl.h"
+#include "nrf_log_default_backends.h"
 /*---------------------------------------------------------------------------*/
 #include "dev/watchdog.h"
 #include "dev/serial-line.h"
@@ -61,57 +58,21 @@
 #include "deca_device_api.h"
 #include "dw1000-arch.h"
 #include "dw1000-config.h"
-/*---------------------------------------------------------------------------*/
-#include "nrf_log.h"
-#include "nrf_log_ctrl.h"
-#include "nrf_log_default_backends.h"
-/*---------------------------------------------------------------------------*/
-#define DEBUG 1
-/*---------------------------------------------------------------------------*/
-#if NETSTACK_CONF_WITH_IPV6
-#include "uip-debug.h"
-#include "net/ipv6/uip-ds6.h"
-#endif //NETSTACK_CONF_WITH_IPV6
 
+#define DEBUG 1
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
 #else //DEBUG
 #define PRINTF(...)
 #endif //DEBUG
+
 /*---------------------------------------------------------------------------*/
-#if defined(SOFTDEVICE_PRESENT) && PLATFORM_INDICATE_BLE_STATE && NETSTACK_CONF_WITH_IPV6
-PROCESS(ble_iface_observer, "BLE interface observer");
+#if NETSTACK_CONF_WITH_IPV6
+#include "uip-debug.h"
+#include "net/ipv6/uip-ds6.h"
+#endif //NETSTACK_CONF_WITH_IPV6
 
-/**
- * \brief A process that handles adding/removing
- *        BLE IPSP interfaces.
- */
-PROCESS_THREAD(ble_iface_observer, ev, data)
-{
-  static struct etimer led_timer;
-
-  PROCESS_BEGIN();
-
-  etimer_set(&led_timer, CLOCK_SECOND/2);
-
-  while(1) {
-    PROCESS_WAIT_EVENT();
-    if(ev == ble_event_interface_added) {
-      etimer_stop(&led_timer);
-      leds_off(LEDS_1);
-      leds_on(LEDS_2);
-    } else if(ev == ble_event_interface_deleted) {
-      etimer_set(&led_timer, CLOCK_SECOND/2);
-      leds_off(LEDS_2);
-    } else if(ev == PROCESS_EVENT_TIMER && etimer_expired(&led_timer)) {
-      etimer_reset(&led_timer);
-      leds_toggle(LEDS_1);
-    }
-  }
-  PROCESS_END();
-}
-#endif
 /*---------------------------------------------------------------------------*/
 /**
  * \brief Board specific initialization
@@ -121,10 +82,6 @@ PROCESS_THREAD(ble_iface_observer, ev, data)
 static void
 board_init(void)
 {
-#ifdef SOFTDEVICE_PRESENT
-  /* Initialize the SoftDevice handler module */
-  SOFTDEVICE_HANDLER_INIT(NRF_CLOCK_LFCLKSRC_XTAL_20_PPM, NULL);
-#endif
   // needed for button and for the DW1000 interrupt
   if (!nrfx_gpiote_is_init()) {
     nrfx_gpiote_init();
@@ -262,8 +219,6 @@ main(void)
   PRINTF("Network stack: Rime over UWB\n");
 #elif NETSTACK_CONF_RADIO == dw1000_driver && NETSTACK_CONF_NETWORK == sicslowpan_driver
   PRINTF("Network stack: IPv6 over UWB\n");
-#elif NETSTACK_CONF_MAC == ble_ipsp_mac_driver
-  PRINTF("Network stack: IPv6 over BLE\n");
 #endif
 
   process_start(&etimer_process, NULL);
@@ -290,36 +245,16 @@ main(void)
 
 #else  /*  NETSTACK_CONF_RADIO == dw1000_driver */
 
-#if defined(SOFTDEVICE_PRESENT) && NETSTACK_CONF_WITH_IPV6
-  ble_stack_init();
-  ble_advertising_init(DEVICE_NAME);
-  netstack_init();
-  linkaddr_t linkaddr;
-  ble_get_mac(linkaddr.u8);
-  /* Set link layer address */
-  linkaddr_set_node_addr(&linkaddr);
-  /* Set device link layer address in uip stack */
-  memcpy(&uip_lladdr.addr, &linkaddr, sizeof(uip_lladdr.addr));
-  process_start(&ble_iface_observer, NULL);
-  process_start(&tcpip_process, NULL);
-
-  /* BLE stack is used so also dw1000 chip need intialization */
+  /* NETSTACK is not over DW1000, it should be initializd in nay case*/
   dw1000_arch_init(); /* Only initialize the radio hardware, not the network stack */
   dw1000_reset_cfg(); /* and set the default configuration */
 
-
-#endif /* defined(SOFTDEVICE_PRESENT) && NETSTACK_CONF_WITH_IPV6 */
 #endif /*  NETSTACK_CONF_RADIO == dw1000_driver */
 
   process_start(&sensors_process, NULL);
   autostart_start(autostart_processes);
 
   watchdog_start();
-
-#if defined(SOFTDEVICE_PRESENT) && NETSTACK_CONF_WITH_IPV6
-  ble_advertising_start();
-  PRINTF("Advertising name [%s]\n", DEVICE_NAME);
-#endif /* defined(SOFTDEVICE_PRESENT) && NETSTACK_CONF_WITH_IPV6 */
 
   while(1) {
     uint8_t r;
