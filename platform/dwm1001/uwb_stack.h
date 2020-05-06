@@ -36,9 +36,10 @@
 
 #if DW1000_CONF_DATA_RATE==DWT_BR_110k
 #define NULLRDC_CONF_ACK_WAIT_TIME                 (RTIMER_SECOND / 100)
-#else
+#else /* DW1000_CONF_DATA_RATE==DWT_BR_110k */
 #define NULLRDC_CONF_ACK_WAIT_TIME                 (RTIMER_SECOND / 1000)
-#endif
+#endif /* DW1000_CONF_DATA_RATE==DWT_BR_110k */
+
 #define NULLRDC_CONF_AFTER_ACK_DETECTED_WAIT_TIME  (RTIMER_SECOND / 1000)
 
 #endif /* HW_ACKS==1 */
@@ -55,7 +56,7 @@
 
 /* Network setup */
 #if defined(NETSTACK_CONF_RADIO) && NETSTACK_CONF_RADIO != dw1000_driver
-#error Excected NETSTACK_CONF_RADIO is dw1000_driver but is not!!! Something goes wrong
+#error Excpected NETSTACK_CONF_RADIO is dw1000_driver but is not!!! Something goes wrong!!
 #endif
 
 //#define NETSTACK_CONF_RADIO         dw1000_driver
