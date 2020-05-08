@@ -71,72 +71,72 @@ endif
 CONTIKI_SOURCEFILES += $(CONTIKI_CPU_SOURCEFILES)
 
 #includes common to all targets
-INC_PATHS += modules/nrfx
-INC_PATHS += modules/nrfx/hal
-INC_PATHS += modules/nrfx/mdk
-INC_PATHS += modules/nrfx/drivers/include
+SDK_INC_PATHS += modules/nrfx
+SDK_INC_PATHS += modules/nrfx/hal
+SDK_INC_PATHS += modules/nrfx/mdk
+SDK_INC_PATHS += modules/nrfx/drivers/include
 
-INC_PATHS += components/boards
+SDK_INC_PATHS += components/boards
 
-INC_PATHS += components/serialization/common/
+SDK_INC_PATHS += components/serialization/common/
 
-INC_PATHS += components/libraries/util
-INC_PATHS += components/libraries/log
-INC_PATHS += components/libraries/log/src
-INC_PATHS += components/libraries/experimental_section_vars
-INC_PATHS += components/libraries/strerror
-INC_PATHS += components/libraries/memobj
-INC_PATHS += components/libraries/balloc
-INC_PATHS += components/libraries/delay
-INC_PATHS += components/libraries/ringbuf
-INC_PATHS += components/libraries/atomic
-INC_PATHS += components/libraries/queue/
+SDK_INC_PATHS += components/libraries/util
+SDK_INC_PATHS += components/libraries/log
+SDK_INC_PATHS += components/libraries/log/src
+SDK_INC_PATHS += components/libraries/experimental_section_vars
+SDK_INC_PATHS += components/libraries/strerror
+SDK_INC_PATHS += components/libraries/memobj
+SDK_INC_PATHS += components/libraries/balloc
+SDK_INC_PATHS += components/libraries/delay
+SDK_INC_PATHS += components/libraries/ringbuf
+SDK_INC_PATHS += components/libraries/atomic
+SDK_INC_PATHS += components/libraries/queue/
 
-INC_PATHS += components/toolchain/cmsis/include
+SDK_INC_PATHS += components/toolchain/cmsis/include
 
-INC_PATHS += external/fprintf
+SDK_INC_PATHS += external/fprintf
 
-INC_PATHS += integration/nrfx
+SDK_INC_PATHS += integration/nrfx
 
 #source common to all targets
-NRF_C_SOURCE_FILES += modules/nrfx/mdk/system_nrf52.c
-NRF_C_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_gpiote.c
-NRF_C_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_rtc.c
-NRF_C_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_timer.c
-NRF_C_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_wdt.c
-NRF_C_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_uart.c
-NRF_C_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_spi.c
-NRF_C_SOURCE_FILES += modules/nrfx/drivers/src/prs/nrfx_prs.c
-NRF_C_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_uarte.c
-NRF_C_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_rng.c
-NRF_C_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_clock.c
+SDK_SOURCE_FILES += modules/nrfx/mdk/system_nrf52.c
+SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_gpiote.c
+SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_rtc.c
+SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_timer.c
+SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_wdt.c
+SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_uart.c
+SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_spi.c
+SDK_SOURCE_FILES += modules/nrfx/drivers/src/prs/nrfx_prs.c
+SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_uarte.c
+SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_rng.c
+SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_clock.c
 
-NRF_C_SOURCE_FILES += components/serialization/connectivity/ser_conn_error_handling.c
+SDK_SOURCE_FILES += components/serialization/connectivity/ser_conn_error_handling.c
 
-NRF_C_SOURCE_FILES += components/libraries/util/app_error.c
-NRF_C_SOURCE_FILES += components/libraries/log/src/nrf_log_frontend.c
-NRF_C_SOURCE_FILES += components/libraries/log/src/nrf_log_default_backends.c
-NRF_C_SOURCE_FILES += components/libraries/log/src/nrf_log_backend_rtt.c
-NRF_C_SOURCE_FILES += components/libraries/log/src/nrf_log_backend_uart.c
-NRF_C_SOURCE_FILES += components/libraries/log/src/nrf_log_backend_serial.c
-NRF_C_SOURCE_FILES += components/libraries/log/src/nrf_log_str_formatter.c
-NRF_C_SOURCE_FILES += components/libraries/memobj/nrf_memobj.c
-NRF_C_SOURCE_FILES += components/libraries/ringbuf/nrf_ringbuf.c
-NRF_C_SOURCE_FILES += components/libraries/atomic/nrf_atomic.c
-NRF_C_SOURCE_FILES += components/libraries/util/app_util_platform.c
-NRF_C_SOURCE_FILES += components/libraries/queue/nrf_queue.c
-NRF_C_SOURCE_FILES += components/libraries/balloc/nrf_balloc.c
-NRF_C_SOURCE_FILES += components/libraries/strerror/nrf_strerror.c
+SDK_SOURCE_FILES += components/libraries/util/app_error.c
+SDK_SOURCE_FILES += components/libraries/log/src/nrf_log_frontend.c
+SDK_SOURCE_FILES += components/libraries/log/src/nrf_log_default_backends.c
+SDK_SOURCE_FILES += components/libraries/log/src/nrf_log_backend_rtt.c
+SDK_SOURCE_FILES += components/libraries/log/src/nrf_log_backend_uart.c
+SDK_SOURCE_FILES += components/libraries/log/src/nrf_log_backend_serial.c
+SDK_SOURCE_FILES += components/libraries/log/src/nrf_log_str_formatter.c
+SDK_SOURCE_FILES += components/libraries/memobj/nrf_memobj.c
+SDK_SOURCE_FILES += components/libraries/ringbuf/nrf_ringbuf.c
+SDK_SOURCE_FILES += components/libraries/atomic/nrf_atomic.c
+SDK_SOURCE_FILES += components/libraries/util/app_util_platform.c
+SDK_SOURCE_FILES += components/libraries/queue/nrf_queue.c
+SDK_SOURCE_FILES += components/libraries/balloc/nrf_balloc.c
+SDK_SOURCE_FILES += components/libraries/strerror/nrf_strerror.c
 
-NRF_C_SOURCE_FILES += external/fprintf/nrf_fprintf.c
-NRF_C_SOURCE_FILES += external/fprintf/nrf_fprintf_format.c
+SDK_SOURCE_FILES += external/fprintf/nrf_fprintf.c
+SDK_SOURCE_FILES += external/fprintf/nrf_fprintf_format.c
 
 
 ifneq ($(NRF52_WITHOUT_SOFTDEVICE),1)
-NRF_C_SOURCE_FILES += components/softdevice/common/softdevice_handler/softdevice_handler.c \
+SDK_SOURCE_FILES += components/softdevice/common/softdevice_handler/softdevice_handler.c \
 #                   $(NRF52_SDK_ROOT)/components/ble/common/ble_advdata.c
 else
-NRF_C_SOURCE_FILES += components/libraries/fifo/app_fifo.c \
+SDK_SOURCE_FILES += components/libraries/fifo/app_fifo.c \
 #                   $(NRF52_SDK_ROOT)/components/libraries/util/app_util_platform.c
 endif
 
@@ -144,22 +144,22 @@ endif
 ASM_SOURCE_FILES += $(NRF52_SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52.S
 
 #here is defined some legacy request, e.g. used by log library
-INC_PATHS += integration/nrfx/legacy
-NRF_C_SOURCE_FILES += integration/nrfx/legacy/nrf_drv_uart.c
+SDK_INC_PATHS += integration/nrfx/legacy
+SDK_SOURCE_FILES += integration/nrfx/legacy/nrf_drv_uart.c
 
 ifneq ($(NRF52_WITHOUT_SOFTDEVICE),1)
-# INC_PATHS += components/softdevice/s1xx_iot/headers
-# INC_PATHS += components/softdevice/s1xx_iot/headers/nrf52
-# INC_PATHS += components/softdevice/common/softdevice_handler
-# INC_PATHS += components/ble/common
-# INC_PATHS += components/iot/common
-# INC_PATHS += components/iot/ble_ipsp
+# SDK_INC_PATHS += components/softdevice/s1xx_iot/headers
+# SDK_INC_PATHS += components/softdevice/s1xx_iot/headers/nrf52
+# SDK_INC_PATHS += components/softdevice/common/softdevice_handler
+# SDK_INC_PATHS += components/ble/common
+# SDK_INC_PATHS += components/iot/common
+# SDK_INC_PATHS += components/iot/ble_ipsp
 else
-INC_PATHS += components/drivers_nrf/nrf_soc_nosd
-INC_PATHS += components/libraries/fifo
+SDK_INC_PATHS += components/drivers_nrf/nrf_soc_nosd
+SDK_INC_PATHS += components/libraries/fifo
 endif
 
-EXTERNALDIRS += $(addprefix $(NRF52_SDK_ROOT)/, $(INC_PATHS))
+EXTERNALDIRS += $(addprefix $(NRF52_SDK_ROOT)/, $(SDK_INC_PATHS))
 
 # Sorting removes duplicates
 BUILD_DIRECTORIES := $(sort $(OUTPUT_BINARY_DIRECTORY) $(LISTING_DIRECTORY))
@@ -225,7 +225,7 @@ ASMFLAGS += -DNRF52_PAN_74
 ASMFLAGS += -DNRF_SD_BLE_API_VERSION=6
 ASMFLAGS += -DSWI_DISABLE0
 
-C_SOURCE_FILES += $(addprefix $(NRF52_SDK_ROOT)/, $(NRF_C_SOURCE_FILES) )
+C_SOURCE_FILES += $(addprefix $(NRF52_SDK_ROOT)/, $(SDK_SOURCE_FILES) )
 
 
 C_SOURCE_FILE_NAMES = $(notdir $(C_SOURCE_FILES))
@@ -262,7 +262,7 @@ CUSTOM_RULE_LINK=1
 # Assemble files
 $(OBJECT_DIRECTORY)/%.o: %.S
 	@echo Compiling file: $(notdir $<)
-	$(Q)$(CC) $(ASMFLAGS) $(addprefix -I$(NRF52_SDK_ROOT)/, $(INC_PATHS)) -c -o $@ $<
+	$(Q)$(CC) $(ASMFLAGS) $(addprefix -I$(NRF52_SDK_ROOT)/, $(SDK_INC_PATHS)) -c -o $@ $<
 
 # Create binary file from the .out file
 %.bin: %.elf
