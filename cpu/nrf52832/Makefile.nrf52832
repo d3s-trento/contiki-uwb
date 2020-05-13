@@ -11,23 +11,43 @@ ifeq ($(NRF52_JLINK_PATH),)
 endif
 endif
 
+define newline
+
+
+endef
+
+ifdef NRF52_WITHOUT_SOFTDEVICE
+ifneq ($(MAKECMDGOALS), softdevice.help)
+$(error "NRF52_WITHOUT_SOFTDEVICE is forbiden.$(newline)Use NRF52_SOFTDEVICE (that have inverted logic and different values) should used, see make softdevice.help to short explanation")
+endif
+endif
+
 $(info SDK: $(NRF52_SDK_ROOT))
 
 ifeq ($(NRF52_DK_REVISION),)
   NRF52_DK_REVISION=pca10040
 endif
 
-ifdef NRF52_WITHOUT_SOFTDEVICE
-$(warning NRF52_WITHOUT_SOFTDEVICE is ignored during this refactory)
+NRF52_SOFTDEVICE ?= 0
+
+#validate NRF52_SOFTDEVICE values
+ifeq (,$(filter $(NRF52_SOFTDEVICE), 0 132 ))
+  $(error NRF52_SOFTDEVICE admitted value are: 0 or 132)
 endif
 
-# ifneq ($(NRF52_WITHOUT_SOFTDEVICE),1)
-#   LINKER_SCRIPT := $(CONTIKI_CPU)/ld/nrf52-pca10040-sd.ld
-# else
+
+ifeq ($(NRF52_SOFTDEVICE),0)
+$(info TODO check if there is an updated script)
   LINKER_SCRIPT := $(CONTIKI_CPU)/ld/nrf52.ld
-#endif
+else
+  NRF52_SOFTDEVICE_ROOTPATH := $(NRF52_SDK_ROOT)/components/softdevice/s$(NRF52_SOFTDEVICE)
+  LINKER_SCRIPT :=  $(NRF52_SDK_ROOT)/config/nrf52832/armgcc/generic_gcc_nrf52.ld #$(shell find $(NRF52_SOFTDEVICE_ROOTPATH) -name '*.ld' | head -n 1)
+  NRF52_SOFTDEVICE_HEX := $(shell find $(NRF52_SOFTDEVICE_ROOTPATH) -name '*.hex' | head -n 1)
+endif
 
 ${info LINKER_SCRIPT: $(LINKER_SCRIPT)}
+$(info SOFTDEVICE: $(NRF52_SOFTDEVICE_HEX))
+
 
 OUTPUT_FILENAME := $(CONTIKI_PROJECT)
 MAKEFILE_NAME := $(MAKEFILE_LIST)
@@ -54,7 +74,7 @@ SIZE := arm-none-eabi-size
 
 # JLink
 JLINK := $(NRF52_JLINK_PATH)/JLinkExe
-JLINK_OPTS = -Device NRF52 -if swd -speed 1000
+JLINK_OPTS = -Device NRF52 -if swd -speed 4000
 ifneq ($(JLINK_SN),)
 JLINK_OPTS += -SelectEmuBySN $(JLINK_SN)
 endif
@@ -63,14 +83,10 @@ endif
 remduplicates = $(strip $(if $1,$(firstword $1) $(call remduplicates,$(filter-out $(firstword $1),$1))))
 
 ### CPU-dependent directories
-CONTIKI_CPU_DIRS += . dev #compat
+CONTIKI_CPU_DIRS += . dev ble #compat
 
 ### CPU-dependent source files
 CONTIKI_CPU_SOURCEFILES += clock.c rtimer-arch.c uart0.c putchar.c watchdog.c
-
-# ifneq ($(NRF52_WITHOUT_SOFTDEVICE),1)
-# CONTIKI_CPU_SOURCEFILES += ble-core.c ble-mac.c
-# endif
 
 CONTIKI_SOURCEFILES += $(CONTIKI_CPU_SOURCEFILES)
 
@@ -95,6 +111,7 @@ SDK_INC_PATHS += components/libraries/delay
 SDK_INC_PATHS += components/libraries/ringbuf
 SDK_INC_PATHS += components/libraries/atomic
 SDK_INC_PATHS += components/libraries/queue/
+SDK_INC_PATHS += components/libraries/pwr_mgmt
 
 SDK_INC_PATHS += components/toolchain/cmsis/include
 
@@ -136,13 +153,38 @@ SDK_SOURCE_FILES += external/fprintf/nrf_fprintf.c
 SDK_SOURCE_FILES += external/fprintf/nrf_fprintf_format.c
 
 
-# ifneq ($(NRF52_WITHOUT_SOFTDEVICE),1)
-# SDK_SOURCE_FILES += components/softdevice/common/softdevice_handler/softdevice_handler.c \
-# #                   $(NRF52_SDK_ROOT)/components/ble/common/ble_advdata.c
-# else
+ifeq ($(NRF52_SOFTDEVICE),0)
+#no softdevice
 SDK_SOURCE_FILES += components/libraries/fifo/app_fifo.c \
 #                   $(NRF52_SDK_ROOT)/components/libraries/util/app_util_platform.c
-#endif
+SDK_INC_PATHS += components/drivers_nrf/nrf_soc_nosd
+SDK_INC_PATHS += components/libraries/fifo
+
+else
+#softdevice flags
+CFLAGS += -DSOFTDEVICE_PRESENT
+CFLAGS += -DS$(NRF52_SOFTDEVICE)
+CFLAGS += -DBLE_STACK_SUPPORT_REQD #supposing softdevice is used for BLE
+
+SDK_INC_PATHS += components/softdevice/common
+SDK_INC_PATHS += components/softdevice/s$(NRF52_SOFTDEVICE)/headers
+SDK_INC_PATHS += components/softdevice/s$(NRF52_SOFTDEVICE)/headers/nrf52/
+
+SDK_INC_PATHS += components/ble/common
+SDK_INC_PATHS += components/iot/common
+
+SDK_SOURCE_FILES += ble/common/ble_advdata.c
+SDK_SOURCE_FILES += components/softdevice/common/nrf_sdh.c
+SDK_SOURCE_FILES += components/libraries/experimental_section_vars/nrf_section_iter.c
+#this suppose Softcevie is used for BLE
+#CONTIKI_CPU_SOURCEFILES += ble-core.c ble-mac.c
+
+ASMFLAGS += -DSOFTDEVICE_PRESENT
+ASMFLAGS += -DS$(NRF52_SOFTDEVICE)
+ASMFLAGS += -DBLE_STACK_SUPPORT_REQD
+ASMFLAGS += -DNRF_SD_BLE_API_VERSION=6
+
+endif
 
 #assembly files common to all targets
 ASM_SOURCE_FILES += $(NRF52_SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52.S
@@ -151,18 +193,6 @@ ASM_SOURCE_FILES += $(NRF52_SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52.S
 SDK_INC_PATHS += integration/nrfx/legacy
 SDK_SOURCE_FILES += integration/nrfx/legacy/nrf_drv_uart.c
 
-#ifneq ($(NRF52_WITHOUT_SOFTDEVICE),1)
-# INC_PATHS += components/softdevice/s1xx_iot/headers
-# INC_PATHS += components/softdevice/s1xx_iot/headers/nrf52
-# INC_PATHS += components/softdevice/common/softdevice_handler
-# INC_PATHS += components/ble/common
-# INC_PATHS += components/iot/common
-# INC_PATHS += components/iot/ble_ipsp
-#else
-SDK_INC_PATHS += components/drivers_nrf/nrf_soc_nosd
-SDK_INC_PATHS += components/libraries/fifo
-#endif
-
 EXTERNALDIRS += $(addprefix $(NRF52_SDK_ROOT)/, $(SDK_INC_PATHS))
 
 # Sorting removes duplicates
@@ -170,14 +200,6 @@ BUILD_DIRECTORIES := $(sort $(OUTPUT_BINARY_DIRECTORY) $(LISTING_DIRECTORY))
 
 # Clean files and directories
 CLEAN += bin_$(TARGET) lst_$(TARGET) nrf52832.a *.elf *.hex
-
-#flags common to all targets
-# ifneq ($(NRF52_WITHOUT_SOFTDEVICE),1)
-# $(error SOFTDEVICE not ported yet...)
-# CFLAGS += -DSOFTDEVICE_PRESENT
-# CFLAGS += -DS132
-# CFLAGS += -DBLE_STACK_SUPPORT_REQD
-# endif
 
 ifeq ($(SMALL),1)
 CFLAGS += -Os
@@ -207,15 +229,9 @@ LDFLAGS += -mcpu=cortex-m4
 LDFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 # let linker to dump unused sections
 LDFLAGS += -Wl,--gc-sections
-# # use newlib in nano version
+# use newlib in nano version
 LDFLAGS += --specs=nano.specs #-lc -lnosys
 
-# Assembler flags
-# ifneq ($(NRF52_WITHOUT_SOFTDEVICE),1)
-# ASMFLAGS += -DSOFTDEVICE_PRESENT
-# ASMFLAGS += -DS132
-# ASMFLAGS += -DBLE_STACK_SUPPORT_REQD
-# endif
 ASMFLAGS += -g3
 ASMFLAGS += -mcpu=cortex-m4
 ASMFLAGS += -mthumb -mabi=aapcs
@@ -226,7 +242,6 @@ ASMFLAGS += -DFLOAT_ABI_HARD
 ASMFLAGS += -DNRF52
 ASMFLAGS += -DNRF52832_XXAA
 ASMFLAGS += -DNRF52_PAN_74
-#ASMFLAGS += -DNRF_SD_BLE_API_VERSION=6
 ASMFLAGS += -DSWI_DISABLE0
 
 C_SOURCE_FILES += $(addprefix $(NRF52_SDK_ROOT)/, $(SDK_SOURCE_FILES) )
@@ -291,12 +306,39 @@ $(OBJECT_DIRECTORY)/%.o: %.S
 	@echo Flashing: $^
 	$(JLINK) $(JLINK_OPTS) -CommanderScript $*.jlink
 
-# softdevice.jlink:
-# 	sed -e 's,#OUTPUT_FILENAME#,$(NRF52_SOFTDEVICE),' $(CONTIKI_CPU)/flash.jlink > $@
+softdevice.help:
+	@echo
+	@echo To use softdevice you need to declare its use in Makefile \(see later\)
+	@echo and should flash on device manually using:
+	@echo
+	@echo -e "\tmake softdevice.flash"
+	@echo
+	@echo another usefull command is:
+	@echo
+	@echo -e "\tmake erase"
+	@echo
+	@echo that erase all flash memory \(softdevice and app\)
+	@echo
+	@echo DEFINING Softdevice
+	@echo
+	@echo To use softdevice in your application add in your app Makefile:
+	@echo
+	@echo -e "\tNRF52_SOFTDEVICE=XXX"
+	@echo
+	@echo where XXX is the softdevice number you want to use, e.g. 132 means use s132
+	@echo if XXX 0 \(default value\) the softdevice is not used and
+	@echo app is not compiled to use it
 
-# softdevice.flash: softdevice.jlink
-# 	@echo Flashing: $(notdir $(NRF52_SOFTDEVICE))
-# 	$(JLINK) $(JLINK_OPTS) -CommanderScript $^
+softdevice.jlink:
+ifndef NRF52_SOFTDEVICE_HEX
+	$(error miss softdevice to use)
+else
+	sed -e 's,#OUTPUT_FILENAME#,$(NRF52_SOFTDEVICE_HEX),' $(CONTIKI_CPU)/flash.jlink > $@
+endif
+
+softdevice.flash: softdevice.jlink
+	@echo Flashing: $(notdir $(NRF52_SOFTDEVICE_HEX))
+	$(JLINK) $(JLINK_OPTS) -CommanderScript $^
 
 erase:
 	$(JLINK) $(JLINK_OPTS) -CommanderScript $(CONTIKI_CPU)/erase.jlink

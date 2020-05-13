@@ -111,7 +111,7 @@ configure_addresses(void)
   /* Populate linkaddr_node_addr (big-endian) */
   memcpy(&linkaddr_node_addr, &ext_addr[8 - LINKADDR_SIZE], LINKADDR_SIZE);
 
-#if NETSTACK_CONF_RADIO == dw1000_driver
+#if NETSTACK_RADIO == dw1000_driver
 
   NETSTACK_RADIO.set_value(RADIO_PARAM_PAN_ID, IEEE802154_PANID);
   NETSTACK_RADIO.set_object(RADIO_PARAM_64BIT_ADDR, ext_addr, 8);
@@ -119,8 +119,8 @@ configure_addresses(void)
 			   (ext_addr[6]) << 8 | (ext_addr[7])); // converting from big-endian format
 
 
-#else /* NETSTACK_CONF_RADIO == dw1000_driver */
-
+#else /* NETSTACK_RADIO == dw1000_driver */
+#error NESTACK RADIO is not UWB
 
   /* Set up the IEEE 802.15.4 PANID, short and long address
    * to be able to enable HW frame filtering
@@ -137,7 +137,7 @@ configure_addresses(void)
     little_endian[i] = ((uint8_t *)ext_addr)[7 - i];
   }
   dwt_seteui(little_endian);
-#endif /* NETSTACK_CONF_RADIO == dw1000_driver */
+#endif /* NETSTACK_RADIO == dw1000_driver */
 
 }
 /*---------------------------------------------------------------------------*/
@@ -215,11 +215,17 @@ main(void)
 	 );
 #endif //NRF_SHOW_RESETREASON
 
-#if NETSTACK_CONF_RADIO == dw1000_driver && NETSTACK_CONF_NETWORK == rime_driver
+#if NETSTACK_RADIO == dw1000_driver
+#if NETSTACK_NETWORK == rime_driver
   PRINTF("Network stack: Rime over UWB\n");
-#elif NETSTACK_CONF_RADIO == dw1000_driver && NETSTACK_CONF_NETWORK == sicslowpan_driver
+#elif NETSTACK_NETWORK == sicslowpan_driver
   PRINTF("Network stack: IPv6 over UWB\n");
-#endif
+#else
+#error "NETSTACK on UWB but NETWORK layer is not set"
+#endif /* NETSTACK_NETWORK valuese*/
+#else /*NETSTACK_RADIO == dw1000_driver*/
+#error "NETSTACK_RADIO isn't UWB"
+#endif /*NETSTACK_RADIO == dw1000_driver*/
 
   process_start(&etimer_process, NULL);
   ctimer_init();
@@ -229,7 +235,7 @@ main(void)
   ENERGEST_ON(ENERGEST_TYPE_CPU);
 #endif
 
-#if NETSTACK_CONF_RADIO == dw1000_driver
+#if NETSTACK_RADIO == dw1000_driver
   netstack_init(); /* Init the full UWB network stack */
 
   configure_addresses(); /* Set the link layer addresses and the PAN ID */
@@ -244,7 +250,7 @@ main(void)
 	 linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1]);
 
 #else  /*  NETSTACK_CONF_RADIO == dw1000_driver */
-
+#error "NETSTACK is not on UWB"
   /* NETSTACK is not over DW1000, it should be initializd in nay case*/
   dw1000_arch_init(); /* Only initialize the radio hardware, not the network stack */
   dw1000_reset_cfg(); /* and set the default configuration */

@@ -49,6 +49,9 @@
 #include <stddef.h>
 #include <nrfx_rng.h>
 #include <nrf_queue.h>
+#ifdef SOFTDEVICE_PRESENT
+#include "nrf_sdh.h"
+#endif
 #include "app_error.h"
 
 /*---------------------------------------------------------------------------*/
