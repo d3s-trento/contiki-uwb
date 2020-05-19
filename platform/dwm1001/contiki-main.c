@@ -50,6 +50,12 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 /*---------------------------------------------------------------------------*/
+#ifdef SOFTDEVICE_PRESENT
+#include "nrf_sdh.h"
+#include "nrf_sdh_ble.h"
+#include "nrf_sdh_soc.h"
+#endif /* SOFTDEVICE_PRESENT */
+/*---------------------------------------------------------------------------*/
 #include "dev/watchdog.h"
 #include "dev/serial-line.h"
 #include "dev/uart0.h"
@@ -82,6 +88,16 @@
 static void
 board_init(void)
 {
+#ifdef SOFTDEVICE_PRESENT
+  #pragma message "enable softdevice"
+  /* Initialize the SoftDevice handler module */
+  // SOFTDEVICE_HANDLER_INIT(NRF_CLOCK_LFCLKSRC_XTAL_20_PPM, NULL);
+  ret_code_t err_code;
+
+  err_code = nrf_sdh_enable_request();
+  APP_ERROR_CHECK(err_code);
+
+#endif
   // needed for button and for the DW1000 interrupt
   if (!nrfx_gpiote_is_init()) {
     nrfx_gpiote_init();
@@ -151,6 +167,33 @@ static void log_init(void)
 
     NRF_LOG_DEFAULT_BACKENDS_INIT();
 #endif //defined(NRF_LOG_ENABLED) && NRF_LOG_ENABLED == 1
+}
+
+/**< A tag identifying the SoftDevice BLE configuration. */
+#define APP_BLE_CONN_CFG_TAG 1
+
+static void ble_stack_init(void) {
+  // TODO move in cpu nrf52832 (under ble folder)
+  ret_code_t err_code;
+
+  // err_code = nrf_sdh_enable_request();
+  // APP_ERROR_CHECK(err_code);
+
+  // Configure the BLE stack using the default settings.
+  // Fetch the start address of the application RAM.
+  uint32_t ram_start = 0;
+  err_code = nrf_sdh_ble_default_cfg_set(APP_BLE_CONN_CFG_TAG, &ram_start);
+  APP_ERROR_CHECK(err_code);
+
+  // Enable BLE stack.
+  err_code = nrf_sdh_ble_enable(&ram_start);
+  APP_ERROR_CHECK(err_code);
+}
+
+static void idle_state_handle(void) {
+  if (NRF_LOG_PROCESS() == false) {
+    // nrf_pwr_mgmt_run();
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -249,6 +292,8 @@ main(void)
   printf("Short address: 0x%02x%02x\n",
 	 linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1]);
 
+  ble_stack_init();
+
 #else  /*  NETSTACK_CONF_RADIO == dw1000_driver */
 #error "NETSTACK is not on UWB"
   /* NETSTACK is not over DW1000, it should be initializd in nay case*/
@@ -267,6 +312,8 @@ main(void)
     do {
       r = process_run();
       watchdog_periodic();
+
+      idle_state_handle();
     } while(r > 0);
 
     lpm_drop();

@@ -16,9 +16,11 @@ CONTIKI_SOURCEFILES += dw1000.c dw1000-ranging.c dw1000-config.c dw1000-util.c d
 CFLAGS+=-DUSE_APP_CONFIG
 
 ifeq ($(ENABLE_SEGGER_RTT),1)
+#Those settings is related to CPU sdk but they are here because Segger programer depends on
+# platform and not on CPU chip
 EXTERNALDIRS += $(NRF52_SDK_ROOT)/external/segger_rtt/
-NRF_C_SOURCE_FILES += external/segger_rtt/SEGGER_RTT.c
-NRF_C_SOURCE_FILES += external/segger_rtt/SEGGER_RTT_printf.c
+SDK_SOURCE_FILES += external/segger_rtt/SEGGER_RTT.c
+SDK_SOURCE_FILES += external/segger_rtt/SEGGER_RTT_printf.c
 endif
 
 ifeq ($(PRINTF_OVER_RTT),1)

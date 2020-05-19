@@ -41,7 +41,7 @@ $(info TODO check if there is an updated script)
   LINKER_SCRIPT := $(CONTIKI_CPU)/ld/nrf52.ld
 else
   NRF52_SOFTDEVICE_ROOTPATH := $(NRF52_SDK_ROOT)/components/softdevice/s$(NRF52_SOFTDEVICE)
-  LINKER_SCRIPT :=  $(NRF52_SDK_ROOT)/config/nrf52832/armgcc/generic_gcc_nrf52.ld #$(shell find $(NRF52_SOFTDEVICE_ROOTPATH) -name '*.ld' | head -n 1)
+  LINKER_SCRIPT := $(CONTIKI_CPU)/ld/ble_app_template_gcc_nrf52.ld
   NRF52_SOFTDEVICE_HEX := $(shell find $(NRF52_SOFTDEVICE_ROOTPATH) -name '*.hex' | head -n 1)
 endif
 
@@ -112,6 +112,7 @@ SDK_INC_PATHS += components/libraries/ringbuf
 SDK_INC_PATHS += components/libraries/atomic
 SDK_INC_PATHS += components/libraries/queue/
 SDK_INC_PATHS += components/libraries/pwr_mgmt
+SDK_INC_PATHS += components/libraries/mutex
 
 SDK_INC_PATHS += components/toolchain/cmsis/include
 
@@ -148,6 +149,7 @@ SDK_SOURCE_FILES += components/libraries/util/app_util_platform.c
 SDK_SOURCE_FILES += components/libraries/queue/nrf_queue.c
 SDK_SOURCE_FILES += components/libraries/balloc/nrf_balloc.c
 SDK_SOURCE_FILES += components/libraries/strerror/nrf_strerror.c
+SDK_SOURCE_FILES += components/libraries/pwr_mgmt/nrf_pwr_mgmt.c
 
 SDK_SOURCE_FILES += external/fprintf/nrf_fprintf.c
 SDK_SOURCE_FILES += external/fprintf/nrf_fprintf_format.c
@@ -175,6 +177,7 @@ SDK_INC_PATHS += components/ble/ble_radio_notification
 SDK_INC_PATHS += components/iot/common
 
 SDK_SOURCE_FILES += components/ble/common/ble_advdata.c
+SDK_SOURCE_FILES += components/softdevice/common/nrf_sdh_ble.c
 SDK_SOURCE_FILES += components/ble/ble_radio_notification/ble_radio_notification.c
 SDK_SOURCE_FILES += components/softdevice/common/nrf_sdh.c
 SDK_SOURCE_FILES += components/libraries/experimental_section_vars/nrf_section_iter.c
