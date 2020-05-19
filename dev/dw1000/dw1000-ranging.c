@@ -67,7 +67,10 @@
 #define PRINTF(...) do {} while(0)
 #endif
 
+#ifndef DEBUG_RNG
 #define DEBUG_RNG 0
+#endif
+
 #if DEBUG_RNG
 #include <stdio.h>
 #define PRINTF_RNG(...) printf(__VA_ARGS__)
@@ -307,12 +310,12 @@ dw1000_ranging_init()
 
   switch (channel) {
     case 1: hertz_to_ppm_multiplier = HERTZ_TO_PPM_MULTIPLIER_CHAN_1; break;
-    case 2: 
+    case 2:
     case 4: hertz_to_ppm_multiplier = HERTZ_TO_PPM_MULTIPLIER_CHAN_2; break;
     case 3: hertz_to_ppm_multiplier = HERTZ_TO_PPM_MULTIPLIER_CHAN_3; break;
     case 5:
     case 7: hertz_to_ppm_multiplier = HERTZ_TO_PPM_MULTIPLIER_CHAN_3; break;
-  } 
+  }
 
   /* Fill in the constant part of the TX buffer */
   tx_buf[0] = 0x41;

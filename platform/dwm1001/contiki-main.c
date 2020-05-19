@@ -89,7 +89,6 @@ static void
 board_init(void)
 {
 #ifdef SOFTDEVICE_PRESENT
-  #pragma message "enable softdevice"
   /* Initialize the SoftDevice handler module */
   // SOFTDEVICE_HANDLER_INIT(NRF_CLOCK_LFCLKSRC_XTAL_20_PPM, NULL);
   ret_code_t err_code;
