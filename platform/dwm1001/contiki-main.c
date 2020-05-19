@@ -68,7 +68,7 @@
 #define DEBUG 1
 #if DEBUG
 #include <stdio.h>
-#define PRINTF(...) printf(__VA_ARGS__)
+#define PRINTF(...) NRF_LOG_DEBUG(__VA_ARGS__)
 #else //DEBUG
 #define PRINTF(...)
 #endif //DEBUG
@@ -246,11 +246,14 @@ main(void)
 
   PRINTF("Starting " CONTIKI_VERSION_STRING "\n");
 #ifdef NRF_SHOW_RESETREASON
-  PRINTF("Reset reason %08lx %s%s%s%s%s%s%s%s*\n", resetreas,
+  PRINTF("Reset reason %08lx ", resetreas);
+  PRINTF("Reset decode1 %s%s%s%s*",
 	 ((resetreas & POWER_RESETREAS_NFC_Msk) == POWER_RESETREAS_NFC_Msk) ? "NFC," :  "",
 	 ((resetreas & POWER_RESETREAS_DIF_Msk) == POWER_RESETREAS_DIF_Msk) ? "DIF," :  "",
 	 ((resetreas & POWER_RESETREAS_LPCOMP_Msk) == POWER_RESETREAS_LPCOMP_Msk) ? "LPCOMP," :  "",
-	 ((resetreas & POWER_RESETREAS_OFF_Msk) == POWER_RESETREAS_OFF_Msk) ? "OFF," :  "",
+	 ((resetreas & POWER_RESETREAS_OFF_Msk) == POWER_RESETREAS_OFF_Msk) ? "OFF," :  ""
+	 );
+  PRINTF("Reset decode2 %s%s%s%s*",
 	 ((resetreas & POWER_RESETREAS_LOCKUP_Msk) == POWER_RESETREAS_LOCKUP_Msk) ? "LOCKUP," :  "",
 	 ((resetreas & POWER_RESETREAS_SREQ_Msk) == POWER_RESETREAS_SREQ_Msk) ? "SREQ," :  "",
 	 ((resetreas & POWER_RESETREAS_DOG_Msk) == POWER_RESETREAS_DOG_Msk) ? "DOG," :  "",
