@@ -37,10 +37,11 @@
  *      Timofei Istomin <tim.ist@gmail.com>
  */
 
+#include <stdio.h>
 #include "dw1000-config.h"
 #include "deca_device_api.h"
+#include "deca_param_types.h"
 #include "dw1000-arch.h"
-#include <stdio.h>
 
 /* Buffered configuration */
 static dwt_config_t   current_cfg;
@@ -88,14 +89,69 @@ const uint32_t tx_power_tbl[2][6][2] = {
  * If returns false, the radio configuration is undefined.
  */
 bool
-dw1000_configure(dwt_config_t *cfg)
-{
+dw1000_configure(dwt_config_t *cfg) {
   int8_t irq_status = dw1000_disable_interrupt();
 
   dwt_forcetrxoff();
   current_cfg = *cfg;
   dwt_configure(&current_cfg);
   
+  dw1000_enable_interrupt(irq_status);
+
+  return true;
+}
+
+/* Configure only the channel and TX/RX codes of the radio
+ *
+ * Note that it turns the radio OFF and resets any requested/ongoing
+ * operation.
+ *
+ * If returns false, the radio configuration is undefined.
+ */
+bool
+dw1000_configure_ch(uint8_t chan, uint8_t txCode, uint8_t rxCode) {
+  int8_t irq_status = dw1000_disable_interrupt();
+
+  //dwt_forcetrxoff();
+
+  // Configure PLL2/RF PLL block CFG/TUNE (for a given channel);
+  // these steps are avoided if switching between ch. 2 and 4, or 5 and 7
+  if(fs_pll_cfg[chan_idx[current_cfg.chan]] != fs_pll_cfg[chan_idx[chan]])
+    dwt_write32bitoffsetreg(FS_CTRL_ID, FS_PLLCFG_OFFSET, fs_pll_cfg[chan_idx[chan]]);
+  if(fs_pll_tune[chan_idx[current_cfg.chan]] != fs_pll_tune[chan_idx[chan]])
+    dwt_write8bitoffsetreg(FS_CTRL_ID, FS_PLLTUNE_OFFSET, fs_pll_tune[chan_idx[chan]]);
+
+  // Configure RF RX blocks (for specified channel/bandwidth - wide or narrow);
+  uint8 current_bw = ((current_cfg.chan == 4) || (current_cfg.chan == 7)) ? 1 : 0;
+  uint8 bw = ((chan == 4) || (chan == 7)) ? 1 : 0;
+  if(current_bw != bw) {
+    dwt_write8bitoffsetreg(RF_CONF_ID, RF_RXCTRLH_OFFSET, rx_config[bw]);
+  }
+
+  // Configure RF TX blocks (for specified channel and PRF)
+  // Configure RF TX control
+  if(current_cfg.chan != chan)
+    dwt_write32bitoffsetreg(RF_CONF_ID, RF_TXCTRL_OFFSET, tx_config[chan_idx[chan]]);
+
+  // Setup of channel control register
+  uint32 regval;
+  regval =  (CHAN_CTRL_TX_CHAN_MASK & (chan << CHAN_CTRL_TX_CHAN_SHIFT)) | // Transmit Channel
+            (CHAN_CTRL_RX_CHAN_MASK & (chan << CHAN_CTRL_RX_CHAN_SHIFT)) | // Receive Channel
+            (CHAN_CTRL_RXFPRF_MASK & ((uint32)current_cfg.prf << CHAN_CTRL_RXFPRF_SHIFT)) | // RX PRF
+            ((CHAN_CTRL_TNSSFD|CHAN_CTRL_RNSSFD) & ((uint32)nsSfd_result << CHAN_CTRL_TNSSFD_SHIFT)) | // nsSFD enable RX&TX
+            (CHAN_CTRL_DWSFD & ((uint32)useDWnsSFD << CHAN_CTRL_DWSFD_SHIFT)) | // Use DW nsSFD
+            (CHAN_CTRL_TX_PCOD_MASK & ((uint32)txCode << CHAN_CTRL_TX_PCOD_SHIFT)) | // TX Preamble Code
+            (CHAN_CTRL_RX_PCOD_MASK & ((uint32)rxCode << CHAN_CTRL_RX_PCOD_SHIFT)) ; // RX Preamble Code
+  dwt_write32bitreg(CHAN_CTRL_ID, regval) ;
+
+  // initiate and abort a transmission to initialise the SFD
+  dwt_write8bitoffsetreg(SYS_CTRL_ID, SYS_CTRL_OFFSET, SYS_CTRL_TXSTRT | SYS_CTRL_TRXOFF);
+
+  // update current saved config
+  current_cfg.chan = chan;
+  current_cfg.txCode = txCode;
+  current_cfg.rxCode = rxCode;
+
   dw1000_enable_interrupt(irq_status);
 
   return true;
