@@ -98,7 +98,7 @@ else
 endif
 endif
 
-UART_BAUDRATE = 1000000
+UART_BAUDRATE = 115200
 
 login:
 	$(SERIALDUMP) -b$(UART_BAUDRATE) $(PORT)
