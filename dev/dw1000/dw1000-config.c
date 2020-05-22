@@ -112,6 +112,10 @@ bool
 dw1000_configure_ch(uint8_t chan, uint8_t txCode, uint8_t rxCode) {
   int8_t irq_status = dw1000_disable_interrupt();
 
+  // assume standard SFD
+  uint8 nsSfd_result = 0;
+  uint8 useDWnsSFD = 0;
+
   //dwt_forcetrxoff();
 
   // Configure PLL2/RF PLL block CFG/TUNE (for a given channel);
