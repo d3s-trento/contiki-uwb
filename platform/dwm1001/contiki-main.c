@@ -65,7 +65,16 @@
 #include "dw1000-arch.h"
 #include "dw1000-config.h"
 
+/*---------------------------------------------------------------------------*/
+#if NETSTACK_CONF_WITH_IPV6
+#include "uip-debug.h"
+#undef PRINTF // our PRINTF macro conflicts with the one defined in uip-debug.h
+#include "net/ipv6/uip-ds6.h"
+#endif //NETSTACK_CONF_WITH_IPV6
+
+
 #define DEBUG 1
+
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) NRF_LOG_DEBUG(__VA_ARGS__)
@@ -73,11 +82,6 @@
 #define PRINTF(...)
 #endif //DEBUG
 
-/*---------------------------------------------------------------------------*/
-#if NETSTACK_CONF_WITH_IPV6
-#include "uip-debug.h"
-#include "net/ipv6/uip-ds6.h"
-#endif //NETSTACK_CONF_WITH_IPV6
 
 /*---------------------------------------------------------------------------*/
 /**
