@@ -102,7 +102,6 @@ void app_pre_epoch();
  * every epoch.*/
 void crystal_print_epoch_logs();
 
-
 /* == Crystal application interface (requests) ===============================*/
 
 /* Init Crystal (to be called once at boot) */
@@ -130,6 +129,25 @@ typedef struct {
   uint16_t recv_src;
   uint8_t  acked;
 } crystal_app_log_t;
+
+typedef enum crystal_phase_t {
+    CRYSTAL_S_PHASE = 0x1,
+    CRYSTAL_T_PHASE = 0X2,
+    CRYSTAL_A_PHASE = 0X3
+} crystal_phase_t;
+
+typedef struct crystal_slot_log_t {
+  crystal_epoch_t epoch;
+  crystal_phase_t phase;
+  uint32_t round_duration;    // duration of the Glossy execution
+  uint32_t slot_duration;
+  uint8_t n_tx;
+  uint8_t n_rx;
+} crystal_slot_log_t;
+
+void crystal_slot_log_init(void);
+void crystal_slot_log_append(crystal_slot_log_t *entry);
+void crystal_slot_log_print(void);
 
 /* A variable holding the current state of Crystal */
 extern crystal_info_t crystal_info;

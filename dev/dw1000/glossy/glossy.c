@@ -1467,3 +1467,17 @@ glossy_get_status_reg(void)
 {
     return g_context.status_reg;
 }
+
+uint32_t
+glossy_get_slot_duration(uint8_t payload_len) {
+
+    uint8_t psdu_len = sizeof(glossy_header_t) + payload_len + DW1000_CRC_LEN;
+    return calc_slot_duration(psdu_len);
+}
+
+uint32_t
+glossy_get_round_duration() {
+    return g_context.state == GLOSSY_STATE_ACTIVE ?
+        0 :
+        g_context.ts_stop - g_context.ts_start;
+}
