@@ -115,6 +115,13 @@ typedef uint32_t uip_stats_t;
 /* Clock (time) comparison macro */
 #define CLOCK_LT(a, b)  ((signed long)((a) - (b)) < 0)
 
+/* RTimer frequency. Note that it should correspond to the selected
+ * frequency in NRF configuration (NRFX_TIMER_DEFAULT_CONFIG_FREQUENCY).
+ *
+ * Related files: 
+ *    - config/nrfx_config.h 
+ *    - config/sdk_config.h
+ */
 #define RTIMER_ARCH_SECOND 1000000L
 
 /*
