@@ -66,6 +66,13 @@
 #include "dw1000-arch.h"
 #include "dw1000-config.h"
 
+/*---------------------------------------------------------------------------*/
+#if NETSTACK_CONF_WITH_IPV6
+/* with following file there is conflict with local PRINTF definition */
+/* #include "uip-debug.h" */
+#include "net/ipv6/uip-ds6.h"
+#endif //NETSTACK_CONF_WITH_IPV6
+
 #define DEBUG 1
 #if DEBUG
 #include <stdio.h>
@@ -74,11 +81,6 @@
 #define PRINTF(...)
 #endif //DEBUG
 
-/*---------------------------------------------------------------------------*/
-#if NETSTACK_CONF_WITH_IPV6
-#include "uip-debug.h"
-#include "net/ipv6/uip-ds6.h"
-#endif //NETSTACK_CONF_WITH_IPV6
 /*---------------------------------------------------------------------------*/
 void app_error_handler(ret_code_t error_code, uint32_t line_num, const uint8_t * p_file_name)
 {
@@ -204,6 +206,8 @@ static void log_init(void)
 #endif //defined(NRF_LOG_ENABLED) && NRF_LOG_ENABLED == 1
 }
 
+
+#ifdef SOFTDEVICE_PRESENT
 /**< A tag identifying the SoftDevice BLE configuration. */
 #define APP_BLE_CONN_CFG_TAG 1
 
@@ -224,6 +228,7 @@ static void ble_stack_init(void) {
   err_code = nrf_sdh_ble_enable(&ram_start);
   APP_ERROR_CHECK(err_code);
 }
+#endif /* SOFTDEVICE_PRESENT */
 
 static void idle_state_handle(void) {
   if (NRF_LOG_PROCESS() == false) {
@@ -335,7 +340,9 @@ main(void)
   printf("Short address: 0x%02x%02x\n",
 	 linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1]);
 
+#ifdef SOFTDEVICE_PRESENT
   ble_stack_init();
+#endif /* SOFTDEVICE_PRESENT */
 
 #else  /*  NETSTACK_CONF_RADIO == dw1000_driver */
 #error "NETSTACK is not on UWB"
