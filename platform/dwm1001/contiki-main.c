@@ -45,6 +45,7 @@
 /*---------------------------------------------------------------------------*/
 #include "nordic_common.h"
 #include "nrfx_gpiote.h"
+#include "nrfx_power.h"
 /*---------------------------------------------------------------------------*/
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -78,7 +79,29 @@
 #include "uip-debug.h"
 #include "net/ipv6/uip-ds6.h"
 #endif //NETSTACK_CONF_WITH_IPV6
+/*---------------------------------------------------------------------------*/
+void app_error_handler(ret_code_t error_code, uint32_t line_num, const uint8_t * p_file_name)
+{
+  NRF_LOG_ERROR("error: %ld at %s:%ld", error_code, p_file_name, line_num);
+  NRF_LOG_FLUSH();
+  printf("error: %ld at %s:%ld", error_code, p_file_name, line_num);
+}
+/*---------------------------------------------------------------------------*/
+/* if power module is enabled this function wll init it,
+ * if softdevice is used the setting will be done in its initialization
+ */
+static void
+power_init(void)
+{
+#if NRFX_POWER_ENABLED && !defined(SOFTDEVICE_PRESENT)
+  ret_code_t err_code;
+  nrfx_power_config_t config;
+  config.dcdcen = NRFX_POWER_CONFIG_DEFAULT_DCDCEN;
 
+  err_code = nrfx_power_init(&config);
+  APP_ERROR_CHECK(err_code);
+#endif /* NRFX_POWER_ENABLED */
+}
 /*---------------------------------------------------------------------------*/
 /**
  * \brief Board specific initialization
@@ -88,6 +111,14 @@
 static void
 board_init(void)
 {
+  // needed for button and for the DW1000 interrupt
+  if (!nrfx_gpiote_is_init()) {
+    nrfx_gpiote_init();
+  }
+}
+static void
+softdevice_init(void)
+{
 #ifdef SOFTDEVICE_PRESENT
   /* Initialize the SoftDevice handler module */
   // SOFTDEVICE_HANDLER_INIT(NRF_CLOCK_LFCLKSRC_XTAL_20_PPM, NULL);
@@ -96,12 +127,17 @@ board_init(void)
   err_code = nrf_sdh_enable_request();
   APP_ERROR_CHECK(err_code);
 
-#endif
-  // needed for button and for the DW1000 interrupt
-  if (!nrfx_gpiote_is_init()) {
-    nrfx_gpiote_init();
-  }
+#if NRFX_POWER_ENABLE == 1
+#if NRFX_POWER_CONFIG_DEFAULT_DCDCEN == 1
+  err_code = sd_power_dcdc_mode_set(NRF_POWER_DCDC_ENABLE);
+#else /* NRFX_POWER_CONFIG_DEFAULT_DCDCEN == 1 */
+  err_code = sd_power_dcdc_mode_set(NRF_POWER_DCDC_DISABLE);
+#endif /* NRFX_POWER_CONFIG_DEFAULT_DCDCEN == 1 */
+  APP_ERROR_CHECK(err_code);
+#endif /*NRFX_POWER_ENABLE == 1 */
+#endif /* SOFTDEVICE_PRESENT */
 }
+
 /*---------------------------------------------------------------------------*/
 static void
 configure_addresses(void)
@@ -224,6 +260,10 @@ main(void)
   log_init();
   leds_init();
 
+  power_init();
+  /* softdevice initialization is moved here to catch is errors with app_error_handler and print on rtt */
+  softdevice_init();
+
   clock_init();
   rtimer_init();
 
@@ -244,6 +284,7 @@ main(void)
 #endif
 
   PRINTF("Starting " CONTIKI_VERSION_STRING "\n");
+  printf("Starting " CONTIKI_VERSION_STRING "\n");
 #ifdef NRF_SHOW_RESETREASON
   PRINTF("Reset reason %08lx ", resetreas);
   PRINTF("Reset decode1 %s%s%s%s*",
