@@ -54,10 +54,12 @@ static inline void
 lpm_drop(void)
 {
 #ifdef SOFTDEVICE_PRESENT
-  sd_app_evt_wait();
-#else
+  if(nrf_sdh_is_enabled())
+    sd_app_evt_wait();
+  else
+#endif /* SOFTDEVICE_PRESENT */
   __WFI();
-#endif
+
 }
 
 #endif /* DEV_LPM_H_ */
