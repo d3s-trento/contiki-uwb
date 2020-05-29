@@ -116,3 +116,10 @@ match($$0, "J-Link\\[([[:digit:]]+)\\].*Serial number: ([[:digit:]]*)", m) {prin
 	@echo Flashing: $^
 	$(JLINK) $(JLINK_OPTS) -CommanderScript $*.jlink
 
+RTT_TELNET_PORT ?= 19021
+
+connect:
+	$(JLINK) $(JLINK_OPTS) -AutoConnect 1 -RTTTelnetPort $(RTT_TELNET_PORT)
+
+rtt_client:
+	$(NRF52_JLINK_PATH)/JLinkRTTClient -RTTTelnetPort $(RTT_TELNET_PORT)
