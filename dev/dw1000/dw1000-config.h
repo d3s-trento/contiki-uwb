@@ -110,6 +110,10 @@
 bool
 dw1000_configure(dwt_config_t *cfg);
 
+/* Change the channel and TX/RX preamble codes */
+bool
+dw1000_configure_ch(uint8_t chan, uint8_t txCode, uint8_t rxCode);
+
 /* Configure only the TX parameters of the radio */
 void
 dw1000_configure_tx(const dwt_txconfig_t* tx_cfg, bool smart);

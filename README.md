@@ -18,6 +18,7 @@ This port includes support for:
 * IPv6 stack over UWB [to be tested]
 * Single-sided Two-way Ranging (SS-TWR) with frequency offset compensation
 * Double-sided Two-way Ranging (DS-TWR)
+* Bluetooth support (only DWM1001, and without integration with Contiki stacks)
 * [Glossy](https://ieeexplore.ieee.org/document/5779066), a fast flooding and synchronisation primitive (only EVB1000)
 * [Crystal](https://dl.acm.org/doi/10.1145/2994551.2994558), a fast and reliable data collection protocol based on Glossy (only EVB1000)
 
@@ -27,6 +28,7 @@ Note that the ranging mechanisms are currently implemented using short IEEE 802.
 ## Code Structure
 ```
 ├── cpu
+│   ├── nrf52832
 │   └── stm32f105
 ├── dev
 │   └── dw1000
@@ -51,7 +53,7 @@ Note that the ranging mechanisms are currently implemented using short IEEE 802.
 * For EVB1000
   * [ST-Link V2 Tools](https://github.com/texane/stlink)
 * For DWM1001
-  * [Nordic nRF5 IoT SDK v0.9.x](https://developer.nordicsemi.com/nRF5_IoT_SDK/nRF5_IoT_SDK_v0.9.x)
+  * [Nordic nRF5 SDK v16.0.0](https://www.nordicsemi.com/Software-and-tools/Software/nRF5-SDK/Download)
   * [SEGGER J-Link](https://www.segger.com/downloads/jlink/)
 
 To use this port, clone the Contiki-UWB GitHub repository.
@@ -122,6 +124,20 @@ $ make TARGET=dwm1001 rng.upload
 
 If everything works out fine, you should get a positive message like: 
 > Verifying flash   [100%] Done.
+
+If you want to enable Bluetooth stack (SoftDevice), add the following to your project Makefile:
+```
+NRF52_SOFTDEVICE = 132
+```
+This will compile the application in a certain way so that the SoftDevice s132 needs to be flashed to the device.
+To flash SoftDevice, use the following:
+```
+make softdevice.flash
+```
+
+It is required to `make clean` between compiling the app with SoftDevice support and without it.
+It is also required to completely erase flash when switching between applications that require SoftDevice
+and the ones that do not.
 
 #### Configuring the ranging application
 Note that the ranging application requires to set the IEEE 802.15.4 short address of the responder (i.e., the node 

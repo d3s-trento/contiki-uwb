@@ -68,12 +68,14 @@
 
 /*---------------------------------------------------------------------------*/
 #if NETSTACK_CONF_WITH_IPV6
-/* with following file there is conflict with local PRINTF definition */
-/* #include "uip-debug.h" */
+#include "uip-debug.h"
+#undef PRINTF // our PRINTF macro conflicts with the one defined in uip-debug.h
 #include "net/ipv6/uip-ds6.h"
 #endif //NETSTACK_CONF_WITH_IPV6
 
+
 #define DEBUG 1
+
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) NRF_LOG_DEBUG(__VA_ARGS__)
@@ -139,7 +141,6 @@ softdevice_init(void)
 #endif /*NRFX_POWER_ENABLE == 1 */
 #endif /* SOFTDEVICE_PRESENT */
 }
-
 /*---------------------------------------------------------------------------*/
 static void
 configure_addresses(void)

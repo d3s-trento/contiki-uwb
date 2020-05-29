@@ -16,8 +16,7 @@ CONTIKI_TARGET_SOURCEFILES += dw1000-arch.c
 # Decawave Driver
 CONTIKIDIRS += $(UWB_CONTIKI)/dev/dw1000 $(UWB_CONTIKI)/dev/dw1000/decadriver
 CONTIKI_TARGET_SOURCEFILES += deca_device.c deca_params_init.c deca_range_tables.c
-CONTIKI_TARGET_SOURCEFILES += dw1000.c dw1000-ranging.c dw1000-config.c dw1000-util.c dw1000-cir.c dw1000-diag.c
-
+CONTIKI_TARGET_SOURCEFILES += dw1000.c dw1000-ranging.c dw1000-config.c dw1000-util.c dw1000-cir.c dw1000-diag.c dw1000-statetime.c
 CONTIKI_SOURCEFILES += $(CONTIKI_TARGET_SOURCEFILES)
 
 ### Define the CPU directory
