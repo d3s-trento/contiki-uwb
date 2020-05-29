@@ -231,12 +231,6 @@ static void ble_stack_init(void) {
 }
 #endif /* SOFTDEVICE_PRESENT */
 
-static void idle_state_handle(void) {
-  if (NRF_LOG_PROCESS() == false) {
-    // nrf_pwr_mgmt_run();
-  }
-}
-
 /*---------------------------------------------------------------------------*/
 /**
  * \brief Main function for nRF52dk platform.
@@ -364,7 +358,7 @@ main(void)
       r = process_run();
       watchdog_periodic();
 
-      idle_state_handle();
+      NRF_LOG_FLUSH();
     } while(r > 0);
 
     lpm_drop();
