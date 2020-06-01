@@ -3,6 +3,7 @@
 
 #include "glossy.h"
 #include "stdbool.h"
+#include "dw1000-statetime.h"
 
 #if !defined(CRYSTAL_DW1000)
 #define CRYSTAL_DW1000 1
@@ -145,9 +146,20 @@ typedef struct crystal_slot_log_t {
   uint8_t n_rx;
 } crystal_slot_log_t;
 
+typedef struct crystal_statetime_log_t {
+    uint16_t epoch;
+    crystal_phase_t phase;
+    dw1000_statetime_log_t sttime;
+} crystal_statetime_log_t;
+
 void crystal_slot_log_init(void);
 void crystal_slot_log_append(crystal_slot_log_t *entry);
 void crystal_slot_log_print(void);
+
+// TODO:
+void crystal_statetime_log_init(void);
+void crystal_statetime_log_append(crystal_statetime_log_t *entry);
+void crystal_statetime_log_print(void);
 
 /* A variable holding the current state of Crystal */
 extern crystal_info_t crystal_info;

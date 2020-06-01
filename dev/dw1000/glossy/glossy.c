@@ -56,11 +56,11 @@
 
 /*---------------------------------------------------------------------------*/
 
-/* 
+/*
  * Note about the time units used in this file
  *
  *  - "_uus" suffix means the time is in UWB microseconds (512/499.2 microseconds)
- *  - no suffix or "_4ns" suffix means the time is in 4.0064102564 nanosecond 
+ *  - no suffix or "_4ns" suffix means the time is in 4.0064102564 nanosecond
  *    units (the highest 32 bits of DW1000 timestamps)
  *  - "_dtu" means device time unit and is the same as "_4ns"
  *
@@ -152,6 +152,13 @@
 #endif
 
 
+#if STATETIME_CONF_ON
+#include "dw1000-statetime.h"
+#define STATETIME_MONITOR(...) __VA_ARGS__
+#else
+#define STATETIME_MONITOR(...) do {} while(0)
+#endif
+
 /*---------------------------------------------------------------------------*/
 /*                           GLOSSY PACKET                                   */
 /*---------------------------------------------------------------------------*/
@@ -229,7 +236,7 @@ typedef struct glossy_context_t {
     glossy_header_t pkt_header;
     // a pointer to the external buffer where the payload will be stored
     glossy_payload_t *pkt_payload;
-    // phy payload length or GLOSSY_PSDU_NONE if unknown (neither received 
+    // phy payload length or GLOSSY_PSDU_NONE if unknown (neither received
     // nor transmitted a packet)
     uint16_t psdu_len;
     /*-----------------------------------------------------------------------*/
@@ -461,7 +468,7 @@ glossy_update_hdr(const glossy_header_t* g_header, uint8_t *buffer)
 
 // Packet buffer for storing a correct packet:
 //  - initiator: the last one transmitted
-//  - receiver:  the first one received and verified or the last one 
+//  - receiver:  the first one received and verified or the last one
 //               transmitted (if any)
 static uint8_t clean_buffer[GLOSSY_MAX_PSDU_LEN];
 
@@ -495,6 +502,7 @@ glossy_tx_done_cb(const dwt_cb_data_t *cbdata)
     uint32_t tx_time = dwt_readtxtimestamphi32();
     uint32_t ts_tx_4ns = 0;
     int status;                         // hold intermediate radio functions' return value
+    STATETIME_MONITOR(dw1000_statetime_after_tx(tx_time, g_context.psdu_len));
     /*-----------------------------------------------------------------------*/
     // GLOSSY SLOT ESTIMATION
     /*-----------------------------------------------------------------------*/
@@ -544,6 +552,9 @@ glossy_tx_done_cb(const dwt_cb_data_t *cbdata)
             LOG_ERROR("Tx cb: Failed to TX\n");
             return;
         }
+        else {
+            STATETIME_MONITOR(dw1000_statetime_schedule_tx(ts_tx_4ns));
+        }
     }
     /*-----------------------------------------------------------------------*/
     // DEBUG FEEDBACK
@@ -564,8 +575,9 @@ glossy_rx_ok_cb(const dwt_cb_data_t *cbdata)
     // TODO:REFACTOR: force IDLE state
     // dwt_forcetrxoff(); // XXX IMO no need to trxoff here.
     uint32_t ts_rx_4ns = dwt_readrxtimestamphi32();
+    STATETIME_MONITOR(dw1000_statetime_after_rx(ts_rx_4ns, cbdata->datalength));
     /*-----------------------------------------------------------------------*/
-    
+
     frame_error = 0;
 
     /*-----------------------------------------------------------------------*/
@@ -614,8 +626,8 @@ glossy_rx_ok_cb(const dwt_cb_data_t *cbdata)
     }
     // check if the received payload matches the one we already have (if we do)
     if (!frame_error && g_context.psdu_len != GLOSSY_PSDU_NONE) {
-        if (memcmp(dirty_buffer + GLOSSY_PAYLOAD_OFFSET, 
-                   clean_buffer + GLOSSY_PAYLOAD_OFFSET, 
+        if (memcmp(dirty_buffer + GLOSSY_PAYLOAD_OFFSET,
+                   clean_buffer + GLOSSY_PAYLOAD_OFFSET,
                    GLOSSY_PAYLOAD_LEN(cbdata->datalength)) != 0) {
             // payloads do not match, reject
             LOG_DEBUG("Mismatching payload received. Packet ignored\n");
@@ -636,6 +648,7 @@ glossy_rx_ok_cb(const dwt_cb_data_t *cbdata)
             // non-initiators continue listening
             dwt_setrxtimeout(0);
             dwt_rxenable(DWT_START_RX_IMMEDIATE);
+            STATETIME_MONITOR(dw1000_statetime_schedule_rx(dwt_readsystimestamphi32()));
         }
         return; // stop processing the erroneous frame
     }
@@ -660,7 +673,7 @@ glossy_rx_ok_cb(const dwt_cb_data_t *cbdata)
         g_context.stats.relay_cnt_first_rx = rcvd_header.relay_cnt;
     }
     #endif /* GLOSSY_STATS */
-    
+
     /* SLOT ESTIMATION ALGORITHM --------------------------------------------*/
     g_context.ts_last_rx = ts_rx_4ns;
     // increment rx counter
@@ -690,22 +703,25 @@ glossy_rx_ok_cb(const dwt_cb_data_t *cbdata)
     if (g_context.n_tx >= g_context.pkt_header.max_n_tx) {
         glossy_stop();
     } else {
+        glossy_version_t ver = 0x0;
+        uint32_t rx_delay_uus = 0;
         // schedule TX.
         // Note: the radio is currently in idle state
         if (GLOSSY_GET_VERSION(g_context.pkt_header.config) ==
                 GLOSSY_TX_ONLY_VERSION) {
-            // We received a packet and now schedule our first 
+            // We received a packet and now schedule our first
             // retransmission, **without** expecting a response!
             dwt_setdelayedtrxtime(ts_tx_4ns);
             status = dwt_starttx(DWT_START_TX_DELAYED);
+            ver = GLOSSY_TX_ONLY_VERSION;
 
         } else if (GLOSSY_GET_VERSION(g_context.pkt_header.config) ==
                 GLOSSY_STANDARD_VERSION) {
 
             // if RX optimisation is enabled, set the RX after TX delay to a non-zero value
-            uint32_t rx_delay_uus = glossy_get_rx_delay_uus(g_context.psdu_len);
+            rx_delay_uus = glossy_get_rx_delay_uus(g_context.psdu_len);
             dwt_setrxaftertxdelay(rx_delay_uus);
-            
+
             if (is_glossy_initiator()) {
                 // set RX timeout so that the initiator can resume the flood
                 // even if it misses the RX
@@ -715,6 +731,7 @@ glossy_rx_ok_cb(const dwt_cb_data_t *cbdata)
             // start delayed TX and request RX mode after
             dwt_setdelayedtrxtime(ts_tx_4ns);
             status = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
+            ver = GLOSSY_STANDARD_VERSION;
 
         } else {
             // eventually remove this after checking
@@ -726,6 +743,12 @@ glossy_rx_ok_cb(const dwt_cb_data_t *cbdata)
             // if performing a delayed transmission probably the transceiver
             // failed to tx within the deadline
             LOG_ERROR("Rx cb: Failed to TX\n");
+        }
+        else {
+            if (ver == GLOSSY_TX_ONLY_VERSION)
+                STATETIME_MONITOR(dw1000_statetime_schedule_tx(ts_tx_4ns));
+            else
+                STATETIME_MONITOR(dw1000_statetime_schedule_txrx(ts_tx_4ns, rx_delay_uus));
         }
     }
     /*-----------------------------------------------------------------------*/
@@ -899,6 +922,8 @@ glossy_start(const uint16_t initiator_id,
 
     // init state common to both initiator and receiver
     glossy_context_init();
+    STATETIME_MONITOR(dw1000_statetime_context_init(); dw1000_statetime_start(););
+    STATETIME_MONITOR(dw1000_statetime_set_last_idle(call_time_4ns));
 
     memset(clean_buffer, 0, sizeof(clean_buffer));
 
@@ -966,6 +991,8 @@ glossy_start(const uint16_t initiator_id,
 
         // calculate the delayed TX time so that SFD exits the antenna exactly at tref
         uint32_t ts_tx_4ns = g_context.tref - tx_antenna_delay_4ns;
+        uint32_t rx_delay_uus = 0;
+        glossy_version_t ver = 0x0;
 
         g_context.ts_start = ts_tx_4ns;
 
@@ -975,6 +1002,7 @@ glossy_start(const uint16_t initiator_id,
             // start delayed TX without switching to RX after
             dwt_setdelayedtrxtime(ts_tx_4ns);
             status = dwt_starttx(DWT_START_TX_DELAYED);
+            ver = GLOSSY_TX_ONLY_VERSION;
 
         } else {
             // set RX timeout so that the initiator can resume the flood
@@ -983,17 +1011,24 @@ glossy_start(const uint16_t initiator_id,
             dwt_setrxtimeout(rx_timeout_uus);
 
             // if RX optimisation is enabled, set the RX after TX delay to a non-zero value
-            uint32_t rx_delay_uus   = glossy_get_rx_delay_uus(g_context.psdu_len);
+            rx_delay_uus = glossy_get_rx_delay_uus(g_context.psdu_len);
             dwt_setrxaftertxdelay(rx_delay_uus);
 
             // start delayed TX and request switching to RX after
             dwt_setdelayedtrxtime(ts_tx_4ns);
             status = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
+            ver = GLOSSY_STANDARD_VERSION;
         }
 
         if (status != DWT_SUCCESS) {
             LOG_ERROR("Glossy start: Failed to TX\n");
             glossy_stop();
+        }
+        else {
+            if (ver == GLOSSY_TX_ONLY_VERSION)
+                STATETIME_MONITOR(dw1000_statetime_schedule_tx(ts_tx_4ns));
+            else
+                STATETIME_MONITOR(dw1000_statetime_schedule_txrx(ts_tx_4ns, rx_delay_uus));
         }
 
     } else {
@@ -1016,6 +1051,10 @@ glossy_start(const uint16_t initiator_id,
             LOG_ERROR("Glossy start: Failed to RX\n");
             glossy_stop();
         }
+        else {
+            STATETIME_MONITOR(dw1000_statetime_set_last_idle(g_context.ts_start)); // start measuring time when radio switches to rx
+            STATETIME_MONITOR(dw1000_statetime_schedule_rx(g_context.ts_start));
+        }
     }
     g_context.state = GLOSSY_STATE_ACTIVE;
     return GLOSSY_STATUS_SUCCESS;
@@ -1033,6 +1072,7 @@ uint8_t glossy_stop(void)
     // memorise the stop time
     g_context.ts_stop = dwt_readsystimestamphi32();
     g_context.state   = GLOSSY_STATE_OFF;
+    STATETIME_MONITOR(dw1000_statetime_stop());
 
     if (!is_glossy_initiator()) {
         if (GLOSSY_GET_SYNC(g_context.pkt_header.config) == GLOSSY_WITH_SYNC) {
@@ -1051,8 +1091,8 @@ uint8_t glossy_stop(void)
         }
         if (g_context.n_rx > 0 && g_context.pkt_payload != NULL) {
             // copy the received payload
-            memcpy(g_context.pkt_payload, 
-                   clean_buffer + GLOSSY_PAYLOAD_OFFSET, 
+            memcpy(g_context.pkt_payload,
+                   clean_buffer + GLOSSY_PAYLOAD_OFFSET,
                    GLOSSY_PAYLOAD_LEN(g_context.psdu_len));
         }
         if (g_context.pkt_payload == NULL) {
@@ -1243,6 +1283,9 @@ glossy_resume_flood()
         // start delayed TX
         dwt_setdelayedtrxtime(ts_tx_4ns);
         status = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
+        if (status == DWT_SUCCESS) {
+            STATETIME_MONITOR(dw1000_statetime_schedule_txrx(ts_tx_4ns, rx_delay_uus));
+        }
 
     } else {
 
@@ -1364,11 +1407,11 @@ uint32_t glossy_get_rx_delay_uus(uint16_t psdu_len)
 #if GLOSSY_RX_OPT
     // TODO: maybe it's better to check that the resulting value is not greater than the
     // slot (underflow). In that case I think it's better not to have an inline function
-    
+
     // Here we compute the delay before turning on RX after the previous TX.
 
-    // We should start listening in one slot duration minus the packet on-air 
-    // duration and minus a guard time that accommodates various HW and SW delays 
+    // We should start listening in one slot duration minus the packet on-air
+    // duration and minus a guard time that accommodates various HW and SW delays
     // and clock inaccuracies.
 
     return (GLOSSY_DTU_4NS_TO_UUS(g_context.slot_duration) -
@@ -1386,10 +1429,10 @@ uint16_t glossy_get_rx_timeout_uus(uint16_t psdu_len)
 
     // In this case, the timer is started after the rx_delay followed by the
     // previous TX.
-    // 
+    //
     // From that moment, we need to wait for the entire packet on-air duration
-    // plus the guard time we used to turn the radio on beforehand, plus 
-    // a small guard time at the end to compensate for the propagation time and 
+    // plus the guard time we used to turn the radio on beforehand, plus
+    // a small guard time at the end to compensate for the propagation time and
     // clock inaccuracies
 
     return dw1000_estimate_tx_time(dw1000_get_current_cfg(), psdu_len, false) / 1024   // ns to uus, approx.
@@ -1398,7 +1441,7 @@ uint16_t glossy_get_rx_timeout_uus(uint16_t psdu_len)
     // In this case, the timer is started right after the previous TX has finished.
     //
     // From that moment, we need wait for the entire slot duration plus a small
-    // guard time at the end to compensate for the propagation time and clock 
+    // guard time at the end to compensate for the propagation time and clock
     // inaccuracies
     return GLOSSY_DTU_4NS_TO_UUS(g_context.slot_duration) + GLOSSY_RX_TIMEOUT_GUARD_UUS;
 #endif

@@ -79,6 +79,11 @@ static union {
 
 #define BZERO_BUF() bzero(buf.raw, CRYSTAL_PKTBUF_LEN)
 
+#include "print-def.h"
+#pragma message STRDEF(CRYSTAL_CONF_DUR_S)
+#pragma message STRDEF(CRYSTAL_CONF_DUR_T)
+#pragma message STRDEF(CRYSTAL_CONF_DUR_A)
+
 
 static crystal_config_t conf = {
 
@@ -188,6 +193,22 @@ static uint32_t log_status_reg;
 static crystal_slot_log_t crystal_slot_logs[CRYSTAL_SLOT_LOGS_MAX];
 static crystal_slot_log_t crystal_slot_log;
 static size_t crystal_slot_next_log = 0;
+
+#if CRYSTAL_DW1000 && STATETIME_CONF_ON
+#include "dw1000-statetime.h"
+static crystal_statetime_log_t crystal_statetime_logs[CRYSTAL_SLOT_LOGS_MAX];
+static crystal_statetime_log_t crystal_statetime_log;
+static size_t crystal_statetime_next_log = 0;
+#define STATETIME_LOG_APPEND(PHASE) do {\
+    dw1000_statetime_log(&crystal_statetime_log.sttime);\
+    crystal_statetime_log.epoch = epoch;\
+    crystal_statetime_log.phase = PHASE;\
+    crystal_statetime_log_append(&crystal_statetime_log);} while(0)
+
+# else
+#define STATETIME_LOG_APPEND(...) do {} while(0)
+
+#endif // STATETIME_CONF_ON
 
 // it's important to wait the maximum possible S phase duration before starting the TAs!
 #define PHASE_S_END_OFFS (CRYSTAL_INIT_GUARD*2 + conf.w_S + CRYSTAL_INTER_PHASE_GAP)
@@ -400,6 +421,7 @@ PT_THREAD(s_root_thread(struct rtimer *t, void* ptr))
 
     GLOSSY_WAIT(&pt_s_root);
 
+    STATETIME_LOG_APPEND(CRYSTAL_S_PHASE);
     crystal_slot_log = (crystal_slot_log_t) {.epoch = epoch, .phase = CRYSTAL_S_PHASE,
         .slot_duration = glossy_get_slot_duration(CRYSTAL_S_TOTAL_LEN),
         .round_duration = glossy_get_round_duration(),
@@ -442,6 +464,8 @@ PT_THREAD(ta_root_thread(struct rtimer *t, void* ptr))
                 false, 0);
 
         GLOSSY_WAIT(&pt_ta_root);
+
+        STATETIME_LOG_APPEND(CRYSTAL_T_PHASE);
         crystal_slot_log = (crystal_slot_log_t) {.epoch = epoch, .phase = CRYSTAL_T_PHASE,
             .slot_duration = glossy_get_slot_duration(CRYSTAL_T_TOTAL_LEN),
             .round_duration = glossy_get_round_duration(),
@@ -515,8 +539,9 @@ PT_THREAD(ta_root_thread(struct rtimer *t, void* ptr))
                     GLOSSY_WITH_SYNC :
                     GLOSSY_WITHOUT_SYNC,
                 false, 0);
-
         GLOSSY_WAIT(&pt_ta_root);
+
+        STATETIME_LOG_APPEND(CRYSTAL_A_PHASE);
         crystal_slot_log = (crystal_slot_log_t) {.epoch = epoch, .phase = CRYSTAL_A_PHASE,
             .slot_duration = glossy_get_slot_duration(CRYSTAL_A_TOTAL_LEN),
             .round_duration = glossy_get_round_duration(),
@@ -694,6 +719,8 @@ PT_THREAD(s_node_thread(struct rtimer *t, void* ptr))
             false, 0);
 
     GLOSSY_WAIT(&pt_s_node);
+
+    STATETIME_LOG_APPEND(CRYSTAL_S_PHASE);
     crystal_slot_log = (crystal_slot_log_t) {.epoch = epoch, .phase = CRYSTAL_S_PHASE,
         .slot_duration = glossy_get_slot_duration(CRYSTAL_S_TOTAL_LEN),
         .round_duration = glossy_get_round_duration(),
@@ -800,6 +827,8 @@ PT_THREAD(ta_node_thread(struct rtimer *t, void* ptr))
                 false, 0);
 
         GLOSSY_WAIT(&pt_ta_node);
+
+        STATETIME_LOG_APPEND(CRYSTAL_T_PHASE);
         crystal_slot_log = (crystal_slot_log_t) {.epoch = epoch, .phase = CRYSTAL_T_PHASE,
             .slot_duration = glossy_get_slot_duration(CRYSTAL_T_TOTAL_LEN),
             .round_duration = glossy_get_round_duration(),
@@ -853,6 +882,7 @@ PT_THREAD(ta_node_thread(struct rtimer *t, void* ptr))
         GLOSSY_WAIT(&pt_ta_node);
         UPDATE_SLOT_STATS(A, 0);
 
+        STATETIME_LOG_APPEND(CRYSTAL_A_PHASE);
         crystal_slot_log = (crystal_slot_log_t) {.epoch = epoch, .phase = CRYSTAL_A_PHASE,
             .slot_duration = glossy_get_slot_duration(CRYSTAL_A_TOTAL_LEN),
             .round_duration = glossy_get_round_duration(),
@@ -1068,7 +1098,10 @@ static char node_main_thread(struct rtimer *t, void *ptr) {
 // ---------------------------------------------------------------------------------------------------------------------
 void crystal_init() {
     glossy_init();
+#if CRYSTAL_DW1000 && STATETIME_CONF_ON
     crystal_slot_log_init();
+    crystal_statetime_log_init();
+#endif
 }
 
 bool crystal_start(crystal_config_t* conf_)
@@ -1235,3 +1268,43 @@ crystal_slot_log_print() {
                 s->epoch, phase_label, s->slot_duration, s->round_duration, s->n_tx, s->n_rx);
     }
 }
+
+#if CRYSTAL_DW1000 && STATETIME_CONF_ON
+void
+crystal_statetime_log_init() {
+  crystal_statetime_next_log = 0;
+}
+
+void
+crystal_statetime_log_append(crystal_statetime_log_t *entry) {
+  if (crystal_statetime_next_log < CRYSTAL_SLOT_LOGS_MAX) {
+    crystal_statetime_logs[crystal_statetime_next_log] = *entry;
+    crystal_statetime_next_log++;
+  }
+}
+
+void
+crystal_statetime_log_print() {
+    crystal_statetime_log_t *s;
+    char phase_label[2] = "";
+
+    for (s = crystal_statetime_logs; s < crystal_statetime_logs + crystal_statetime_next_log; s++) {
+
+        switch (s->phase) {
+            case CRYSTAL_S_PHASE:
+                snprintf(phase_label, 2, "S"); break;
+            case CRYSTAL_T_PHASE:
+                snprintf(phase_label, 2, "T"); break;
+            case CRYSTAL_A_PHASE:
+                snprintf(phase_label, 2, "A"); break;
+            default:
+                snprintf(phase_label, 2, "#");        // unknown (should not happen)
+        }
+        printf("E %d %s %llu %llu %llu %llu %llu %llu\n",
+                s->epoch, phase_label,
+                s->sttime.idle_time_us,
+                s->sttime.tx_preamble_time_us, s->sttime.tx_data_time_us,
+                s->sttime.rx_preamble_hunting_time_us, s->sttime.rx_preamble_time_us, s->sttime.rx_data_time_us);
+    }
+}
+#endif // CRYSTAL_DW1000 && STATETIME_CONF_ON

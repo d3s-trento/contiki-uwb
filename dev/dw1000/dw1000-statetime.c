@@ -1,5 +1,6 @@
 #include "dw1000-statetime.h"
 #include "dw1000-util.h"
+#include "dw1000-conv.h"
 #include "dw1000-config.h"
 #include <inttypes.h>
 #include <stdbool.h>
@@ -13,6 +14,8 @@
 #endif
 
 #define ENERGY_LOG(...) PRINTF("[ENERGY]" __VA_ARGS__)
+
+#define TIME_LT32(T1, T2) ((int32_t)(T2-T1) >= 0)
 /*---------------------------------------------------------------------------*/
 /*                      UTILITY FUNCTIONS DECLARATIONS                       */
 /*---------------------------------------------------------------------------*/
@@ -69,7 +72,7 @@ dw1000_statetime_schedule_txrx(const uint32_t schedule_tx_32hi, const uint32_t r
 
     context.is_rx_after_tx = true;
     context.schedule_32hi  = schedule_tx_32hi;
-    context.rx_delay_32hi  = rx_delay_uus * 1000 / 4;
+    context.rx_delay_32hi  = rx_delay_uus * 1000 / DWT_TICK_TO_NS_32;
     context.state = DW1000_SCHEDULED_TX;
 }
 /*---------------------------------------------------------------------------*/
@@ -97,12 +100,15 @@ dw1000_statetime_after_tx(const uint32_t sfd_tx_32hi, const uint16_t framelength
 
     // the radio goes idle when tx done is issued, therefore
     // roughly at sfd + the time required to read the PHY payload
-    context.last_idle_32hi = sfd_tx_32hi + payload_time_ns / 4;
+    context.last_idle_32hi = sfd_tx_32hi + payload_time_ns / DWT_TICK_TO_NS_32;
 
     if (context.is_rx_after_tx) {
 
         // setrxaftertx_delay function used
-        context.state = DW1000_RX_AFTER_TX;
+        context.schedule_32hi = context.last_idle_32hi + context.rx_delay_32hi;
+        context.rx_delay_32hi = 0;
+        // context.state = DW1000_RX_AFTER_TX;
+        context.state = DW1000_SCHEDULED_RX;
 
     } else {
 
@@ -131,11 +137,11 @@ dw1000_statetime_after_rx(const uint32_t sfd_rx_32hi, const uint16_t framelength
     } else if (context.state == DW1000_RX_AFTER_TX) {
 
         // rx using the setrxaftertx function
-        context.idle_time_us += context.rx_delay_32hi * 4 / 1000;
+        context.idle_time_us += context.rx_delay_32hi * DWT_TICK_TO_NS_32 / 1000;
 
         context.rx_preamble_hunting_time_us +=
             (
-             ((sfd_rx_32hi - context.last_idle_32hi) - context.rx_delay_32hi) * 4 -
+             ((sfd_rx_32hi - context.last_idle_32hi) - context.rx_delay_32hi) * DWT_TICK_TO_NS_32 -
              preamble_time_ns
             ) / 1000;
 
@@ -144,7 +150,7 @@ dw1000_statetime_after_rx(const uint32_t sfd_rx_32hi, const uint16_t framelength
     context.rx_data_time_us += payload_time_ns / 1000;
 
     // radio switched to idle when rx_ok callback was issued
-    context.last_idle_32hi = sfd_rx_32hi + payload_time_ns / 4;
+    context.last_idle_32hi = sfd_rx_32hi + payload_time_ns / DWT_TICK_TO_NS_32;
 
     context.state = DW1000_IDLE;
 }
@@ -191,3 +197,13 @@ dw1000_statetime_print()
             context.rx_preamble_hunting_time_us, context.rx_preamble_time_us, context.rx_data_time_us);
 }
 
+void
+dw1000_statetime_log(dw1000_statetime_log_t* entry)
+{
+    entry -> idle_time_us = context.idle_time_us;
+    entry -> tx_preamble_time_us = context.tx_preamble_time_us;
+    entry -> tx_data_time_us = context.tx_data_time_us;
+    entry -> rx_preamble_hunting_time_us = context.rx_preamble_hunting_time_us;
+    entry -> rx_preamble_time_us = context.rx_preamble_time_us;
+    entry -> rx_data_time_us = context.rx_data_time_us;
+}

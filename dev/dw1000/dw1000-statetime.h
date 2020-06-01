@@ -50,6 +50,15 @@ typedef enum dw1000_state_t {
     DW1000_SCHEDULED_RX
 } dw1000_state_t;
 
+typedef struct dw1000_statetime_log_t {
+    uint64_t idle_time_us;
+    uint64_t rx_preamble_hunting_time_us;
+    uint64_t rx_preamble_time_us;
+    uint64_t rx_data_time_us;
+    uint64_t tx_preamble_time_us;
+    uint64_t tx_data_time_us;
+} dw1000_statetime_log_t;
+
 /* Define a context to track the time spent in each radio state.
  * Currently, the module support the following states:
  *
@@ -96,6 +105,8 @@ void dw1000_statetime_stop();
 /** \brief Retrieve the statetime context.
  */
 dw1000_statetime_context_t* dw1000_statetime_get_context();
+
+void dw1000_statetime_log(dw1000_statetime_log_t* entry);
 /*---------------------------------------------------------------------------*/
 /** \brief Print dwell times on each state.
  */
