@@ -4,6 +4,11 @@
 #include "dw1000-config.h"
 #include <inttypes.h>
 #include <stdbool.h>
+#include "print-def.h"
+
+#define LOG_LEVEL LOG_WARN
+#include "logging.h"
+
 /*---------------------------------------------------------------------------*/
 #define DEBUG           1
 #if DEBUG
@@ -93,8 +98,13 @@ dw1000_statetime_after_tx(const uint32_t sfd_tx_32hi, const uint16_t framelength
     uint32_t preamble_time_ns = estimate_preamble_time_ns();
     uint32_t payload_time_ns  = estimate_payload_time_ns(framelength);
 
-    context.idle_time_us += ((sfd_tx_32hi - context.last_idle_32hi) * 4 -
-            preamble_time_ns) / 1000;
+    uint32_t idle_sfd_time_ns = 0;
+    WARNIF(!TIME_LT32(context.last_idle_32hi, sfd_tx_32hi));
+    WARNIF(!TIME_LT32(preamble_time_ns, idle_sfd_time_ns));
+    idle_sfd_time_ns = (sfd_tx_32hi - context.last_idle_32hi) * DWT_TICK_TO_NS_32;
+    // by definition the time between the last idle time and the sfd cannot
+    // be smaller than the preamble
+    context.idle_time_us += (idle_sfd_time_ns - preamble_time_ns) / 1000;
     context.tx_preamble_time_us += preamble_time_ns / 1000;
     context.tx_data_time_us += payload_time_ns / 1000;
 
@@ -127,12 +137,27 @@ dw1000_statetime_after_rx(const uint32_t sfd_rx_32hi, const uint16_t framelength
 
     if (context.state == DW1000_SCHEDULED_RX) {
 
+        uint32_t schedule_sfd_time_ns = 0;
+        uint32_t ph_time_ns = 0;
         // using the rx_enable function
         // context.schedule_32hi stores the timestamp the
         // radio switched to rx
-        context.idle_time_us += (context.schedule_32hi - context.last_idle_32hi) * 4 / 1000;
-        context.rx_preamble_hunting_time_us +=
-            ((sfd_rx_32hi - context.schedule_32hi) * 4 - preamble_time_ns) / 1000;
+        WARNIF(!TIME_LT32(context.schedule_32hi, sfd_rx_32hi));
+        WARNIF(!TIME_LT32(context.last_idle_32hi, context.schedule_32hi));
+        schedule_sfd_time_ns = (sfd_rx_32hi - context.schedule_32hi) * DWT_TICK_TO_NS_32;
+
+        // the radio can wake up and manage to sucessfully receive a packet despite
+        // not having received the entire preamble.
+        // If this is the case, consider the time schedule_rx <-> sfd as
+        // preamble_time
+        if (TIME_LT32(preamble_time_ns, schedule_sfd_time_ns)) {
+            ph_time_ns = schedule_sfd_time_ns - preamble_time_ns;
+        } else  {
+            preamble_time_ns = schedule_sfd_time_ns;
+            ph_time_ns = 0;
+        }
+        context.idle_time_us += (context.schedule_32hi - context.last_idle_32hi) * DWT_TICK_TO_NS_32 / 1000;
+        context.rx_preamble_hunting_time_us += ph_time_ns / 1000;
 
     } else if (context.state == DW1000_RX_AFTER_TX) {
 
@@ -161,8 +186,32 @@ dw1000_statetime_start()
     context.tracing = true;
 }
 /*---------------------------------------------------------------------------*/
+/**
 void
-dw1000_statetime_stop()
+dw1000_statetime_abort(uint32_t now_32hi)
+{
+    // account the time between last_idle and now as idle
+
+    switch (context.state) {
+        case DW1000_IDLE:
+            context.idle_time_us += (now - context.last_idle_32hi) * DWT_TICK_TO_NS_32 / 1000;
+            break;
+
+        case DW1000_SCHEDULED_TX:
+            break;
+
+    };
+    if (TIME_LT32(context.last_idle_32hi, now_32hi)) {
+    }
+    context.is_rx_after_tx = false;
+    context.schedule_32hi = 0;
+    context.last_idle_32hi = now_32hi;
+    context.rx_delay_32hi = 0;
+}
+*/
+/*---------------------------------------------------------------------------*/
+void
+dw1000_statetime_stop(void)
 {
     context.state = DW1000_IDLE;
     context.tracing = false;
