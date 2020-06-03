@@ -97,6 +97,16 @@
 // DW1000_CONF_TX_POWER
 // DW1000_CONF_PG_DELAY
 
+
+/*-- Driver configuration --------------------------------------------------- */
+
+#ifdef DW1000_CONF_DEBUG_LEDS
+#define DW1000_DEBUG_LEDS DW1000_CONF_DEBUG_LEDS
+#else
+#define DW1000_DEBUG_LEDS 1
+#endif
+
+
 /*--------------------------------------------------------------------------- */
 
 /* Configure the radio.
