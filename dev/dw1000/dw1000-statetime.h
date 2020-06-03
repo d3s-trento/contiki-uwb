@@ -128,6 +128,7 @@ void dw1000_statetime_set_last_idle(const uint32_t ts_idle_32hi);
  *  \param framelength  the length of the frame received.
  */
 void dw1000_statetime_after_rx(const uint32_t sfd_rx_32hi, const uint16_t framelength);
+void dw1000_statetime_after_rxerr(const uint32_t now_32hi);
 /*---------------------------------------------------------------------------*/
 /** \brief Perform tracing after a successful transmission.
  *

@@ -98,10 +98,9 @@ dw1000_statetime_after_tx(const uint32_t sfd_tx_32hi, const uint16_t framelength
     uint32_t preamble_time_ns = estimate_preamble_time_ns();
     uint32_t payload_time_ns  = estimate_payload_time_ns(framelength);
 
-    uint32_t idle_sfd_time_ns = 0;
+    uint32_t idle_sfd_time_ns = (sfd_tx_32hi - context.last_idle_32hi) * DWT_TICK_TO_NS_32;
     WARNIF(!TIME_LT32(context.last_idle_32hi, sfd_tx_32hi));
     WARNIF(!TIME_LT32(preamble_time_ns, idle_sfd_time_ns));
-    idle_sfd_time_ns = (sfd_tx_32hi - context.last_idle_32hi) * DWT_TICK_TO_NS_32;
     // by definition the time between the last idle time and the sfd cannot
     // be smaller than the preamble
     context.idle_time_us += (idle_sfd_time_ns - preamble_time_ns) / 1000;
@@ -116,15 +115,39 @@ dw1000_statetime_after_tx(const uint32_t sfd_tx_32hi, const uint16_t framelength
 
         // setrxaftertx_delay function used
         context.schedule_32hi = context.last_idle_32hi + context.rx_delay_32hi;
-        context.rx_delay_32hi = 0;
         // context.state = DW1000_RX_AFTER_TX;
         context.state = DW1000_SCHEDULED_RX;
+        context.rx_delay_32hi = 0;
+        context.is_rx_after_tx = false;
 
     } else {
-
         context.state = DW1000_IDLE;
-
     }
+}
+/*---------------------------------------------------------------------------*/
+void
+dw1000_statetime_after_rxerr(const uint32_t now_32hi)
+{
+    if (!context.tracing) return;
+
+    if (context.state == DW1000_SCHEDULED_RX) {
+
+        // using the rx_enable function
+        // context.schedule_32hi stores the timestamp the
+        // radio switched to rx
+        WARNIF(context.schedule_32hi == 0);
+        WARNIF(!TIME_LT32(context.schedule_32hi, now_32hi));
+        WARNIF(!TIME_LT32(context.last_idle_32hi, context.schedule_32hi));
+        context.idle_time_us += (context.schedule_32hi - context.last_idle_32hi)  * DWT_TICK_TO_NS_32 / 1000;
+        context.rx_preamble_hunting_time_us += (now_32hi - context.schedule_32hi) * DWT_TICK_TO_NS_32 / 1000;
+    }
+
+    // radio switched to idle when rx_ok callback was issued
+    context.is_rx_after_tx = false;
+    context.rx_delay_32hi = 0;
+    context.last_idle_32hi = now_32hi;
+
+    context.state = DW1000_IDLE;
 }
 /*---------------------------------------------------------------------------*/
 void
@@ -142,6 +165,7 @@ dw1000_statetime_after_rx(const uint32_t sfd_rx_32hi, const uint16_t framelength
         // using the rx_enable function
         // context.schedule_32hi stores the timestamp the
         // radio switched to rx
+        WARNIF(context.schedule_32hi == 0);
         WARNIF(!TIME_LT32(context.schedule_32hi, sfd_rx_32hi));
         WARNIF(!TIME_LT32(context.last_idle_32hi, context.schedule_32hi));
         schedule_sfd_time_ns = (sfd_rx_32hi - context.schedule_32hi) * DWT_TICK_TO_NS_32;
