@@ -68,9 +68,8 @@
 #define PRINTF_RNG_FAILED(...) do {} while(0)
 #endif
 
-#define DEBUG_LEDS 1
 #undef LEDS_TOGGLE
-#if DEBUG_LEDS
+#if DW1000_DEBUG_LEDS
 #define LEDS_TOGGLE(x) leds_toggle(x)
 #else
 #define LEDS_TOGGLE(x)
@@ -229,7 +228,7 @@ dw1000_init(void)
   dw1000_print_cfg();
 
   /* Configure DW1000 GPIOs to show TX/RX activity with the LEDs */
-#if DEBUG_LEDS == 1
+#if DW1000_DEBUG_LEDS
   dwt_setleds(DWT_LEDS_ENABLE);
 #endif
 
