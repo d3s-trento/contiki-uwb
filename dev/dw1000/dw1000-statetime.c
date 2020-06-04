@@ -287,7 +287,8 @@ uint32_t estimate_payload_time_ns(const uint16_t framelength)
 void
 dw1000_statetime_print()
 {
-    PRINTF("I %"PRIu64" TP %"PRIu64" TD %"PRIu64" RH %"PRIu64" RP %"PRIu64" RD %"PRIu64"\n",
+    PRINTF("E %u, I %"PRIu64", TP %"PRIu64", TD %"PRIu64", RH %"PRIu64", RP %"PRIu64", RD %"PRIu64"\n",
+            logging_context,
             context.idle_time_us, context.tx_preamble_time_us, context.tx_data_time_us,
             context.rx_preamble_hunting_time_us, context.rx_preamble_time_us, context.rx_data_time_us);
 }
