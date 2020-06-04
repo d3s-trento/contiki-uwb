@@ -43,13 +43,12 @@ dw1000_statetime_context_init()
     context.tx_preamble_time_us = 0;
     context.tx_data_time_us = 0;
 
+    context.is_restarted = true;
     context.tracing = false;
-    context.schedule_32hi = 0;
-
     context.last_idle_32hi = 0;
-
     context.is_rx_after_tx = 0;
     context.rx_delay_32hi = 0;
+    context.schedule_32hi = 0;
 }
 /*---------------------------------------------------------------------------*/
 void
@@ -68,6 +67,7 @@ dw1000_statetime_schedule_tx(const uint32_t schedule_tx_32hi)
     context.is_rx_after_tx = false;
     context.schedule_32hi  = schedule_tx_32hi;
     context.state = DW1000_SCHEDULED_TX;
+
 }
 /*---------------------------------------------------------------------------*/
 void
@@ -79,6 +79,7 @@ dw1000_statetime_schedule_txrx(const uint32_t schedule_tx_32hi, const uint32_t r
     context.schedule_32hi  = schedule_tx_32hi;
     context.rx_delay_32hi  = rx_delay_uus * 1000 / DWT_TICK_TO_NS_32;
     context.state = DW1000_SCHEDULED_TX;
+
 }
 /*---------------------------------------------------------------------------*/
 void
@@ -97,6 +98,14 @@ dw1000_statetime_after_tx(const uint32_t sfd_tx_32hi, const uint16_t framelength
 
     uint32_t preamble_time_ns = estimate_preamble_time_ns();
     uint32_t payload_time_ns  = estimate_payload_time_ns(framelength);
+
+    if (context.is_restarted) {
+        // first transmission of the epoch. last idle is the time at the beginning
+        // of preamble transmission.
+        // NOTE: schedule reports the expected sfd time
+        dw1000_statetime_set_last_idle(context.schedule_32hi - preamble_time_ns / DWT_TICK_TO_NS_32);
+        context.is_restarted = false;
+    }
 
     uint32_t idle_sfd_time_ns = (sfd_tx_32hi - context.last_idle_32hi) * DWT_TICK_TO_NS_32;
     WARNIF(!TIME_LT32(context.last_idle_32hi, sfd_tx_32hi));
@@ -130,6 +139,12 @@ dw1000_statetime_after_rxerr(const uint32_t now_32hi)
 {
     if (!context.tracing) return;
 
+    if (context.is_restarted) {
+        // start counting when the radio was turned on
+        dw1000_statetime_set_last_idle(context.schedule_32hi);
+        context.is_restarted = false;
+    }
+
     if (context.state == DW1000_SCHEDULED_RX) {
 
         // using the rx_enable function
@@ -154,6 +169,12 @@ void
 dw1000_statetime_after_rx(const uint32_t sfd_rx_32hi, const uint16_t framelength)
 {
     if (!context.tracing) return;
+
+    if (context.is_restarted) {
+        // start counting when the radio was turned on
+        dw1000_statetime_set_last_idle(context.schedule_32hi);
+        context.is_restarted = false;
+    }
 
     uint32_t preamble_time_ns = estimate_preamble_time_ns();
     uint32_t payload_time_ns  = estimate_payload_time_ns(framelength);
@@ -208,6 +229,7 @@ void
 dw1000_statetime_start()
 {
     context.tracing = true;
+    context.is_restarted = true;
 }
 /*---------------------------------------------------------------------------*/
 /**

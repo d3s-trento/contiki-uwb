@@ -80,6 +80,7 @@ typedef struct dw1000_statetime_context_t {
     uint64_t tx_preamble_time_us;
     uint64_t tx_data_time_us;
 
+    bool     is_restarted;
     bool     tracing;                   // true if tracing is active
     uint32_t schedule_32hi;             // the timestamp of the last scheduled function
                                         //   (starttx or rxenable 4ns precision)
