@@ -923,7 +923,6 @@ glossy_start(const uint16_t initiator_id,
     // init state common to both initiator and receiver
     glossy_context_init();
     STATETIME_MONITOR(dw1000_statetime_context_init(); dw1000_statetime_start(););
-    STATETIME_MONITOR(dw1000_statetime_set_last_idle(call_time_4ns));
 
     memset(clean_buffer, 0, sizeof(clean_buffer));
 
@@ -1052,7 +1051,6 @@ glossy_start(const uint16_t initiator_id,
             glossy_stop();
         }
         else {
-            STATETIME_MONITOR(dw1000_statetime_set_last_idle(g_context.ts_start)); // start measuring time when radio switches to rx
             STATETIME_MONITOR(dw1000_statetime_schedule_rx(g_context.ts_start));
         }
     }
