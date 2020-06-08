@@ -100,9 +100,11 @@
  * Those values are not meant to be modified by the user
  * @{
  */
-// #define CLOCK_CONF_SECOND 128
-#define CLOCK_CONF_SECOND NRFX_RTC_DEFAULT_CONFIG_FREQUENCY
-// #define CLOCK_CONF_SECOND 1024
+
+/* If you need to change the clock frequency, make sure to
+ * adjust the NRF SDK setting NRFX_RTC_DEFAULT_CONFIG_FREQUENCY
+ */
+#define CLOCK_CONF_SECOND 512
 
 /* Compiler configurations */
 #define CCIF
