@@ -763,6 +763,8 @@ glossy_rx_to_cb(const dwt_cb_data_t *cbdata)
 {
     bool tx_again  = false;
     int status;
+    uint32_t now = dwt_readsystimestamphi32();
+    STATETIME_MONITOR(dw1000_statetime_after_rxerr(now));
     /*-----------------------------------------------------------------------*/
     // collect debugging info first
     #if GLOSSY_STATS
@@ -786,6 +788,7 @@ glossy_rx_to_cb(const dwt_cb_data_t *cbdata)
         // Non-initiators keep listening
         dwt_setrxtimeout(0);
         dwt_rxenable(DWT_START_RX_IMMEDIATE);
+        STATETIME_MONITOR(dw1000_statetime_schedule_rx(now));
     }
     /*-----------------------------------------------------------------------*/
     // DEBUG FEEDBACK
@@ -805,6 +808,8 @@ glossy_rx_err_cb(const dwt_cb_data_t *cbdata)
 {
     int tx_again = false;
     int status;
+    uint32_t now = dwt_readsystimestamphi32();
+    STATETIME_MONITOR(dw1000_statetime_after_rxerr(now));
 
     #if GLOSSY_STATS
     // detect the source of the rx error and increment
@@ -837,6 +842,7 @@ glossy_rx_err_cb(const dwt_cb_data_t *cbdata)
         // Non-initiators keep listening
         dwt_setrxtimeout(0);
         dwt_rxenable(DWT_START_RX_IMMEDIATE);
+        STATETIME_MONITOR(dw1000_statetime_schedule_rx(now));
     }
     /*-----------------------------------------------------------------------*/
     // DEBUG FEEDBACK
@@ -1070,7 +1076,7 @@ uint8_t glossy_stop(void)
     // memorise the stop time
     g_context.ts_stop = dwt_readsystimestamphi32();
     g_context.state   = GLOSSY_STATE_OFF;
-    STATETIME_MONITOR(dw1000_statetime_stop());
+    STATETIME_MONITOR(dw1000_statetime_abort(g_context.ts_stop); dw1000_statetime_stop());
 
     if (!is_glossy_initiator()) {
         if (GLOSSY_GET_SYNC(g_context.pkt_header.config) == GLOSSY_WITH_SYNC) {
