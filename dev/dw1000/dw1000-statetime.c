@@ -220,29 +220,74 @@ dw1000_statetime_start()
     context.is_restarted = true;
 }
 /*---------------------------------------------------------------------------*/
-/**
 void
-dw1000_statetime_abort(uint32_t now_32hi)
+dw1000_statetime_abort(const uint32_t now_32hi)
 {
-    // account the time between last_idle and now as idle
+    if (!context.tracing) return;
 
-    switch (context.state) {
-        case DW1000_IDLE:
-            context.idle_time_us += (now - context.last_idle_32hi) * DWT_TICK_TO_NS_32 / 1000;
-            break;
+    if (context.is_restarted) {
 
-        case DW1000_SCHEDULED_TX:
-            break;
-
-    };
-    if (TIME_LT32(context.last_idle_32hi, now_32hi)) {
+        if (context.state == DW1000_SCHEDULED_RX || context.state == DW1000_SCHEDULED_TX) {
+            // start counting when the radio was turned on
+            dw1000_statetime_set_last_idle(context.schedule_32hi);
+            context.is_restarted = false;
+        }
+        else {
+            // there is literally no time reference.
+            // no action was scheduled. We assume this scenario to be rare
+            // and therefore consider this time negligible. We therefore
+            // set last_idle to now_32hi so that each timing will be 0.
+            dw1000_statetime_set_last_idle(now_32hi);
+            context.is_restarted = false;
+        }
     }
+
+    if (context.state == DW1000_SCHEDULED_RX) {
+
+        // using the rx_enable function
+        // context.schedule_32hi stores the timestamp the
+        // radio switched to rx
+        WARNIF(context.schedule_32hi == 0);
+        WARNIF(!TIME_LT32(context.last_idle_32hi, context.schedule_32hi));
+        if (TIME_LT32(context.schedule_32hi, now_32hi)) {
+            context.idle_time_us += (context.schedule_32hi - context.last_idle_32hi)  * DWT_TICK_TO_NS_32 / 1000;
+            context.rx_preamble_hunting_time_us += (now_32hi - context.schedule_32hi) * DWT_TICK_TO_NS_32 / 1000;
+        }
+        else {
+            // radio operation interrupt before the radio was turned on.
+            // this time is spent in idle
+            context.idle_time_us += (now_32hi - context.last_idle_32hi)  * DWT_TICK_TO_NS_32 / 1000;
+        }
+    }
+    else if (context.state == DW1000_SCHEDULED_TX) {
+        // consider this time to be spend TX the preamble
+        WARNIF(context.schedule_32hi == 0);
+        WARNIF(!TIME_LT32(context.last_idle_32hi, context.schedule_32hi));
+
+        if (TIME_LT32(context.schedule_32hi, now_32hi)) {
+            context.idle_time_us += (context.schedule_32hi - context.last_idle_32hi)  * DWT_TICK_TO_NS_32 / 1000;
+            context.tx_preamble_time_us += (now_32hi - context.schedule_32hi) * DWT_TICK_TO_NS_32 / 1000;
+        }
+        else {
+            // radio interrupted before being active.
+            context.idle_time_us += (now_32hi - context.last_idle_32hi)  * DWT_TICK_TO_NS_32 / 1000;
+        }
+    }
+    else if (context.state == DW1000_IDLE){
+        WARNIF(!TIME_LT32(context.last_idle_32hi, now_32hi));
+        context.idle_time_us += (now_32hi - context.last_idle_32hi)  * DWT_TICK_TO_NS_32 / 1000;
+    }
+    else {
+        // Error?
+    }
+
+    // radio switched to idle when rx_ok callback was issued
     context.is_rx_after_tx = false;
-    context.schedule_32hi = 0;
-    context.last_idle_32hi = now_32hi;
     context.rx_delay_32hi = 0;
+    context.last_idle_32hi = now_32hi;
+
+    context.state = DW1000_IDLE;
 }
-*/
 /*---------------------------------------------------------------------------*/
 void
 dw1000_statetime_stop(void)
