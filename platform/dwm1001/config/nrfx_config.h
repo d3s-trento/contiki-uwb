@@ -1470,7 +1470,7 @@
 #ifndef NRFX_RTC_DEFAULT_CONFIG_FREQUENCY
 //#define NRFX_RTC_DEFAULT_CONFIG_FREQUENCY 32768 // max value (generates too frequent tick interrupts)
 //#define NRFX_RTC_DEFAULT_CONFIG_FREQUENCY 128   // the value used with the old SDK 
-#define NRFX_RTC_DEFAULT_CONFIG_FREQUENCY 512
+#define NRFX_RTC_DEFAULT_CONFIG_FREQUENCY 1024
 #endif
 
 // <q> NRFX_RTC_DEFAULT_CONFIG_RELIABLE  - Ensures safe compare event triggering
