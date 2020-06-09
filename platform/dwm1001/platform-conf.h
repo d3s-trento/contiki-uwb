@@ -104,7 +104,7 @@
 /* If you need to change the clock frequency, make sure to
  * adjust the NRF SDK setting NRFX_RTC_DEFAULT_CONFIG_FREQUENCY
  */
-#define CLOCK_CONF_SECOND 512
+#define CLOCK_CONF_SECOND 1024
 
 /* Compiler configurations */
 #define CCIF
