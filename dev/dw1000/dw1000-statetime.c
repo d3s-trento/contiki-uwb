@@ -87,6 +87,7 @@ dw1000_statetime_schedule_rx(const uint32_t schedule_rx_32hi)
 {
     if (!context.tracing) return;
 
+    context.is_rx_after_tx = false;
     context.schedule_32hi = schedule_rx_32hi;
     context.state = DW1000_SCHEDULED_RX;
 }
@@ -95,6 +96,8 @@ void
 dw1000_statetime_after_tx(const uint32_t sfd_tx_32hi, const uint16_t framelength)
 {
     if (!context.tracing) return;
+
+    WARNIF(context.state != DW1000_SCHEDULED_TX);
 
     uint32_t preamble_time_ns = estimate_preamble_time_ns();
     uint32_t payload_time_ns  = estimate_payload_time_ns(framelength);
@@ -138,6 +141,8 @@ dw1000_statetime_after_rxerr(const uint32_t now_32hi)
 {
     if (!context.tracing) return;
 
+    WARNIF(context.state != DW1000_SCHEDULED_RX);
+
     if (context.is_restarted) {
         // start counting when the radio was turned on
         dw1000_statetime_set_last_idle(context.schedule_32hi);
@@ -168,6 +173,8 @@ void
 dw1000_statetime_after_rx(const uint32_t sfd_rx_32hi, const uint16_t framelength)
 {
     if (!context.tracing) return;
+
+    WARNIF(context.state != DW1000_SCHEDULED_RX);
 
     if (context.is_restarted) {
         // start counting when the radio was turned on
@@ -218,6 +225,7 @@ dw1000_statetime_start()
 {
     context.tracing = true;
     context.is_restarted = true;
+    context.state = DW1000_IDLE;
 }
 /*---------------------------------------------------------------------------*/
 void
