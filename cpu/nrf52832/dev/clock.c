@@ -58,7 +58,7 @@
 #include <stdbool.h>
 
 /*---------------------------------------------------------------------------*/
-const nrfx_rtc_t rtc   = NRFX_RTC_INSTANCE(PLATFORM_RTC_INSTANCE_ID); /**< RTC instance used for platform clock */
+/*static*/ const nrfx_rtc_t rtc   = NRFX_RTC_INSTANCE(PLATFORM_CLOCK_RTC_INSTANCE_ID); /**< RTC instance used for platform clock */
 // APP_TIMER_DEF(timer_id);
 /*---------------------------------------------------------------------------*/
 static volatile uint32_t ticks;
@@ -145,8 +145,8 @@ CCIF clock_time_t
 clock_time(void)
 {
   return ticks;
-  // We cannot use directly the follosing as the RTC register is 24-bit which 
-  // breaks Contiki's assumptions
+  // We cannot use directly the following as the RTC register is 24-bit, 
+  // which breaks Contiki's assumptions about the clock counter
   //return nrfx_rtc_counter_get(&rtc);
 }
 /*---------------------------------------------------------------------------*/
