@@ -39,29 +39,44 @@
 
 
 #include "dw1000-cir.h"
+#include "dw1000-config.h"
 #include "contiki.h"
 #include "deca_regs.h"
 #include "deca_device_api.h"
 /*---------------------------------------------------------------------------*/
 #include <stdio.h>
 /*---------------------------------------------------------------------------*/
+
+/* Number of samples in the accumulator register depending on PRF */
+/* Each sample is formed by a 16-bit real + 16-bit imaginary number */
+#define ACC_LEN_PRF16 (992*4)
+#define ACC_LEN_PRF64 (1016*4)
+
+
+#define ACC_READ_STEP (128)
+
+/*---------------------------------------------------------------------------*/
 static uint8_t acc[ACC_READ_STEP + 1] = {0};
 /*---------------------------------------------------------------------------*/
+
 void
 print_cir(void)
 {
-  uint16_t data_len = 0;
+  uint16_t chunk_len = 0;
+  uint16_t acc_len_bytes = (dw1000_get_current_cfg()->prf == DWT_PRF_64M) ? 
+                           ACC_LEN_PRF64 : 
+                           ACC_LEN_PRF16;
 
-  printf("Acc Data: ");
-  for(uint16_t j = 0; j < ACC_LEN_BYTES; j = j + ACC_READ_STEP) {
+  printf("Acc Data [%d]: ", acc_len_bytes);
+  for(uint16_t j = 0; j < acc_len_bytes; j = j + ACC_READ_STEP) {
     /* Select the number of bytes to read from the accummulator */
-    data_len = ACC_READ_STEP;
-    if (j + ACC_READ_STEP > ACC_LEN_BYTES) {
-      data_len = ACC_LEN_BYTES - j;
+    chunk_len = ACC_READ_STEP;
+    if (j + ACC_READ_STEP > acc_len_bytes) {
+      chunk_len = acc_len_bytes - j;
     }
-    dwt_readaccdata(acc, data_len + 1, j);
+    dwt_readaccdata(acc, chunk_len + 1, j);
 
-    for(uint16_t k = 1; k < data_len + 1; k++) {
+    for(uint16_t k = 1; k < chunk_len + 1; k++) {
       printf("%02x", acc[k]);
     }
   }
@@ -71,20 +86,25 @@ print_cir(void)
 void
 print_cir_samples(uint16_t s1, uint16_t len)
 {
-  uint16_t data_len = 0;
+  uint16_t chunk_len = 0;
+  
+  uint16_t acc_len_bytes = (dw1000_get_current_cfg()->prf == DWT_PRF_64M) ? 
+                           ACC_LEN_PRF64 : 
+                           ACC_LEN_PRF16;
+
   uint16_t nbytes = (len < ACC_READ_STEP) ? len : ACC_READ_STEP;
-  uint16_t max_bytes = (s1 + len < ACC_LEN_BYTES) ? (s1 + len) : ACC_LEN_BYTES;
+  uint16_t max_bytes = (s1 + len < acc_len_bytes) ? (s1 + len) : acc_len_bytes;
 
   printf("Acc Data: ");
   for(uint16_t j = s1; j < max_bytes; j = j + nbytes) {
     /* Select the number of bytes to read from the accummulator */
-    data_len = nbytes;
+    chunk_len = nbytes;
     if (j + nbytes > max_bytes) {
-      data_len = max_bytes - j;
+      chunk_len = max_bytes - j;
     }
-    dwt_readaccdata(acc, data_len + 1, j);
+    dwt_readaccdata(acc, chunk_len + 1, j);
 
-    for(uint16_t k = 1; k < data_len + 1; k++) {
+    for(uint16_t k = 1; k < chunk_len + 1; k++) {
       printf("%02x", acc[k]);
     }
   }
@@ -94,21 +114,26 @@ print_cir_samples(uint16_t s1, uint16_t len)
 void
 print_readable_cir(void)
 {
-  uint16_t data_len = 0;
+  uint16_t chunk_len = 0;
+
+  uint16_t acc_len_bytes = (dw1000_get_current_cfg()->prf == DWT_PRF_64M) ? 
+                           ACC_LEN_PRF64 : 
+                           ACC_LEN_PRF16;
+
   int16_t a = 0; /* Real part */
   int16_t b = 0; /* Imaginary part */
 
-  printf("Acc Data: ");
-  for(int j = 0; j < ACC_LEN_BYTES; j = j + ACC_READ_STEP) {
+  printf("Acc Data [%d]: ", acc_len_bytes);
+  for(int j = 0; j < acc_len_bytes; j = j + ACC_READ_STEP) {
     /* Select the number of bytes to read from the accummulator */
-    data_len = ACC_READ_STEP;
-    if (j + ACC_READ_STEP > ACC_LEN_BYTES) {
-      data_len = ACC_LEN_BYTES - j;
+    chunk_len = ACC_READ_STEP;
+    if (j + ACC_READ_STEP > acc_len_bytes) {
+      chunk_len = acc_len_bytes - j;
     }
-    dwt_readaccdata(acc, data_len + 1, j);
+    dwt_readaccdata(acc, chunk_len + 1, j);
 
     /* Print the bytes read as complex numbers */
-    for(int k = 1; k < data_len + 1; k = k + 4) {
+    for(int k = 1; k < chunk_len + 1; k = k + 4) {
       a = (int16_t) (((acc[k + 1] & 0x00FF) << 8) | (acc[k] & 0x00FF));
       b = (int16_t) (((acc[k + 3] & 0x00FF) << 8) | (acc[k + 2] & 0x00FF));
       if(b >= 0) {
