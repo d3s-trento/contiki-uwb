@@ -84,7 +84,7 @@
  * \brief nRF52 RTC instance to be used for Contiki clock driver.
  * \note RTC 0 is used by the SoftDevice.
  */
-#define PLATFORM_RTC_INSTANCE_ID     1
+#define PLATFORM_CLOCK_RTC_INSTANCE_ID     1
 
 /**
  * \brief nRF52 timer instance to be used for Contiki rtimer driver.
