@@ -69,6 +69,7 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data);
 bool dw1000_range_with(linkaddr_t *lladdr, dw1000_rng_type_t type);
 bool dw1000_is_ranging();
 void dw1000_range_reset();
+void dw1000_ranging_enable_cir_print(bool enable);
 
 extern process_event_t ranging_event;
 
