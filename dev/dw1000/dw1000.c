@@ -539,7 +539,7 @@ dw1000_sleep(void)
   dwt_entersleep();
 }
 /*---------------------------------------------------------------------------*/
-#define WAKEUP_BUFFER_LEN 600
+#define WAKEUP_BUFFER_LEN 1000
 static uint8_t wakeup_buffer[WAKEUP_BUFFER_LEN];
 /*---------------------------------------------------------------------------*/
 int

@@ -97,7 +97,7 @@ extern const struct radio_driver dw1000_driver;
 /**
  * \brief   Enter the preconfigured sleep mode
  *
- *          This functions puts the radio in sleep mode. To this end,
+ *          This function puts the radio in sleep mode. To this end,
  *          dwt_configuresleep(...) is called in dw1000_init(...), setting
  *          the radio to wake up based on a long SPI transaction and
  *          configuring by default deep sleep mode, saving more energy.
@@ -107,7 +107,7 @@ void dw1000_sleep(void);
  * \brief   Wake up the DW1000 radio from (deep) sleep mode
  * \retval  DWT_SUCCESS for success, or DWT_ERROR for error.
  *
- *          This functions wakes up the radio from the preconfigured sleep
+ *          This function wakes up the radio from the preconfigured sleep
  *          mode. By default, the radio is set in deep sleep after a call
  *          to dw1000_sleep(). To wake up the radio it takes a long SPI
  *          transaction of around 500us.
