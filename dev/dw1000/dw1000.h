@@ -92,10 +92,31 @@
 /*---------------------------------------------------------------------------*/
 extern const struct radio_driver dw1000_driver;
 /*---------------------------------------------------------------------------*/
+/* Functions to put DW1000 into deep sleep mode and wake it up */
 
+/**
+ * \brief   Enter the preconfigured sleep mode
+ *
+ *          This functions puts the radio in sleep mode. To this end,
+ *          dwt_configuresleep(...) is called in dw1000_init(...), setting
+ *          the radio to wake up based on a long SPI transaction and
+ *          configuring by default deep sleep mode, saving more energy.
+ */
+void dw1000_sleep(void);
+/**
+ * \brief   Wake up the DW1000 radio from (deep) sleep mode
+ * \retval  DWT_SUCCESS for success, or DWT_ERROR for error.
+ *
+ *          This functions wakes up the radio from the preconfigured sleep
+ *          mode. By default, the radio is set in deep sleep after a call
+ *          to dw1000_sleep(). To wake up the radio it takes a long SPI
+ *          transaction of around 500us.
+ */
+int dw1000_wakeup(void);
+/*---------------------------------------------------------------------------*/
 typedef enum {DW1000_RNG_SS, DW1000_RNG_DS} dw1000_rng_type_t;
 
 /* Ranging */
 bool range_with(linkaddr_t *dst, dw1000_rng_type_t type);
-
+/*---------------------------------------------------------------------------*/
 #endif /* DW1000_H */
