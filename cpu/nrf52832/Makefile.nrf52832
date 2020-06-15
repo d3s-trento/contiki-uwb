@@ -86,7 +86,15 @@ remduplicates = $(strip $(if $1,$(firstword $1) $(call remduplicates,$(filter-ou
 CONTIKI_CPU_DIRS += . dev ble #compat
 
 ### CPU-dependent source files
-CONTIKI_CPU_SOURCEFILES += clock.c rtimer-arch.c uart0.c putchar.c watchdog.c
+CONTIKI_CPU_SOURCEFILES += clock.c uart0.c putchar.c watchdog.c
+
+ifeq ($(NRF52_RTIMER_USE_HFCLK),1)
+CONTIKI_CPU_SOURCEFILES += rtimer-arch-hfclk.c 
+CFLAGS += -DNRF52_RTIMER_USE_HFCLK=1
+else
+CONTIKI_CPU_SOURCEFILES += rtimer-arch-lfclk.c 
+CFLAGS += -DNRF52_RTIMER_USE_HFCLK=0
+endif
 
 CONTIKI_SOURCEFILES += $(CONTIKI_CPU_SOURCEFILES)
 
