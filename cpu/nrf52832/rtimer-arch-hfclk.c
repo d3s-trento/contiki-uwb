@@ -58,6 +58,7 @@ static const nrfx_timer_config_t timer_default_config = NRFX_TIMER_DEFAULT_CONFI
 // APP_TIMER_DEF(m_single_shot_timer_id);
 
 static bool rtimer_running = false;
+static uint8_t hfclk_restore = 0; /* 0 = undefined, 1 = on, 2 = off */
 
 bool
 hfclk_is_running()
@@ -113,8 +114,12 @@ timer_event_handler(nrf_timer_event_t event_type, void* p_context)
     case NRF_TIMER_EVENT_COMPARE1:
       rtimer_running = false;
       rtimer_run_next();
-      if(!rtimer_running)
-	hfclk_stop();
+      if(!rtimer_running) {
+	/* no more rtimer */
+	if(hfclk_restore == 2)
+	  hfclk_stop();
+	hfclk_restore = 0; /* next rtimer_arch_schedule will set */
+      }
       break;
 
     default:
@@ -146,8 +151,15 @@ rtimer_arch_init(void)
 void
 rtimer_arch_schedule(rtimer_clock_t t)
 {
-  if(!hfclk_is_running())
-    hfclk_start();
+  if(hfclk_restore == 0) {
+    if(hfclk_is_running()) {
+      hfclk_restore = 1;
+    } else {
+      hfclk_restore = 2;
+      hfclk_start();
+    }
+  }
+
   nrfx_timer_compare(&timer, NRF_TIMER_CC_CHANNEL1, t, true);
   rtimer_running = true;
 }
