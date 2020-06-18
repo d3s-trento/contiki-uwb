@@ -644,7 +644,13 @@ glossy_rx_ok_cb(const dwt_cb_data_t *cbdata)
         if (is_glossy_initiator()) {
             // Initiator retransmits the packet in its next tx slot
             // (this only happens with the standard version)
-            glossy_resume_flood();
+            status = glossy_resume_flood();
+
+            if (status != DWT_SUCCESS) {
+                // if performing a delayed transmission probably the transceiver
+                // failed to tx within the deadline
+                LOG_ERROR("Rx cb1: Failed to TX\n");
+            }
         }
         else {
             // non-initiators continue listening
@@ -748,7 +754,7 @@ glossy_rx_ok_cb(const dwt_cb_data_t *cbdata)
         if (status != DWT_SUCCESS) {
             // if performing a delayed transmission probably the transceiver
             // failed to tx within the deadline
-            LOG_ERROR("Rx cb: Failed to TX\n");
+            LOG_ERROR("Rx cb2: Failed to TX\n");
         }
         else {
             if (ver == GLOSSY_TX_ONLY_VERSION)
