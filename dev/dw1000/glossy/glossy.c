@@ -1410,7 +1410,7 @@ calc_slot_duration(uint16_t psdu_len)
     return (
         dw1000_estimate_tx_time(dw1000_get_current_cfg(), psdu_len, false) +
            2400*psdu_len + // measured SPI upload+download speed
-           ((GLOSSY_LOG_LEVEL<=GLOSSY_LOG_ERROR_LEVEL) ? 250000 : 500000)
+           ((GLOSSY_LOG_LEVEL<=GLOSSY_LOG_ERROR_LEVEL) ? 270000 : 500000)
            //((GLOSSY_LOG_LEVEL<=GLOSSY_LOG_ERROR_LEVEL) ? 500000 : 1500000)    // use larger values when testing with the replier
            ) / 4; // we use ns instead of uwb ns here for speed, the actual slot duration will be slightly different
 }
