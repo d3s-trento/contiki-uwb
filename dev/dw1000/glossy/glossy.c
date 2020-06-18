@@ -546,6 +546,8 @@ glossy_tx_done_cb(const dwt_cb_data_t *cbdata)
         //dwt_forcetrxoff();  // we can avoid this since the radio goes automatically to IDLE after TX
         dwt_setdelayedtrxtime(ts_tx_4ns);
         // TX and do not go to rx state after transmitting
+        /* errata TX-1: ensure TX done is issued */
+        dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M);
         status = dwt_starttx(DWT_START_TX_DELAYED);
 
         if (status != DWT_SUCCESS) {
@@ -712,6 +714,8 @@ glossy_rx_ok_cb(const dwt_cb_data_t *cbdata)
             // We received a packet and now schedule our first
             // retransmission, **without** expecting a response!
             dwt_setdelayedtrxtime(ts_tx_4ns);
+            /* errata TX-1: ensure TX done is issued */
+            dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M);
             status = dwt_starttx(DWT_START_TX_DELAYED);
             ver = GLOSSY_TX_ONLY_VERSION;
 
@@ -730,6 +734,8 @@ glossy_rx_ok_cb(const dwt_cb_data_t *cbdata)
             }
             // start delayed TX and request RX mode after
             dwt_setdelayedtrxtime(ts_tx_4ns);
+            /* errata TX-1: ensure TX done is issued */
+            dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M);
             status = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
             ver = GLOSSY_STANDARD_VERSION;
 
@@ -763,8 +769,7 @@ glossy_rx_to_cb(const dwt_cb_data_t *cbdata)
 {
     bool tx_again  = false;
     int status;
-    uint32_t now = dwt_readsystimestamphi32();
-    STATETIME_MONITOR(dw1000_statetime_after_rxerr(now));
+    STATETIME_MONITOR(uint32_t now = dwt_readsystimestamphi32(); dw1000_statetime_after_rxerr(now));
     /*-----------------------------------------------------------------------*/
     // collect debugging info first
     #if GLOSSY_STATS
@@ -808,8 +813,7 @@ glossy_rx_err_cb(const dwt_cb_data_t *cbdata)
 {
     int tx_again = false;
     int status;
-    uint32_t now = dwt_readsystimestamphi32();
-    STATETIME_MONITOR(dw1000_statetime_after_rxerr(now));
+    STATETIME_MONITOR(uint32_t now = dwt_readsystimestamphi32(); dw1000_statetime_after_rxerr(now));
 
     #if GLOSSY_STATS
     // detect the source of the rx error and increment
@@ -1006,6 +1010,8 @@ glossy_start(const uint16_t initiator_id,
 
             // start delayed TX without switching to RX after
             dwt_setdelayedtrxtime(ts_tx_4ns);
+            /* errata TX-1: ensure TX done is issued */
+            dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M);
             status = dwt_starttx(DWT_START_TX_DELAYED);
             ver = GLOSSY_TX_ONLY_VERSION;
 
@@ -1021,6 +1027,8 @@ glossy_start(const uint16_t initiator_id,
 
             // start delayed TX and request switching to RX after
             dwt_setdelayedtrxtime(ts_tx_4ns);
+            /* errata TX-1: ensure TX done is issued */
+            dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M);
             status = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
             ver = GLOSSY_STANDARD_VERSION;
         }
@@ -1286,6 +1294,8 @@ glossy_resume_flood()
 
         // start delayed TX
         dwt_setdelayedtrxtime(ts_tx_4ns);
+        /* errata TX-1: ensure TX done is issued */
+        dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M);
         status = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
         if (status == DWT_SUCCESS) {
             STATETIME_MONITOR(dw1000_statetime_schedule_txrx(ts_tx_4ns, rx_delay_uus));
