@@ -41,7 +41,12 @@
 /*---------------------------------------------------------------------------*/
 #include "nrf.h"
 #include "nrfx_timer.h"
+#include "nrfx_clock.h"
 #include "app_error.h"
+/*---------------------------------------------------------------------------*/
+#ifdef SOFTDEVICE_PRESENT
+#include "nrf_sdh.h"
+#endif /* SOFTDEVICE_PRESENT */
 /*---------------------------------------------------------------------------*/
 #include "contiki.h"
 /*---------------------------------------------------------------------------*/
@@ -51,6 +56,50 @@
 static const nrfx_timer_t timer = NRFX_TIMER_INSTANCE(PLATFORM_RTIMER_TIMER_INSTANCE_ID); /**< Timer instance used for rtimer */
 static const nrfx_timer_config_t timer_default_config = NRFX_TIMER_DEFAULT_CONFIG;
 // APP_TIMER_DEF(m_single_shot_timer_id);
+
+static bool rtimer_running = false;
+static uint8_t hfclk_restore = 0; /* 0 = undefined, 1 = on, 2 = off */
+
+bool
+hfclk_is_running()
+{
+#ifdef SOFTDEVICE_PRESENT
+    if (nrf_sdh_is_enabled())
+    {
+        uint32_t is_running;
+        UNUSED_VARIABLE(sd_clock_hfclk_is_running(&is_running));
+        return (is_running ? true : false);
+    }
+#endif // SOFTDEVICE_PRESENT
+
+    return nrfx_clock_hfclk_is_running();
+}
+
+void
+hfclk_start()
+{
+#ifdef SOFTDEVICE_PRESENT
+  if(nrf_sdh_is_enabled()) {
+    sd_clock_hfclk_request();
+    return;
+  }
+#endif
+
+  nrfx_clock_hfclk_start();
+}
+
+void
+hfclk_stop()
+{
+#ifdef SOFTDEVICE_PRESENT
+  if(nrf_sdh_is_enabled()) {
+    sd_clock_hfclk_release();
+    return;
+  }
+#endif
+
+  nrfx_clock_hfclk_stop();
+}
 
 /**
  * \brief Handler for timer events.
@@ -63,7 +112,14 @@ timer_event_handler(nrf_timer_event_t event_type, void* p_context)
 {
   switch (event_type) {
     case NRF_TIMER_EVENT_COMPARE1:
+      rtimer_running = false;
       rtimer_run_next();
+      if(!rtimer_running) {
+	/* no more rtimer */
+	if(hfclk_restore == 2)
+	  hfclk_stop();
+	hfclk_restore = 0; /* next rtimer_arch_schedule will set */
+      }
       break;
 
     default:
@@ -95,7 +151,17 @@ rtimer_arch_init(void)
 void
 rtimer_arch_schedule(rtimer_clock_t t)
 {
+  if(hfclk_restore == 0) {
+    if(hfclk_is_running()) {
+      hfclk_restore = 1;
+    } else {
+      hfclk_restore = 2;
+      hfclk_start();
+    }
+  }
+
   nrfx_timer_compare(&timer, NRF_TIMER_CC_CHANNEL1, t, true);
+  rtimer_running = true;
 }
 /*---------------------------------------------------------------------------*/
 /**

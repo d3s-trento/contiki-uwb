@@ -252,7 +252,10 @@ dw1000_init(void)
   dw1000_ranging_init();
 #endif
 
-
+  /* Configure deep sleep mode */
+  /* NOTE: this is only used if the application actually calls the necessary
+   * functions to put the radio in deep sleep mode and wake it up */
+  dwt_configuresleep(DWT_PRESRV_SLEEP | DWT_CONFIG, DWT_WAKE_CS | DWT_SLP_EN);
 
   /* Start DW1000 process */
   process_start(&dw1000_process, NULL);
@@ -529,7 +532,20 @@ const struct radio_driver dw1000_driver =
   dw1000_set_object
 };
 /*---------------------------------------------------------------------------*/
-
+/* Functions to put DW1000 into deep sleep mode and wake it up */
+void
+dw1000_sleep(void)
+{
+  dwt_entersleep();
+}
+/*---------------------------------------------------------------------------*/
+int
+dw1000_wakeup(void)
+{
+  uint8_t wakeup_buffer[600];
+  return dwt_spicswakeup(wakeup_buffer, 600);
+}
+/*---------------------------------------------------------------------------*/
 bool
 range_with(linkaddr_t *dst, dw1000_rng_type_t type)
 {

@@ -116,8 +116,8 @@ motelist:
 match($$0, "J-Link\\[([[:digit:]]+)\\].*Serial number: ([[:digit:]]*)", m) {printf(" %s\t%s\n",m[1],m[2])}'
 
 %.upload: %.hex %.jlink 
-	@echo Flashing: $^
-	$(JLINK) $(JLINK_OPTS) -CommanderScript $*.jlink
+	@echo Flashing: $*.hex
+	$(Q)$(JLINK) $(JLINK_OPTS) -CommanderScript $*.jlink
 
 RTT_TELNET_PORT ?= 19021
 

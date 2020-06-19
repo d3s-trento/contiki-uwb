@@ -79,6 +79,10 @@ ifneq ($(JLINK_SN),)
 JLINK_OPTS += -SelectEmuBySN $(JLINK_SN)
 endif
 
+#mergehex from nrfcommand line tools
+MERGEHEX := $(shell which mergehex)
+#$(info var: $(MERGEHEX))
+
 #function for removing duplicates in a list
 remduplicates = $(strip $(if $1,$(firstword $1) $(call remduplicates,$(filter-out $(firstword $1),$1))))
 
@@ -278,7 +282,11 @@ OBJECTS = $(C_OBJECTS) $(ASM_OBJECTS)
 TARGET_LIBS= nrf52832.a #$(NRF52_SDK_ROOT)/components/iot/ble_6lowpan/lib/ble_6lowpan.a
 
 ### Don't treat the .elf as intermediate
-.PRECIOUS: %.hex %.bin
+.PRECIOUS: %.hex %.bin %.s$(NRF52_SOFTDEVICE).hex
+
+.INTERMEDIATE: softdevice.jlink
+
+.PHONY: softdevice.flash
 
 nrf52832.a: $(OBJECTS)
 	$(TRACE_AR)
@@ -307,18 +315,27 @@ $(OBJECT_DIRECTORY)/%.o: %.S
 	@echo Preparing: $@
 	$(Q)$(OBJCOPY) -O ihex $^ $@
 
+ifneq ($(NRF52_SOFTDEVICE),0)
+ifdef MERGEHEX
+
+SOFTDEVICE_DEPS = %.s$(NRF52_SOFTDEVICE).hex
+
+%.s$(NRF52_SOFTDEVICE).hex:
+	@echo Merge $*.hex with softdevice
+	$(MERGEHEX) -m $*.hex $(NRF52_SOFTDEVICE_HEX) -o $@
+else #MERGEHEX
+$(warning mergehex is not found, it is needed to create a single file with app and softdevice)
+endif #MERGEHEX
+endif #NRF52_SOFTDEVICE != 0
+
 ### We don't really need the .hex and .bin for the .$(TARGET) but let's make
 ### sure they get built
-%.$(TARGET): %.elf %.hex %.bin
+%.$(TARGET): %.elf %.hex %.bin $(SOFTDEVICE_DEPS)
 	cp $*.elf $@
 	$(Q)$(SIZE) $@
 
 %.jlink:
 	sed -e 's/#OUTPUT_FILENAME#/$*.hex/' $(CONTIKI_CPU)/flash.jlink > $@
-
-%.flash: %.hex %.jlink
-	@echo Flashing: $^
-	$(JLINK) $(JLINK_OPTS) -CommanderScript $*.jlink
 
 softdevice.help:
 	@echo
@@ -356,5 +373,3 @@ softdevice.flash: softdevice.jlink
 
 erase:
 	$(JLINK) $(JLINK_OPTS) -CommanderScript $(CONTIKI_CPU)/erase.jlink
-
-.PHONY: softdevice.jlink
