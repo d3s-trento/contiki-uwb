@@ -38,6 +38,6 @@ void dw1000_enable_interrupt(int8_t irqn_status);
 #define readfromspi(cnt, header, length, buffer) dw1000_spi_read(cnt, header, length, buffer)
 #define decamutexon() dw1000_disable_interrupt()
 #define decamutexoff(stat) dw1000_enable_interrupt(stat)
-#define deca_sleep(t) clock_wait(t)
+#define deca_sleep(t) clock_wait(t) // XXX assumes 1ms tick !!!
 /*---------------------------------------------------------------------------*/
 #endif /* DW1000_ARCH_H_ */
