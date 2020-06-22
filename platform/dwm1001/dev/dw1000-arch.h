@@ -38,6 +38,7 @@
 /*---------------------------------------------------------------------------*/
 #include "contiki.h"
 #include "deca_types.h"
+#include "nrf_delay.h"
 /*---------------------------------------------------------------------------*/
 /* DW1000 IRQ (EXTI9_5_IRQ) handler type. */
 typedef void (*dw1000_isr_t)(void);
@@ -58,6 +59,6 @@ void dw1000_enable_interrupt(int irqn_status);
 #define readfromspi(cnt, header, length, buffer) dw1000_spi_read(cnt, header, length, buffer)
 #define decamutexon() dw1000_disable_interrupt()
 #define decamutexoff(stat) dw1000_enable_interrupt(stat)
-#define deca_sleep(t) clock_wait(t)
+#define deca_sleep(t) nrf_delay_ms(t)
 /*---------------------------------------------------------------------------*/
 #endif /* DW1000_ARCH_H_ */
