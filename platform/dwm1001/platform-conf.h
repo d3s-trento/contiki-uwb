@@ -80,7 +80,6 @@
 #define BUTTONS_ACTIVE_STATE  0
 #define DWM1001_BUTTON_MASK   (1 << DWM1001_USER_BUTTON)
 #else
-#pragma message "use button on 28"
 #define DWM1001_USER_BUTTON   28
 #define BUTTON_PULL           NRF_GPIO_PIN_PULLUP
 #define BUTTONS_ACTIVE_STATE  1
