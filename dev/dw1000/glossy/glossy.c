@@ -465,6 +465,8 @@ glossy_update_hdr(const glossy_header_t* g_header, uint8_t *buffer)
 /*---------------------------------------------------------------------------*/
 /*                          STATIC VARIABLES                                 */
 /*---------------------------------------------------------------------------*/
+static uint32_t last_tx_cb = 0;
+static uint32_t last_cb = 0;
 
 // Packet buffer for storing a correct packet:
 //  - initiator: the last one transmitted
@@ -499,6 +501,7 @@ glossy_tx_done_cb(const dwt_cb_data_t *cbdata)
      * NOTE: do NOT issue dwt_forcetrx if you are not explicitly TX.
      * RX after TX could be in place and would be interrupted otherwise!
      */
+    last_tx_cb = dwt_readsystimestamphi32();
     uint32_t tx_time = dwt_readtxtimestamphi32();
     uint32_t ts_tx_4ns = 0;
     int status;                         // hold intermediate radio functions' return value
@@ -551,6 +554,7 @@ glossy_tx_done_cb(const dwt_cb_data_t *cbdata)
         status = dwt_starttx(DWT_START_TX_DELAYED);
 
         if (status != DWT_SUCCESS) {
+            glossy_stop();
             LOG_ERROR("Tx cb: Failed to TX\n");
             return;
         }
@@ -647,6 +651,7 @@ glossy_rx_ok_cb(const dwt_cb_data_t *cbdata)
             status = glossy_resume_flood();
 
             if (status != DWT_SUCCESS) {
+                glossy_stop();
                 // if performing a delayed transmission probably the transceiver
                 // failed to tx within the deadline
                 LOG_ERROR("Rx cb1: Failed to TX\n");
@@ -752,6 +757,7 @@ glossy_rx_ok_cb(const dwt_cb_data_t *cbdata)
         }
 
         if (status != DWT_SUCCESS) {
+            glossy_stop();
             // if performing a delayed transmission probably the transceiver
             // failed to tx within the deadline
             LOG_ERROR("Rx cb2: Failed to TX\n");
@@ -776,6 +782,8 @@ glossy_rx_to_cb(const dwt_cb_data_t *cbdata)
     bool tx_again  = false;
     int status;
     STATETIME_MONITOR(uint32_t now = dwt_readsystimestamphi32(); dw1000_statetime_after_rxerr(now));
+    last_cb = now;
+    uint32_t status_reg = cbdata->status;
     /*-----------------------------------------------------------------------*/
     // collect debugging info first
     #if GLOSSY_STATS
@@ -808,7 +816,8 @@ glossy_rx_to_cb(const dwt_cb_data_t *cbdata)
     if (tx_again) {
         LOG_DEBUG("Trying to TX again!\n");
         if (status != DWT_SUCCESS) {
-            LOG_ERROR("To cb: Failed to TX\n");
+            glossy_stop();
+            LOG_ERROR("To cb: Failed to TX, S 0x%lx\n", status_reg);
         }
     }
     leds_toggle(LEDS_YELLOW);
@@ -820,6 +829,8 @@ glossy_rx_err_cb(const dwt_cb_data_t *cbdata)
     int tx_again = false;
     int status;
     STATETIME_MONITOR(uint32_t now = dwt_readsystimestamphi32(); dw1000_statetime_after_rxerr(now));
+    uint32_t status_reg = cbdata->status;
+    last_cb = now;
 
     #if GLOSSY_STATS
     // detect the source of the rx error and increment
@@ -861,7 +872,8 @@ glossy_rx_err_cb(const dwt_cb_data_t *cbdata)
     if (tx_again) {
         LOG_DEBUG("Trying to TX again!\n");
         if (status != DWT_SUCCESS) {
-            LOG_ERROR("Err cb: Failed to TX\n");
+            glossy_stop();
+            LOG_ERROR("Err cb: Failed to TX, S 0x%lx\n", status_reg);
         }
     }
     leds_toggle(LEDS_YELLOW);
@@ -1040,8 +1052,8 @@ glossy_start(const uint16_t initiator_id,
         }
 
         if (status != DWT_SUCCESS) {
-            LOG_ERROR("Glossy start: Failed to TX\n");
             glossy_stop();
+            LOG_ERROR("Glossy start: Failed to TX\n");
         }
         else {
             if (ver == GLOSSY_TX_ONLY_VERSION)
@@ -1067,8 +1079,8 @@ glossy_start(const uint16_t initiator_id,
         }
 
         if (status != DWT_SUCCESS) {
-            LOG_ERROR("Glossy start: Failed to RX\n");
             glossy_stop();
+            LOG_ERROR("Glossy start: Failed to RX\n");
         }
         else {
             STATETIME_MONITOR(dw1000_statetime_schedule_rx(g_context.ts_start));
@@ -1306,7 +1318,12 @@ glossy_resume_flood()
         if (status == DWT_SUCCESS) {
             STATETIME_MONITOR(dw1000_statetime_schedule_txrx(ts_tx_4ns, rx_delay_uus));
         }
-
+        else {
+            glossy_stop();
+            uint32_t now = dwt_readsystimestamphi32();
+            LOG_ERROR("FAILP I %d, D %lu, TO %u, Lcb %lu, LTxcb %lu\n", is_glossy_initiator(), rx_delay_uus, rx_timeout_uus, last_cb, last_tx_cb);
+            LOG_ERROR("FAILT W %lu, L %lu,  S %lu,  %lu\n", g_context.slot_duration, g_context.ts_last_tx, ts_tx_4ns, now);
+        }
     } else {
 
         // This branch should never be entered. Return error.
@@ -1445,6 +1462,7 @@ uint32_t glossy_get_rx_delay_uus(uint16_t psdu_len)
 static inline
 uint16_t glossy_get_rx_timeout_uus(uint16_t psdu_len)
 {
+    uint16_t timeout_uus = 0;
 #if GLOSSY_RX_OPT
 
     // In this case, the timer is started after the rx_delay followed by the
@@ -1455,7 +1473,7 @@ uint16_t glossy_get_rx_timeout_uus(uint16_t psdu_len)
     // a small guard time at the end to compensate for the propagation time and
     // clock inaccuracies
 
-    return dw1000_estimate_tx_time(dw1000_get_current_cfg(), psdu_len, false) / 1024   // ns to uus, approx.
+    timeout_uus = dw1000_estimate_tx_time(dw1000_get_current_cfg(), psdu_len, false) / 1024   // ns to uus, approx.
              + GLOSSY_RX_OPT_GUARD_UUS + GLOSSY_RX_TIMEOUT_GUARD_UUS;
 #else
     // In this case, the timer is started right after the previous TX has finished.
@@ -1463,8 +1481,17 @@ uint16_t glossy_get_rx_timeout_uus(uint16_t psdu_len)
     // From that moment, we need wait for the entire slot duration plus a small
     // guard time at the end to compensate for the propagation time and clock
     // inaccuracies
-    return GLOSSY_DTU_4NS_TO_UUS(g_context.slot_duration) + GLOSSY_RX_TIMEOUT_GUARD_UUS;
+    timeout_uus = GLOSSY_DTU_4NS_TO_UUS(g_context.slot_duration) + GLOSSY_RX_TIMEOUT_GUARD_UUS;
 #endif
+
+    // for Crystal: force initiators timeout, due to a misbheaviour
+    // of the radio
+//    if (is_glossy_initiator()) {
+//        timeout_uus -= (33 + GLOSSY_RX_TIMEOUT_GUARD_UUS);
+//    }
+
+    return timeout_uus;
+
 }
 /*---------------------------------------------------------------------------*/
 static inline glossy_status_t
