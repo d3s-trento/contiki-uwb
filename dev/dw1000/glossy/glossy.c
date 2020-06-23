@@ -950,7 +950,7 @@ glossy_start(const uint16_t initiator_id,
 
     // init state common to both initiator and receiver
     glossy_context_init();
-    STATETIME_MONITOR(dw1000_statetime_context_init(); dw1000_statetime_start(););
+    //STATETIME_MONITOR(dw1000_statetime_context_init(); dw1000_statetime_start(););
 
     memset(clean_buffer, 0, sizeof(clean_buffer));
 
@@ -1102,7 +1102,8 @@ uint8_t glossy_stop(void)
     // memorise the stop time
     g_context.ts_stop = dwt_readsystimestamphi32();
     g_context.state   = GLOSSY_STATE_OFF;
-    STATETIME_MONITOR(dw1000_statetime_abort(g_context.ts_stop); dw1000_statetime_stop());
+    //STATETIME_MONITOR(dw1000_statetime_abort(g_context.ts_stop); dw1000_statetime_stop());
+    STATETIME_MONITOR(dw1000_statetime_abort(g_context.ts_stop););
 
     if (!is_glossy_initiator()) {
         if (GLOSSY_GET_SYNC(g_context.pkt_header.config) == GLOSSY_WITH_SYNC) {
@@ -1484,11 +1485,12 @@ uint16_t glossy_get_rx_timeout_uus(uint16_t psdu_len)
     timeout_uus = GLOSSY_DTU_4NS_TO_UUS(g_context.slot_duration) + GLOSSY_RX_TIMEOUT_GUARD_UUS;
 #endif
 
+    // TODO: eventually investigate better this issue.
     // for Crystal: force initiators timeout, due to a misbheaviour
     // of the radio
-//    if (is_glossy_initiator()) {
-//        timeout_uus -= (33 + GLOSSY_RX_TIMEOUT_GUARD_UUS);
-//    }
+    if (is_glossy_initiator()) {
+        timeout_uus -= (43 + GLOSSY_RX_TIMEOUT_GUARD_UUS);
+    }
 
     return timeout_uus;
 
