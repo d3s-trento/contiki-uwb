@@ -539,11 +539,44 @@ dw1000_sleep(void)
   dwt_entersleep();
 }
 /*---------------------------------------------------------------------------*/
+/* Reimplementation of the dwt_spicswakeup() function to suppor both the
+ * Decawave EVB1000 and the DWM1001 platforms */
 int
 dw1000_wakeup(void)
 {
-  uint8_t wakeup_buffer[600];
-  return dwt_spicswakeup(wakeup_buffer, 600);
+  if(dwt_readdevid() != DWT_DEVICE_ID) { // Device was in deep sleep (the first read fails)
+    /* To wake up the DW1000 we keep the SPI CS line low for (at least) 500us.
+     * This can be achieved with a long read SPI transaction. Unfortunately, the
+     * DWM1001 Nordic nRF MCU only supports transactions of up to 255 bytes.
+     * To handle this case, we perform several 128 byte SPI transactions */
+#if CONTIKI_TARGET_DWM1001
+    uint8_t wakeup_buffer[128];
+    dwt_readfromdevice(0x0, 0x0, 128, wakeup_buffer);
+    dwt_readfromdevice(0x0, 0x0, 128, wakeup_buffer);
+    dwt_readfromdevice(0x0, 0x0, 128, wakeup_buffer);
+#else /* CONTIKI_TARGET_DWM1001 */
+    uint8_t wakeup_buffer[600];
+    dwt_readfromdevice(0x0, 0x0, 600, wakeup_buffer);
+#endif /* CONTIKI_TARGET_DWM1001 */
+
+    /* Need 5ms for XTAL to start and stabilise
+     * (could wait for PLL lock IRQ status bit !!!)
+     * NOTE: Polling of the STATUS register is not possible
+     * unless frequency is < 3MHz */
+    deca_sleep(5);
+  } else {
+    /* The DW1000 is not in SLEEP mode */
+    return DWT_SUCCESS;
+  }
+
+  /* DEBUG - check if still in sleep mode */
+  if(dwt_readdevid() != DWT_DEVICE_ID)
+    return DWT_ERROR;
+
+  /* Restore antenna delay values for ranging */
+  dw1000_restore_ant_delay();
+
+  return DWT_SUCCESS;
 }
 /*---------------------------------------------------------------------------*/
 bool
