@@ -543,7 +543,23 @@ int
 dw1000_wakeup(void)
 {
   uint8_t wakeup_buffer[600];
-  return dwt_spicswakeup(wakeup_buffer, 600);
+
+  // Need to keep chip select line low for at least 500us
+  dwt_readfromdevice(0x0, 0x0, 128, wakeup_buffer); // Do a long read to wake up the chip (hold the chip select low)
+  dwt_readfromdevice(0x0, 0x0, 128, wakeup_buffer); // Do a long read to wake up the chip (hold the chip select low)
+  dwt_readfromdevice(0x0, 0x0, 128, wakeup_buffer); // Do a long read to wake up the chip (hold the chip select low)
+  dwt_readfromdevice(0x0, 0x0, 128, wakeup_buffer); // Do a long read to wake up the chip (hold the chip select low)
+
+  // Need 5ms for XTAL to start and stabilise (could wait for PLL lock IRQ status bit !!!)
+  // NOTE: Polling of the STATUS register is not possible unless frequency is < 3MHz
+  deca_sleep(5);
+
+  // DEBUG - check if still in sleep mode
+  if(dwt_readdevid() != DWT_DEVICE_ID) {
+    return DWT_ERROR;
+  }
+  return DWT_SUCCESS;
+  //return dwt_spicswakeup(wakeup_buffer, 600);
 }
 /*---------------------------------------------------------------------------*/
 bool
