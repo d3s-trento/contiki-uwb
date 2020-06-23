@@ -164,6 +164,9 @@ dw1000_get_current_tx_cfg();
 void
 dw1000_get_current_ant_dly(uint16_t* rx_dly, uint16_t* tx_dly);
 
+/* Restore antenna delay configuration after wake-up */
+void dw1000_restore_ant_delay(void);
+
 /* Get the current (cached) status of the Smart TX power control feature */
 bool
 dw1000_is_smart_tx_enabled();
