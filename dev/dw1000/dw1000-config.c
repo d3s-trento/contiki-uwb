@@ -334,10 +334,7 @@ dw1000_get_current_ant_dly(uint16_t* rx_dly, uint16_t* tx_dly) {
 void
 dw1000_restore_ant_delay(void)
 {
-  uint16_t rx_dly;
-  uint16_t tx_dly;
-  dw1000_get_current_ant_dly(&rx_dly, &tx_dly);
-  dw1000_configure_ant_dly(rx_dly, tx_dly);
+  dw1000_configure_ant_dly(current_rx_ant_dly, current_tx_ant_dly);
 }
 
 /* Get the current (cached) status of the Smart TX power control feature */
