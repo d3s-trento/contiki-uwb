@@ -330,6 +330,16 @@ dw1000_get_current_ant_dly(uint16_t* rx_dly, uint16_t* tx_dly) {
   *tx_dly = current_tx_ant_dly;
 }
 
+/* Restore antenna delay configuration after wake-up */
+void
+dw1000_restore_ant_delay(void)
+{
+  uint16_t rx_dly;
+  uint16_t tx_dly;
+  dw1000_get_current_ant_dly(&rx_dly, &tx_dly);
+  dw1000_configure_ant_dly(rx_dly, tx_dly);
+}
+
 /* Get the current (cached) status of the Smart TX power control feature */
 bool dw1000_is_smart_tx_enabled() {
   return current_smart_power;
