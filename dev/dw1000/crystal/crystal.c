@@ -197,17 +197,28 @@ static size_t crystal_slot_next_log = 0;
 #if CRYSTAL_DW1000 && STATETIME_CONF_ON
 #include "dw1000-statetime.h"
 static crystal_statetime_log_t crystal_statetime_logs[CRYSTAL_SLOT_LOGS_MAX];
-static crystal_statetime_log_t crystal_statetime_log;
+static crystal_statetime_log_t crystal_statetime_log; // used when loggging energy at each phase
 static size_t crystal_statetime_next_log = 0;
-#define STATETIME_LOG_APPEND(PHASE) do {\
+#define STATETIME_LOG_APPEND(PHASE) do {} while(0);
+/*
+//#define STATETIME_LOG_APPEND(PHASE) do {\
+//    dw1000_statetime_log(&crystal_statetime_log.sttime);\
+//    crystal_statetime_log.epoch = epoch;\
+//    crystal_statetime_log.phase = PHASE;\
+//    crystal_statetime_log_append(&crystal_statetime_log);} while(0)
+*/
+#define STATETIME_EPOCH_APPEND() do {\
     dw1000_statetime_log(&crystal_statetime_log.sttime);\
     crystal_statetime_log.epoch = epoch;\
-    crystal_statetime_log.phase = PHASE;\
+    crystal_statetime_log.phase = CRYSTAL_ALL_PHASE;\
     crystal_statetime_log_append(&crystal_statetime_log);} while(0)
 
-# else
-#define STATETIME_LOG_APPEND(...) do {} while(0)
+#define STATETIME_MONITOR(...) __VA_ARGS__
 
+# else
+#define STATETIME_EPOCH_PRINT(...)  do {} while(0)
+#define STATETIME_LOG_APPEND(...)   do {} while(0)
+#define STATETIME_MONITOR(...)      do {} while(0)
 #endif // STATETIME_CONF_ON
 
 // it's important to wait the maximum possible S phase duration before starting the TAs!
@@ -386,6 +397,8 @@ static inline void init_epoch_state() { // zero out epoch-related variables
     recvsrc_S = 0;
 
     n_radio_reception_errors = 0;
+
+    STATETIME_MONITOR(dw1000_statetime_context_init());
 }
 
 // Check if at least one reception error has been reported by Glossy for the last flood
@@ -579,9 +592,11 @@ static char root_main_thread(struct rtimer *t, void *ptr) {
         t_s_start = t_ref_root;
         t_s_stop = t_s_start + conf.w_S;
 
+
         // wait for the oscillator to stabilize
         WAIT_UNTIL(t_s_start - (GLOSSY_PRE_TIME + 16), &pt);
 
+        STATETIME_MONITOR(dw1000_statetime_start());
         PT_SPAWN(&pt, &pt_s_root, s_root_thread(t, ptr));
 
         PT_SPAWN(&pt, &pt_ta_root, ta_root_thread(t, ptr));
@@ -593,6 +608,8 @@ static char root_main_thread(struct rtimer *t, void *ptr) {
         // time to wake up to prepare for the next epoch
         t_wakeup = t_ref_root - (OSC_STAB_TIME + GLOSSY_PRE_TIME + CRYSTAL_INTER_PHASE_GAP);
 
+        STATETIME_MONITOR(dw1000_statetime_stop());
+        STATETIME_EPOCH_APPEND();
         app_epoch_end();
         WAIT_UNTIL(t_wakeup - CRYSTAL_APP_PRE_EPOCH_CB_TIME, &pt);
 
@@ -1048,6 +1065,7 @@ static char node_main_thread(struct rtimer *t, void *ptr) {
     while (1) {
         init_epoch_state();
         crystal_info.n_ta = 0;
+        STATETIME_MONITOR(dw1000_statetime_start());
 
         if (!skip_S) {
             RADIO_OSC_ON();
@@ -1082,6 +1100,8 @@ static char node_main_thread(struct rtimer *t, void *ptr) {
         // time to wake up to prepare for the next epoch
         t_wakeup = t_s_start - (OSC_STAB_TIME + GLOSSY_PRE_TIME + CRYSTAL_INTER_PHASE_GAP);
 
+        STATETIME_MONITOR(dw1000_statetime_stop());
+        STATETIME_EPOCH_APPEND();
         app_epoch_end();
         WAIT_UNTIL(t_wakeup - CRYSTAL_APP_PRE_EPOCH_CB_TIME, &pt);
 
@@ -1101,6 +1121,7 @@ void crystal_init() {
 #if CRYSTAL_DW1000 && STATETIME_CONF_ON
     crystal_slot_log_init();
     crystal_statetime_log_init();
+    STATETIME_MONITOR(dw1000_statetime_context_init());
 #endif
 }
 
@@ -1297,6 +1318,8 @@ crystal_statetime_log_print() {
                 snprintf(phase_label, 2, "T"); break;
             case CRYSTAL_A_PHASE:
                 snprintf(phase_label, 2, "A"); break;
+            case CRYSTAL_ALL_PHASE:
+                snprintf(phase_label, 2, "F"); break; // full epoch
             default:
                 snprintf(phase_label, 2, "#");        // unknown (should not happen)
         }

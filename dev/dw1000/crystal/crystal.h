@@ -134,7 +134,8 @@ typedef struct {
 typedef enum crystal_phase_t {
     CRYSTAL_S_PHASE = 0x1,
     CRYSTAL_T_PHASE = 0X2,
-    CRYSTAL_A_PHASE = 0X3
+    CRYSTAL_A_PHASE = 0X3,
+    CRYSTAL_ALL_PHASE = 0X4
 } crystal_phase_t;
 
 typedef struct crystal_slot_log_t {
