@@ -86,10 +86,22 @@
 /*---------------------------------------------------------------------------*/
 void app_error_handler(ret_code_t error_code, uint32_t line_num, const uint8_t * p_file_name)
 {
-  NRF_LOG_ERROR("error: %ld at %s:%ld", error_code, p_file_name, line_num);
+  NRF_LOG_ERROR("err_handler: %ld at %s:%ld", error_code, p_file_name, line_num);
   NRF_LOG_FLUSH();
-  printf("error: %ld at %s:%ld", error_code, p_file_name, line_num);
+  printf("err_handler: %ld at %s:%ld", error_code, p_file_name, line_num);
 }
+
+void app_error_handler_bare(ret_code_t error_code)
+{
+  NRF_LOG_ERROR("err_handler: %ld", error_code);
+  NRF_LOG_FLUSH();
+  printf("err_handler: %ld", error_code);
+}
+
+/* void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info) */
+/* { */
+/*     NRF_LOG_ERROR("Received a fault! id: 0x%08x, pc: 0x%08x, info: 0x%08x", id, pc, info); */
+/* } */
 /*---------------------------------------------------------------------------*/
 /* if power module is enabled this function wll init it,
  * if softdevice is used the setting will be done in its initialization
