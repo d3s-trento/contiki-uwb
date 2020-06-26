@@ -520,7 +520,7 @@ static char root_main_thread(struct rtimer *t, void *ptr) {
     app_crystal_start_done(true);
 
     //leds_off(LEDS_RED);
-    t_ref_root = RTIMER_NOW() + OSC_STAB_TIME + GLOSSY_PRE_TIME + 16; // + 16 just to be sure
+    t_ref_root = RTIMER_NOW() + OSC_STAB_TIME + CRYSTAL_INTER_PHASE_GAP + GLOSSY_PRE_TIME + 16; // + 16 just to be sure
     while (1) {
         init_epoch_state();
 
