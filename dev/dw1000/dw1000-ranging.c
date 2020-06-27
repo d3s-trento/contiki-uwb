@@ -48,6 +48,7 @@
 #include "deca_regs.h"
 #include "dw1000-ranging.h"
 #include "dw1000-config.h"
+#include "dw1000-cir.h"
 #include "process.h"
 #include "deca_range_tables.h"
 /*---------------------------------------------------------------------------*/
@@ -98,6 +99,7 @@ struct process *req_process;
 static ranging_data_t ranging_data;
 static int status;
 static dw1000_rng_type_t rng_type;
+static bool print_cir_requested;
 
 typedef enum {
   S_WAIT_POLL, /* 0 */
@@ -437,6 +439,7 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
       uint64_t resp_tx_ts_64;
       uint32_t resp_tx_time;
 
+      PRINTF_RNG("dwr: got SS0.\n");
       /* Retrieve poll reception timestamp. */
       poll_rx_ts_64 = get_rx_timestamp_u64();
 
@@ -551,9 +554,7 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     old_state = state;
     state = S_RANGING_DONE;
 
-    dwt_setrxtimeout(0);
-    dwt_rxenable(0);
-    goto finish;
+    goto poll_the_process;
   } else if(state == S_WAIT_DS1) { /* --- We are waiting for the DS1 response --- */
     if(pkt_len != PKT_LEN_DS1) {
       status = 41;
@@ -682,7 +683,7 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     old_state = state;
     state = S_RANGING_DONE_MSG4;
 
-    goto finish;
+    goto poll_the_process;
   } else if(state == S_WAIT_DS3) { /* --- We are waiting for the DS3 response --- */
     if(pkt_len != PKT_LEN_DS3) {
       status = 61;
@@ -716,9 +717,7 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
 
     old_state = state;
     state = S_RANGING_DONE;
-    dwt_setrxtimeout(0);
-    dwt_rxenable(0);
-    goto finish;
+    goto poll_the_process;
   }
 
 abort: /* In case we got anything unexpected */
@@ -726,9 +725,7 @@ abort: /* In case we got anything unexpected */
   state = S_ABORT;
   dwt_forcetrxoff();
   dwt_rxreset(); /* just to check */
-  dwt_setrxtimeout(0);
-  dwt_rxenable(0);
-finish:
+poll_the_process:
   process_poll(&dw1000_rng_process);
 }
 /*---------------------------------------------------------------------------*/
@@ -776,7 +773,15 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
 
   while(1) {
     PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
-
+    if (state == S_RANGING_DONE && print_cir_requested) {
+      print_cir();
+    }
+    if (state != S_RANGING_DONE_MSG4) {
+      // re-enable the RX unless we are sending the DS3 in which case
+      // the radio will be enabled automatically.
+      dwt_setrxtimeout(0);
+      dwt_rxenable(0);
+    }
     PRINTF_RNG("dwr: process: my %d their %d, ost %d st %d ss %d\n", my_seqn, recv_seqn, old_state, state, status);
 #if PRINTF_RNG == 0
     if(state == S_RESET || state == S_ABORT) {
@@ -865,6 +870,10 @@ dw1000_range_reset()
   default:
     break;
   }
+}
+
+void dw1000_ranging_enable_cir_print(bool enable){
+  print_cir_requested = enable;
 }
 /*---------------------------------------------------------------------------*/
 #endif /* DW1000_RANGING_ENABLED */

@@ -58,20 +58,11 @@
 #include <stdbool.h>
 
 /*---------------------------------------------------------------------------*/
-const nrfx_rtc_t rtc   = NRFX_RTC_INSTANCE(PLATFORM_RTC_INSTANCE_ID); /**< RTC instance used for platform clock */
+/*static*/ const nrfx_rtc_t rtc   = NRFX_RTC_INSTANCE(PLATFORM_CLOCK_RTC_INSTANCE_ID); /**< RTC instance used for platform clock */
 // APP_TIMER_DEF(timer_id);
 /*---------------------------------------------------------------------------*/
-// static volatile uint32_t ticks;
+static volatile uint32_t ticks;
 void clock_update(void);
-
-#define TICKS (NRFX_RTC_DEFAULT_CONFIG_FREQUENCY/CLOCK_CONF_SECOND)
-
-// Transform app_timer ticks into ms
-// #define CLOCK_APP_TIMER_MS(TICK)                                              
-//   ((uint32_t)(((1000 * (APP_TIMER_CONFIG_RTC_FREQUENCY + 1)) * (TICK)) -      
-//               ((1000 * (APP_TIMER_CONFIG_RTC_FREQUENCY + 1)) / 2)) /          
-//    ((uint64_t)APP_TIMER_CLOCK_FREQ))
-
 
 /* empty event handelr needed by nrfx_clock driver */
 void clock_event_handler(nrfx_clock_evt_type_t event)
@@ -143,7 +134,7 @@ rtc_config(void)
 void
 clock_init(void)
 {
-  // ticks = 0;
+  ticks = 0;
 #ifndef SOFTDEVICE_PRESENT
   lfclk_config();
 #endif
@@ -153,14 +144,16 @@ clock_init(void)
 CCIF clock_time_t
 clock_time(void)
 {
-  return nrfx_rtc_counter_get(&rtc);
-  // return (clock_time_t)(CLOCK_APP_TIMER_MS(app_timer_cnt_get()));
+  return ticks;
+  // We cannot use directly the following as the RTC register is 24-bit, 
+  // which breaks Contiki's assumptions about the clock counter
+  //return nrfx_rtc_counter_get(&rtc);
 }
 /*---------------------------------------------------------------------------*/
 void
 clock_update(void)
 {
-  // ticks++;
+  ticks++;
   if (etimer_pending()) {
     etimer_request_poll();
   }
@@ -169,8 +162,7 @@ clock_update(void)
 CCIF unsigned long
 clock_seconds(void)
 {
-  return nrfx_rtc_counter_get(&rtc)/CLOCK_CONF_SECOND;
-  // return (CLOCK_APP_TIMER_MS(app_timer_cnt_get()) / CLOCK_CONF_SECOND);
+  return ticks/CLOCK_SECOND;
 }
 /*---------------------------------------------------------------------------*/
 void

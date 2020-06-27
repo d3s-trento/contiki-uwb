@@ -45,6 +45,7 @@
 /*---------------------------------------------------------------------------*/
 #include "nordic_common.h"
 #include "nrfx_gpiote.h"
+#include "nrfx_power.h"
 /*---------------------------------------------------------------------------*/
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -82,7 +83,41 @@
 #define PRINTF(...)
 #endif //DEBUG
 
+/*---------------------------------------------------------------------------*/
+void app_error_handler(ret_code_t error_code, uint32_t line_num, const uint8_t * p_file_name)
+{
+  NRF_LOG_ERROR("err_handler: %ld at %s:%ld", error_code, p_file_name, line_num);
+  NRF_LOG_FLUSH();
+  printf("err_handler: %ld at %s:%ld", error_code, p_file_name, line_num);
+}
 
+void app_error_handler_bare(ret_code_t error_code)
+{
+  NRF_LOG_ERROR("err_handler: %ld", error_code);
+  NRF_LOG_FLUSH();
+  printf("err_handler: %ld", error_code);
+}
+
+/* void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info) */
+/* { */
+/*     NRF_LOG_ERROR("Received a fault! id: 0x%08x, pc: 0x%08x, info: 0x%08x", id, pc, info); */
+/* } */
+/*---------------------------------------------------------------------------*/
+/* if power module is enabled this function wll init it,
+ * if softdevice is used the setting will be done in its initialization
+ */
+static void
+power_init(void)
+{
+#if NRFX_POWER_ENABLED && !defined(SOFTDEVICE_PRESENT)
+  ret_code_t err_code;
+  nrfx_power_config_t config;
+  config.dcdcen = NRFX_POWER_CONFIG_DEFAULT_DCDCEN;
+
+  err_code = nrfx_power_init(&config);
+  APP_ERROR_CHECK(err_code);
+#endif /* NRFX_POWER_ENABLED */
+}
 /*---------------------------------------------------------------------------*/
 /**
  * \brief Board specific initialization
@@ -92,6 +127,14 @@
 static void
 board_init(void)
 {
+  // needed for button and for the DW1000 interrupt
+  if (!nrfx_gpiote_is_init()) {
+    nrfx_gpiote_init();
+  }
+}
+static void
+softdevice_init(void)
+{
 #ifdef SOFTDEVICE_PRESENT
   /* Initialize the SoftDevice handler module */
   // SOFTDEVICE_HANDLER_INIT(NRF_CLOCK_LFCLKSRC_XTAL_20_PPM, NULL);
@@ -100,11 +143,15 @@ board_init(void)
   err_code = nrf_sdh_enable_request();
   APP_ERROR_CHECK(err_code);
 
-#endif
-  // needed for button and for the DW1000 interrupt
-  if (!nrfx_gpiote_is_init()) {
-    nrfx_gpiote_init();
-  }
+#if NRFX_POWER_ENABLE == 1
+#if NRFX_POWER_CONFIG_DEFAULT_DCDCEN == 1
+  err_code = sd_power_dcdc_mode_set(NRF_POWER_DCDC_ENABLE);
+#else /* NRFX_POWER_CONFIG_DEFAULT_DCDCEN == 1 */
+  err_code = sd_power_dcdc_mode_set(NRF_POWER_DCDC_DISABLE);
+#endif /* NRFX_POWER_CONFIG_DEFAULT_DCDCEN == 1 */
+  APP_ERROR_CHECK(err_code);
+#endif /*NRFX_POWER_ENABLE == 1 */
+#endif /* SOFTDEVICE_PRESENT */
 }
 /*---------------------------------------------------------------------------*/
 static void
@@ -172,10 +219,11 @@ static void log_init(void)
 #endif //defined(NRF_LOG_ENABLED) && NRF_LOG_ENABLED == 1
 }
 
+
+#ifdef SOFTDEVICE_PRESENT
 /**< A tag identifying the SoftDevice BLE configuration. */
 #define APP_BLE_CONN_CFG_TAG 1
 
-#ifdef SOFTDEVICE_PRESENT
 static void ble_stack_init(void) {
   // TODO move in cpu nrf52832 (under ble folder)
   ret_code_t err_code;
@@ -193,13 +241,7 @@ static void ble_stack_init(void) {
   err_code = nrf_sdh_ble_enable(&ram_start);
   APP_ERROR_CHECK(err_code);
 }
-#endif //SOFTDEVICE_PRESENT
-
-static void idle_state_handle(void) {
-  if (NRF_LOG_PROCESS() == false) {
-    // nrf_pwr_mgmt_run();
-  }
-}
+#endif /* SOFTDEVICE_PRESENT */
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -230,6 +272,10 @@ main(void)
   log_init();
   leds_init();
 
+  power_init();
+  /* softdevice initialization is moved here to catch is errors with app_error_handler and print on rtt */
+  softdevice_init();
+
   clock_init();
   rtimer_init();
 
@@ -250,6 +296,7 @@ main(void)
 #endif
 
   PRINTF("Starting " CONTIKI_VERSION_STRING "\n");
+  printf("Starting " CONTIKI_VERSION_STRING "\n");
 #ifdef NRF_SHOW_RESETREASON
   PRINTF("Reset reason %08lx ", resetreas);
   PRINTF("Reset decode1 %s%s%s%s*",
@@ -302,7 +349,7 @@ main(void)
 
 #ifdef SOFTDEVICE_PRESENT
   ble_stack_init();
-#endif
+#endif /* SOFTDEVICE_PRESENT */
 
 #else  /*  NETSTACK_CONF_RADIO == dw1000_driver */
 #error "NETSTACK is not on UWB"
@@ -323,7 +370,7 @@ main(void)
       r = process_run();
       watchdog_periodic();
 
-      idle_state_handle();
+      NRF_LOG_FLUSH();
     } while(r > 0);
 
     lpm_drop();

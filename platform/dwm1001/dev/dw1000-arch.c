@@ -55,6 +55,7 @@
 #include <string.h>
 /*---------------------------------------------------------------------------*/
 #include "dw1000-arch.h"
+#include "dw1000.h"
 
 
 #define DEBUG_LEDS 0
@@ -264,6 +265,11 @@ dw1000_arch_init()
   nrfx_gpiote_in_init(DW1000_IRQ_EXTI, &in_config, dw1000_irq_handler);
   nrfx_gpiote_in_event_enable(DW1000_IRQ_EXTI, true);
   dw1000_irqn_status = 1;
+
+  /* Issue a wake-up in case DW1000 is asleep.
+   * Since DW1000 is not woken by the reset line, we could get here
+   * with it asleep. */
+  dw1000_wakeup();
 
   /* Reset and initialise DW1000.
    * For initialisation, DW1000 clocks must be temporarily set to crystal speed.

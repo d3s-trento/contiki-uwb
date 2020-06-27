@@ -814,7 +814,7 @@
 // <e> NRFX_POWER_ENABLED - nrfx_power - POWER peripheral driver
 //==========================================================
 #ifndef NRFX_POWER_ENABLED
-#define NRFX_POWER_ENABLED 0
+#define NRFX_POWER_ENABLED 1
 #endif
 // <o> NRFX_POWER_CONFIG_IRQ_PRIORITY  - Interrupt priority
 
@@ -837,7 +837,7 @@
 // <i> This settings means only that components for DCDC regulator are installed and it can be enabled.
 
 #ifndef NRFX_POWER_CONFIG_DEFAULT_DCDCEN
-#define NRFX_POWER_CONFIG_DEFAULT_DCDCEN 0
+#define NRFX_POWER_CONFIG_DEFAULT_DCDCEN 1
 #endif
 
 // <q> NRFX_POWER_CONFIG_DEFAULT_DCDCENHV  - The default configuration of High Voltage DCDC regulator
@@ -1456,7 +1456,7 @@
 
 
 #ifndef NRFX_RTC2_ENABLED
-#define NRFX_RTC2_ENABLED 0
+#define NRFX_RTC2_ENABLED 1
 #endif
 
 // <o> NRFX_RTC_MAXIMUM_LATENCY_US - Maximum possible time[us] in highest priority interrupt
@@ -1468,11 +1468,9 @@
 
 
 #ifndef NRFX_RTC_DEFAULT_CONFIG_FREQUENCY
-#define NRFX_RTC_DEFAULT_CONFIG_FREQUENCY 32768
-/* This is the value used on old SDK...
- * TODO which one we need us???
- * #define NRFX_RTC_DEFAULT_CONFIG_FREQUENCY 128
- */
+//#define NRFX_RTC_DEFAULT_CONFIG_FREQUENCY 32768 // max value (generates too frequent tick interrupts)
+//#define NRFX_RTC_DEFAULT_CONFIG_FREQUENCY 128   // the value used with the old SDK 
+#define NRFX_RTC_DEFAULT_CONFIG_FREQUENCY 1024
 #endif
 
 // <q> NRFX_RTC_DEFAULT_CONFIG_RELIABLE  - Ensures safe compare event triggering

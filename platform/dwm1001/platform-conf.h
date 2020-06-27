@@ -84,13 +84,9 @@
  * \brief nRF52 RTC instance to be used for Contiki clock driver.
  * \note RTC 0 is used by the SoftDevice.
  */
-#define PLATFORM_RTC_INSTANCE_ID     1
+#define PLATFORM_CLOCK_RTC_INSTANCE_ID     1
 
-/**
- * \brief nRF52 timer instance to be used for Contiki rtimer driver.
- * \note Timer 0 is used by the SoftDevice.
- */
-#define PLATFORM_TIMER_INSTANCE_ID   1
+
 
 /** @} */
 /*---------------------------------------------------------------------------*/
@@ -100,9 +96,11 @@
  * Those values are not meant to be modified by the user
  * @{
  */
-// #define CLOCK_CONF_SECOND 128
-#define CLOCK_CONF_SECOND NRFX_RTC_DEFAULT_CONFIG_FREQUENCY
-// #define CLOCK_CONF_SECOND 1024
+
+/* If you need to change the clock frequency, make sure to
+ * adjust the NRF SDK setting NRFX_RTC_DEFAULT_CONFIG_FREQUENCY
+ */
+#define CLOCK_CONF_SECOND 1024
 
 /* Compiler configurations */
 #define CCIF
@@ -115,7 +113,15 @@ typedef uint32_t uip_stats_t;
 /* Clock (time) comparison macro */
 #define CLOCK_LT(a, b)  ((signed long)((a) - (b)) < 0)
 
-/* RTimer frequency. Note that it should correspond to the selected
+
+/* RTimer frequency.
+ * It depends on the selected clock source for RTimer.
+ *
+ */
+#if NRF52_RTIMER_USE_HFCLK
+
+/* Setting for HFCLK.
+ * Note that this setting should correspond with the
  * frequency in NRF configuration (NRFX_TIMER_DEFAULT_CONFIG_FREQUENCY).
  *
  * Related files: 
@@ -123,6 +129,25 @@ typedef uint32_t uip_stats_t;
  *    - config/sdk_config.h
  */
 #define RTIMER_ARCH_SECOND 1000000L
+
+/**
+ * \brief nRF52 timer instance to be used for Contiki rtimer driver.
+ * \note Timer 0 is used by the SoftDevice.
+ */
+#define PLATFORM_RTIMER_TIMER_INSTANCE_ID   1
+
+
+#else
+
+/* Setting for LFCLK */
+#define RTIMER_ARCH_SECOND 32768L
+
+/**
+ * \brief nRF52 rtc instance to be used for Contiki rtimer driver.
+ * \note RTC 0 is used by the SoftDevice.
+ */
+#define PLATFORM_RTIMER_RTC_INSTANCE_ID   2
+#endif
 
 /*
  * rtimer.h typedefs rtimer_clock_t as unsigned short. We need to define

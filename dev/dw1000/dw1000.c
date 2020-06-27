@@ -68,9 +68,8 @@
 #define PRINTF_RNG_FAILED(...) do {} while(0)
 #endif
 
-#define DEBUG_LEDS 1
 #undef LEDS_TOGGLE
-#if DEBUG_LEDS
+#if DW1000_DEBUG_LEDS
 #define LEDS_TOGGLE(x) leds_toggle(x)
 #else
 #define LEDS_TOGGLE(x)
@@ -229,7 +228,7 @@ dw1000_init(void)
   dw1000_print_cfg();
 
   /* Configure DW1000 GPIOs to show TX/RX activity with the LEDs */
-#if DEBUG_LEDS == 1
+#if DW1000_DEBUG_LEDS
   dwt_setleds(DWT_LEDS_ENABLE);
 #endif
 
@@ -253,7 +252,10 @@ dw1000_init(void)
   dw1000_ranging_init();
 #endif
 
-
+  /* Configure deep sleep mode */
+  /* NOTE: this is only used if the application actually calls the necessary
+   * functions to put the radio in deep sleep mode and wake it up */
+  dwt_configuresleep(DWT_PRESRV_SLEEP | DWT_CONFIG, DWT_WAKE_CS | DWT_SLP_EN);
 
   /* Start DW1000 process */
   process_start(&dw1000_process, NULL);
@@ -530,7 +532,53 @@ const struct radio_driver dw1000_driver =
   dw1000_set_object
 };
 /*---------------------------------------------------------------------------*/
+/* Functions to put DW1000 into deep sleep mode and wake it up */
+void
+dw1000_sleep(void)
+{
+  dwt_entersleep();
+}
+/*---------------------------------------------------------------------------*/
+/* Reimplementation of the dwt_spicswakeup() function to suppor both the
+ * Decawave EVB1000 and the DWM1001 platforms */
+int
+dw1000_wakeup(void)
+{
+  if(dwt_readdevid() != DWT_DEVICE_ID) { // Device was in deep sleep (the first read fails)
+    /* To wake up the DW1000 we keep the SPI CS line low for (at least) 500us.
+     * This can be achieved with a long read SPI transaction. Unfortunately, the
+     * DWM1001 Nordic nRF MCU only supports transactions of up to 255 bytes.
+     * To handle this case, we perform several 128 byte SPI transactions */
+#if CONTIKI_TARGET_DWM1001
+    uint8_t wakeup_buffer[128];
+    dwt_readfromdevice(0x0, 0x0, 128, wakeup_buffer);
+    dwt_readfromdevice(0x0, 0x0, 128, wakeup_buffer);
+    dwt_readfromdevice(0x0, 0x0, 128, wakeup_buffer);
+#else /* CONTIKI_TARGET_DWM1001 */
+    uint8_t wakeup_buffer[600];
+    dwt_readfromdevice(0x0, 0x0, 600, wakeup_buffer);
+#endif /* CONTIKI_TARGET_DWM1001 */
 
+    /* Need 5ms for XTAL to start and stabilise
+     * (could wait for PLL lock IRQ status bit !!!)
+     * NOTE: Polling of the STATUS register is not possible
+     * unless frequency is < 3MHz */
+    deca_sleep(5);
+  } else {
+    /* The DW1000 is not in SLEEP mode */
+    return DWT_SUCCESS;
+  }
+
+  /* DEBUG - check if still in sleep mode */
+  if(dwt_readdevid() != DWT_DEVICE_ID)
+    return DWT_ERROR;
+
+  /* Restore antenna delay values for ranging */
+  dw1000_restore_ant_delay();
+
+  return DWT_SUCCESS;
+}
+/*---------------------------------------------------------------------------*/
 bool
 range_with(linkaddr_t *dst, dw1000_rng_type_t type)
 {

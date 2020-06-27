@@ -10,6 +10,7 @@
 #include "leds.h"
 #include "dw1000-arch.h"
 #include <stdio.h>
+#include "dw1000.h"
 /*---------------------------------------------------------------------------*/
 #include "spix.h"
 #include "stm32f10x.h"
@@ -271,6 +272,11 @@ dw1000_arch_init()
   nvic_conf.NVIC_IRQChannelSubPriority = 0;
   nvic_conf.NVIC_IRQChannelCmd = ENABLE;
   NVIC_Init(&nvic_conf);
+
+  /* Issue a wake-up in case DW1000 is asleep.
+   * Since DW1000 is not woken by the reset line, we could get here
+   * with it asleep. */
+  dw1000_wakeup();
 
   /* Reset and initialise DW1000.
    * For initialisation, DW1000 clocks must be temporarily set to crystal speed.
