@@ -773,6 +773,9 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
 
   while(1) {
     PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
+    
+    dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, 0); /* disable the errata TX-1 workaround (to save energy) */
+    
     if (state == S_RANGING_DONE && print_cir_requested) {
       print_cir();
     }
@@ -865,6 +868,7 @@ dw1000_range_reset()
   /* case S_RANGING_DONE_MSG4: */
     old_state = state;
     state = S_RESET;
+    dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, 0); /* disable the errata TX-1 workaround (to save energy) */
     process_poll(&dw1000_rng_process);
     break;
   default:

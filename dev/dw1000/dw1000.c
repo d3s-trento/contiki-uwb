@@ -536,7 +536,12 @@ const struct radio_driver dw1000_driver =
 void
 dw1000_sleep(void)
 {
+  int8_t irq_status = dw1000_disable_interrupt();
+#if DW1000_RANGING_ENABLED
+  dw1000_range_reset(); /* In case we were ranging */
+#endif
   dwt_entersleep();
+  dw1000_enable_interrupt(irq_status);
 }
 /*---------------------------------------------------------------------------*/
 /* Reimplementation of the dwt_spicswakeup() function to suppor both the
