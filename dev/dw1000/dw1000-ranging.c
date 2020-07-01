@@ -729,6 +729,13 @@ poll_the_process:
   process_poll(&dw1000_rng_process);
 }
 /*---------------------------------------------------------------------------*/
+/* Callback to process tx confirmation events
+ */
+void
+dw1000_rng_tx_conf_cb(const dwt_cb_data_t *cb_data) {
+  dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, 0); /* disable the errata TX-1 workaround (to save energy) */
+}
+
 static double
 ss_tof_calc()
 {
@@ -858,6 +865,7 @@ dw1000_is_ranging()
 void
 dw1000_range_reset()
 {
+  dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, 0); /* disable the errata TX-1 workaround (to save energy) */
   switch(state) {
   case S_WAIT_SS1:
   case S_WAIT_DS1:
@@ -868,7 +876,6 @@ dw1000_range_reset()
   /* case S_RANGING_DONE_MSG4: */
     old_state = state;
     state = S_RESET;
-    dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, 0); /* disable the errata TX-1 workaround (to save energy) */
     process_poll(&dw1000_rng_process);
     break;
   default:

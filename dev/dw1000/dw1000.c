@@ -203,6 +203,10 @@ tx_conf_cb(const dwt_cb_data_t *cb_data)
   /* Set LED PC9 */
   /*LEDS_TOGGLE(LEDS_ORANGE); */
 
+#if DW1000_RANGING_ENABLED
+  dw1000_rng_tx_conf_cb(cb_data);
+#endif
+
   tx_done = 1; /* to stop waiting in dw1000_transmit() */
 
   /*if we are sending an auto ACK, signal the frame reception here */

@@ -60,10 +60,13 @@
 void dw1000_ranging_init();
 
 /*---------------------------------------------------------------------------*/
-/* Callback to process ranging good frame events
- */
+/* Callback to process ranging good frame events */
 void
 dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data);
+
+/* Callback to process tx confirmation events */
+void
+dw1000_rng_tx_conf_cb(const dwt_cb_data_t *cb_data);
 /*---------------------------------------------------------------------------*/
 
 bool dw1000_range_with(linkaddr_t *lladdr, dw1000_rng_type_t type);
