@@ -405,7 +405,7 @@ uint32_t ds_poll_tx_ts, ds_resp_rx_ts, ds_final_tx_ts;
 uint32_t ds_poll_rx_ts, ds_resp_tx_ts, ds_final_rx_ts;
 
 // clock frequency offset to compensate the distance bias in SS-TWR
-float clockOffsetRatio;
+double clockOffsetRatio;
 
 /*---------------------------------------------------------------------------*/
 /* Callback to process ranging good frame events
