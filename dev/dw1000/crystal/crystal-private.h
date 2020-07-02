@@ -39,7 +39,7 @@
 #define CRYSTAL_REF_SHIFT 13   // 397us
 #else
 //#define CRYSTAL_REF_SHIFT 13   // measured for firefly 
-#define CRYSTAL_REF_SHIFT 0   // Glossy for evb1000 takes care of that
+#define CRYSTAL_REF_SHIFT (GLOSSY_START_DELAY_US*RTIMER_SECOND/1000000)
 #endif
 
 /**
@@ -54,7 +54,7 @@
 #define CRYSTAL_SCAN_SLOT_DURATION    (RTIMER_SECOND / 20) //  50 ms
 
 // Time for the radio crystal oscillator to stabilize
-#define OSC_STAB_TIME (RTIMER_SECOND/500) // 2 ms
+#define OSC_STAB_TIME 0 // not used in this port
 
 #define N_MISSED_FOR_INIT_GUARD 3
 
@@ -111,7 +111,7 @@ crystal_ack_hdr_t;
 #define RADIO_OSC_ON()
 
 #define GLOSSY_IGNORE_TYPE 0  // this version of glossy does not carry the packet type
-#define GLOSSY_PRE_TIME (GLOSSY_START_DELAY_US*RTIMER_SECOND/1000000)
+#define GLOSSY_PRE_TIME 0
 
 #define get_rtx_on() 0
 #define get_cca_busy_cnt() 0
