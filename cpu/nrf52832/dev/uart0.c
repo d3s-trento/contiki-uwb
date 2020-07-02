@@ -52,6 +52,8 @@
 #include "dev/watchdog.h"
 #include "lib/ringbuf.h"
 
+#if defined(UART0_ENABLED) && UART0_ENABLED == 1
+
 static nrfx_uart_t m_uart =  NRFX_UART_INSTANCE(0);
 
 #define TXBUFSIZE 128
@@ -124,3 +126,4 @@ uart0_init(unsigned long ubr)
  * @}
  * @}
  */
+#endif

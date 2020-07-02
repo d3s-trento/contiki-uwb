@@ -209,7 +209,7 @@ ASM_SOURCE_FILES += $(NRF52_SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52.S
 
 #here is defined some legacy request, e.g. used by log library
 SDK_INC_PATHS += integration/nrfx/legacy
-SDK_SOURCE_FILES += integration/nrfx/legacy/nrf_drv_uart.c
+#SDK_SOURCE_FILES += integration/nrfx/legacy/nrf_drv_uart.c
 
 EXTERNALDIRS += $(addprefix $(NRF52_SDK_ROOT)/, $(SDK_INC_PATHS))
 
