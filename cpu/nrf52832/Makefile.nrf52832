@@ -191,6 +191,7 @@ SDK_INC_PATHS += components/iot/common
 
 SDK_SOURCE_FILES += components/ble/common/ble_advdata.c
 SDK_SOURCE_FILES += components/softdevice/common/nrf_sdh_ble.c
+SDK_SOURCE_FILES += components/softdevice/common/nrf_sdh_soc.c
 SDK_SOURCE_FILES += components/ble/ble_radio_notification/ble_radio_notification.c
 SDK_SOURCE_FILES += components/softdevice/common/nrf_sdh.c
 SDK_SOURCE_FILES += components/libraries/experimental_section_vars/nrf_section_iter.c
