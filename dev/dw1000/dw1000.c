@@ -203,6 +203,10 @@ tx_conf_cb(const dwt_cb_data_t *cb_data)
   /* Set LED PC9 */
   /*LEDS_TOGGLE(LEDS_ORANGE); */
 
+#if DW1000_RANGING_ENABLED
+  dw1000_rng_tx_conf_cb(cb_data);
+#endif
+
   tx_done = 1; /* to stop waiting in dw1000_transmit() */
 
   /*if we are sending an auto ACK, signal the frame reception here */
@@ -536,7 +540,12 @@ const struct radio_driver dw1000_driver =
 void
 dw1000_sleep(void)
 {
+  int8_t irq_status = dw1000_disable_interrupt();
+#if DW1000_RANGING_ENABLED
+  dw1000_range_reset(); /* In case we were ranging */
+#endif
   dwt_entersleep();
+  dw1000_enable_interrupt(irq_status);
 }
 /*---------------------------------------------------------------------------*/
 /* Reimplementation of the dwt_spicswakeup() function to suppor both the

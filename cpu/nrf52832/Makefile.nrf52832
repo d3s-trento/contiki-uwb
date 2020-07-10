@@ -210,7 +210,7 @@ ASM_SOURCE_FILES += $(NRF52_SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52.S
 
 #here is defined some legacy request, e.g. used by log library
 SDK_INC_PATHS += integration/nrfx/legacy
-SDK_SOURCE_FILES += integration/nrfx/legacy/nrf_drv_uart.c
+#SDK_SOURCE_FILES += integration/nrfx/legacy/nrf_drv_uart.c
 
 EXTERNALDIRS += $(addprefix $(NRF52_SDK_ROOT)/, $(SDK_INC_PATHS))
 
@@ -242,7 +242,7 @@ CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 CFLAGS += -fno-builtin --short-enums
 
 # keep every function in separate section. This will allow linker to dump unused functions
-LDFLAGS += -Xlinker -Map=$(LISTING_DIRECTORY)/$(OUTPUT_FILENAME).map
+LDFLAGS += -Xlinker -Map=contiki-$(TARGET).map
 LDFLAGS += -mthumb -mabi=aapcs -L $(LINKER_LIB_PATH) -T$(LINKER_SCRIPT)
 LDFLAGS += -mcpu=cortex-m4
 LDFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16

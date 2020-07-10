@@ -405,7 +405,7 @@ uint32_t ds_poll_tx_ts, ds_resp_rx_ts, ds_final_tx_ts;
 uint32_t ds_poll_rx_ts, ds_resp_tx_ts, ds_final_rx_ts;
 
 // clock frequency offset to compensate the distance bias in SS-TWR
-float clockOffsetRatio;
+double clockOffsetRatio;
 
 /*---------------------------------------------------------------------------*/
 /* Callback to process ranging good frame events
@@ -729,6 +729,13 @@ poll_the_process:
   process_poll(&dw1000_rng_process);
 }
 /*---------------------------------------------------------------------------*/
+/* Callback to process tx confirmation events
+ */
+void
+dw1000_rng_tx_conf_cb(const dwt_cb_data_t *cb_data) {
+  dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, 0); /* disable the errata TX-1 workaround (to save energy) */
+}
+
 static double
 ss_tof_calc()
 {
@@ -773,6 +780,9 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
 
   while(1) {
     PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
+    
+    dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, 0); /* disable the errata TX-1 workaround (to save energy) */
+    
     if (state == S_RANGING_DONE && print_cir_requested) {
       print_cir();
     }
@@ -855,6 +865,7 @@ dw1000_is_ranging()
 void
 dw1000_range_reset()
 {
+  dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, 0); /* disable the errata TX-1 workaround (to save energy) */
   switch(state) {
   case S_WAIT_SS1:
   case S_WAIT_DS1:

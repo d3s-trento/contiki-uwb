@@ -25,6 +25,9 @@ CFLAGS+=-DNRF_LOG_ENABLED=1
 CFLAGS+=-DNRF_LOG_USES_RTT=1
 endif
 
+# XXX Include PWM (for the buzzer of Janus platform)
+SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_pwm.c
+
 ifeq ($(PRINTF_OVER_RTT),1)
 CONTIKI_TARGET_DIRS += rtt
 CONTIKI_SOURCEFILES += rtt-printf.c segger-rtt.c segger-rtt-printf.c
