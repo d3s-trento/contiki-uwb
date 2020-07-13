@@ -21,6 +21,12 @@
 #define ENERGY_LOG(...) PRINTF("[ENERGY]" __VA_ARGS__)
 
 #define TIME_LT32(T1, T2) ((int32_t)(T2-T1) >= 0)
+
+// define a slack time which simulate the time elapsed between the moment
+// the API command is issued and the one the radio effectively performs
+// the command.
+#define STATETIME_MCU_TO_RADIO_SLACK_NS     6000 // 6us
+
 /*---------------------------------------------------------------------------*/
 /*                      UTILITY FUNCTIONS DECLARATIONS                       */
 /*---------------------------------------------------------------------------*/
@@ -106,7 +112,7 @@ dw1000_statetime_after_tx(const uint32_t sfd_tx_32hi, const uint16_t framelength
         // first transmission of the epoch. last idle is the time at the beginning
         // of preamble transmission.
         // NOTE: schedule reports the expected sfd time
-        dw1000_statetime_set_last_idle(context.schedule_32hi - preamble_time_ns / DWT_TICK_TO_NS_32);
+        dw1000_statetime_set_last_idle(context.schedule_32hi - (preamble_time_ns + STATETIME_MCU_TO_RADIO_SLACK_NS) / DWT_TICK_TO_NS_32);
         context.is_restarted = false;
     }
 
@@ -178,7 +184,7 @@ dw1000_statetime_after_rx(const uint32_t sfd_rx_32hi, const uint16_t framelength
 
     if (context.is_restarted) {
         // start counting when the radio was turned on
-        dw1000_statetime_set_last_idle(context.schedule_32hi);
+        dw1000_statetime_set_last_idle(context.schedule_32hi - (STATETIME_MCU_TO_RADIO_SLACK_NS / DWT_TICK_TO_NS_32));
         context.is_restarted = false;
     }
 
