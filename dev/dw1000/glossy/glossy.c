@@ -282,7 +282,9 @@ typedef struct glossy_context_t {
 // With the standard Crystal implementation that schedules T slots using
 // RTimer we should add a slack to our guard times before and after the expected
 // reception time
-//#define GLOSSY_LOOSEN_GUARDS_UUS 32   // add a RTimer tick duration to guards
+
+// Set LOOSEN GUARD TO 32 when using Crystal.
+// #define GLOSSY_LOOSEN_GUARDS_UUS 32   // add a RTimer tick duration to guards
 #define GLOSSY_LOOSEN_GUARDS_UUS 0  // don't add anything (normal operation)
 
 /** \def Define the guard time added to the rx timeout.
@@ -490,9 +492,12 @@ static void glossy_rx_err_cb(const dwt_cb_data_t *cbdata);
 /*---------------------------------------------------------------------------*/
 /*                           DW1000 CALLBACK IMPLEMENTATION                  */
 /*---------------------------------------------------------------------------*/
+static char cb_msg[100]; // a message related to the last callback occurred
 static void
 glossy_tx_done_cb(const dwt_cb_data_t *cbdata)
 {
+    uint32_t status_reg = cbdata->status;
+    snprintf(cb_msg, 100, "TX cb: R 0x%lx", status_reg);
     /* NOTE:
      * don't go to rx state (explicitily) here. Instead use the appropriate
      * driver function to switch to rx right after finishing frame
@@ -550,7 +555,7 @@ glossy_tx_done_cb(const dwt_cb_data_t *cbdata)
         dwt_setdelayedtrxtime(ts_tx_4ns);
         // TX and do not go to rx state after transmitting
         /* errata TX-1: ensure TX done is issued */
-        dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M);
+        // dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M);
         status = dwt_starttx(DWT_START_TX_DELAYED);
 
         if (status != DWT_SUCCESS) {
@@ -572,6 +577,8 @@ glossy_tx_done_cb(const dwt_cb_data_t *cbdata)
 static void
 glossy_rx_ok_cb(const dwt_cb_data_t *cbdata)
 {
+    uint32_t status_reg = cbdata->status;
+    snprintf(cb_msg, 100, "RX cb: R 0x%lx", status_reg);
     glossy_header_t rcvd_header;
     uint32_t ts_tx_4ns;
     int status;                    // hold intermediate radio functions' return value
@@ -726,7 +733,7 @@ glossy_rx_ok_cb(const dwt_cb_data_t *cbdata)
             // retransmission, **without** expecting a response!
             dwt_setdelayedtrxtime(ts_tx_4ns);
             /* errata TX-1: ensure TX done is issued */
-            dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M);
+            // dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M);
             status = dwt_starttx(DWT_START_TX_DELAYED);
             ver = GLOSSY_TX_ONLY_VERSION;
 
@@ -746,7 +753,7 @@ glossy_rx_ok_cb(const dwt_cb_data_t *cbdata)
             // start delayed TX and request RX mode after
             dwt_setdelayedtrxtime(ts_tx_4ns);
             /* errata TX-1: ensure TX done is issued */
-            dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M);
+            // dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M);
             status = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
             ver = GLOSSY_STANDARD_VERSION;
 
@@ -779,11 +786,11 @@ glossy_rx_ok_cb(const dwt_cb_data_t *cbdata)
 static void
 glossy_rx_to_cb(const dwt_cb_data_t *cbdata)
 {
+    uint32_t status_reg = cbdata->status;
     bool tx_again  = false;
     int status;
     STATETIME_MONITOR(uint32_t now = dwt_readsystimestamphi32(); dw1000_statetime_after_rxerr(now));
     last_cb = now;
-    uint32_t status_reg = cbdata->status;
     /*-----------------------------------------------------------------------*/
     // collect debugging info first
     #if GLOSSY_STATS
@@ -816,20 +823,20 @@ glossy_rx_to_cb(const dwt_cb_data_t *cbdata)
     if (tx_again) {
         LOG_DEBUG("Trying to TX again!\n");
         if (status != DWT_SUCCESS) {
-            glossy_stop();
             LOG_ERROR("To cb: Failed to TX, S 0x%lx\n", status_reg);
         }
     }
     leds_toggle(LEDS_YELLOW);
+    snprintf(cb_msg, 100, "TO cb: R 0x%lx", status_reg);
 }
 /*---------------------------------------------------------------------------*/
 static void
 glossy_rx_err_cb(const dwt_cb_data_t *cbdata)
 {
+    uint32_t status_reg = cbdata->status;
     int tx_again = false;
     int status;
     STATETIME_MONITOR(uint32_t now = dwt_readsystimestamphi32(); dw1000_statetime_after_rxerr(now));
-    uint32_t status_reg = cbdata->status;
     last_cb = now;
 
     #if GLOSSY_STATS
@@ -872,11 +879,11 @@ glossy_rx_err_cb(const dwt_cb_data_t *cbdata)
     if (tx_again) {
         LOG_DEBUG("Trying to TX again!\n");
         if (status != DWT_SUCCESS) {
-            glossy_stop();
             LOG_ERROR("Err cb: Failed to TX, S 0x%lx\n", status_reg);
         }
     }
     leds_toggle(LEDS_YELLOW);
+    snprintf(cb_msg, 100, "Err cb: R 0x%lx", status_reg);
 }
 /*---------------------------------------------------------------------------*/
 /*                           GLOSSY API IMPLEMENTATION                       */
@@ -951,6 +958,7 @@ glossy_start(const uint16_t initiator_id,
     // init state common to both initiator and receiver
     glossy_context_init();
     //STATETIME_MONITOR(dw1000_statetime_context_init(); dw1000_statetime_start(););
+    snprintf(cb_msg, 100, "NONE"); // set callback message no init state
 
     memset(clean_buffer, 0, sizeof(clean_buffer));
 
@@ -1029,7 +1037,7 @@ glossy_start(const uint16_t initiator_id,
             // start delayed TX without switching to RX after
             dwt_setdelayedtrxtime(ts_tx_4ns);
             /* errata TX-1: ensure TX done is issued */
-            dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M);
+            // dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M);
             status = dwt_starttx(DWT_START_TX_DELAYED);
             ver = GLOSSY_TX_ONLY_VERSION;
 
@@ -1046,7 +1054,7 @@ glossy_start(const uint16_t initiator_id,
             // start delayed TX and request switching to RX after
             dwt_setdelayedtrxtime(ts_tx_4ns);
             /* errata TX-1: ensure TX done is issued */
-            dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M);
+            // dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M);
             status = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
             ver = GLOSSY_STANDARD_VERSION;
         }
@@ -1314,7 +1322,7 @@ glossy_resume_flood()
         // start delayed TX
         dwt_setdelayedtrxtime(ts_tx_4ns);
         /* errata TX-1: ensure TX done is issued */
-        dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M);
+        // dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M);
         status = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
         if (status == DWT_SUCCESS) {
             STATETIME_MONITOR(dw1000_statetime_schedule_txrx(ts_tx_4ns, rx_delay_uus));
@@ -1322,6 +1330,7 @@ glossy_resume_flood()
         else {
             glossy_stop();
             uint32_t now = dwt_readsystimestamphi32();
+            LOG_ERROR("Last cb: %s\n", cb_msg);
             LOG_ERROR("FAILP I %d, D %lu, TO %u, Lcb %lu, LTxcb %lu\n", is_glossy_initiator(), rx_delay_uus, rx_timeout_uus, last_cb, last_tx_cb);
             LOG_ERROR("FAILT W %lu, L %lu,  S %lu,  %lu\n", g_context.slot_duration, g_context.ts_last_tx, ts_tx_4ns, now);
         }
@@ -1484,13 +1493,6 @@ uint16_t glossy_get_rx_timeout_uus(uint16_t psdu_len)
     // inaccuracies
     timeout_uus = GLOSSY_DTU_4NS_TO_UUS(g_context.slot_duration) + GLOSSY_RX_TIMEOUT_GUARD_UUS;
 #endif
-
-    // TODO: eventually investigate better this issue.
-    // for Crystal: force initiators timeout, due to a misbheaviour
-    // of the radio
-    if (is_glossy_initiator()) {
-        timeout_uus -= (43 + GLOSSY_RX_TIMEOUT_GUARD_UUS);
-    }
 
     return timeout_uus;
 
