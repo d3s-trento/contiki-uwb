@@ -1,4 +1,5 @@
 #define NRF_LOG_MODULE_NAME battery
+#define NRF_LOG_LEVEL 0
 
 #include "contiki.h"
 
