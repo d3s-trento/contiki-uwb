@@ -229,7 +229,9 @@ dw1000_init(void)
   dw1000_reset_cfg();
 
   /* Print the current configuration */
+#ifndef DW1000_SKIP_PRINT_CONFIG
   dw1000_print_cfg();
+#endif
 
   /* Configure DW1000 GPIOs to show TX/RX activity with the LEDs */
 #if DW1000_DEBUG_LEDS
