@@ -9,6 +9,9 @@
 
 NRF_LOG_MODULE_REGISTER();
 
+#define FS_VALUE 3600 /* max value readable: is internal reference * ADC gain = 0,6V * 6 */
+#define ADC_RES 4096 /* in nrfx_config SAADC is configured for 12 bit resolution */
+
 
 static bool m_initialized = false;
 static battery_read_callback_t m_callback = NULL;
@@ -74,5 +77,14 @@ saadc_callback(nrfx_saadc_evt_t const * p_event)
       APP_ERROR_CHECK(err_code);
 
       nrf_drv_saadc_uninit();
+
+      NRF_LOG_DEBUG("adc value %d", adc_result);
+
+      uint16_t millivolts = ((uint32_t)adc_result) * FS_VALUE / ADC_RES;
+
+      NRF_LOG_INFO("battery value %u", millivolts);
+
+      if(m_callback)
+	m_callback(millivolts);
     }
 }
