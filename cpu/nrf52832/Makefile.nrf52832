@@ -145,6 +145,7 @@ SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_uarte.c
 SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_rng.c
 SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_clock.c
 SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_power.c
+SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_saadc.c
 
 SDK_SOURCE_FILES += components/serialization/connectivity/ser_conn_error_handling.c
 
