@@ -22,10 +22,16 @@
 
 #define TIME_LT32(T1, T2) ((int32_t)(T2-T1) >= 0)
 
-// define a slack time which simulate the time elapsed between the moment
-// the API command is issued and the one the radio effectively performs
-// the command.
-#define STATETIME_MCU_TO_RADIO_SLACK_NS     6000 // 6us
+// cope with the slack induced by the antenna delay, which can make
+// the SFD shift between -4 and +4 ns.
+#define STATETIME_SFD_SLACK_4NS     2 // 8ns
+
+#if DEBUG
+#define STATETIME_DBG(...) __VA_ARGS__
+static bool restarted; // used when debugging
+#else
+#define STATETIME_DBG(...) do {} while(0);
+#endif
 
 /*---------------------------------------------------------------------------*/
 /*                      UTILITY FUNCTIONS DECLARATIONS                       */
@@ -85,7 +91,6 @@ dw1000_statetime_schedule_txrx(const uint32_t schedule_tx_32hi, const uint32_t r
     context.schedule_32hi  = schedule_tx_32hi;
     context.rx_delay_32hi  = rx_delay_uus * 1000 / DWT_TICK_TO_NS_32;
     context.state = DW1000_SCHEDULED_TX;
-
 }
 /*---------------------------------------------------------------------------*/
 void
@@ -101,6 +106,7 @@ dw1000_statetime_schedule_rx(const uint32_t schedule_rx_32hi)
 void
 dw1000_statetime_after_tx(const uint32_t sfd_tx_32hi, const uint16_t framelength)
 {
+    STATETIME_DBG(restarted = context.is_restarted);
     if (!context.tracing) return;
 
     WARNIF(context.state != DW1000_SCHEDULED_TX);
@@ -112,13 +118,18 @@ dw1000_statetime_after_tx(const uint32_t sfd_tx_32hi, const uint16_t framelength
         // first transmission of the epoch. last idle is the time at the beginning
         // of preamble transmission.
         // NOTE: schedule reports the expected sfd time
-        dw1000_statetime_set_last_idle(context.schedule_32hi - (preamble_time_ns + STATETIME_MCU_TO_RADIO_SLACK_NS) / DWT_TICK_TO_NS_32);
+        dw1000_statetime_set_last_idle(sfd_tx_32hi - STATETIME_SFD_SLACK_4NS - (preamble_time_ns / DWT_TICK_TO_NS_32));
         context.is_restarted = false;
     }
 
     uint32_t idle_sfd_time_ns = (sfd_tx_32hi - context.last_idle_32hi) * DWT_TICK_TO_NS_32;
     WARNIF(!TIME_LT32(context.last_idle_32hi, sfd_tx_32hi));
     WARNIF(!TIME_LT32(preamble_time_ns, idle_sfd_time_ns));
+    STATETIME_DBG(
+    if (!TIME_LT32(preamble_time_ns, idle_sfd_time_ns) || !TIME_LT32(preamble_time_ns, idle_sfd_time_ns)) {
+        PRINTF("S %lu, SFD %lu, R %d\n", context.schedule_32hi, sfd_tx_32hi, restarted);
+        PRINTF("P %lu, R %lu\n", preamble_time_ns, idle_sfd_time_ns);
+    })
     // by definition the time between the last idle time and the sfd cannot
     // be smaller than the preamble
     context.idle_time_us += (idle_sfd_time_ns - preamble_time_ns) / 1000;
@@ -145,6 +156,7 @@ dw1000_statetime_after_tx(const uint32_t sfd_tx_32hi, const uint16_t framelength
 void
 dw1000_statetime_after_rxerr(const uint32_t now_32hi)
 {
+    STATETIME_DBG(restarted = context.is_restarted);
     if (!context.tracing) return;
 
     WARNIF(context.state != DW1000_SCHEDULED_RX);
@@ -163,13 +175,19 @@ dw1000_statetime_after_rxerr(const uint32_t now_32hi)
         WARNIF(context.schedule_32hi == 0);
         WARNIF(!TIME_LT32(context.schedule_32hi, now_32hi));
         WARNIF(!TIME_LT32(context.last_idle_32hi, context.schedule_32hi));
+
+        STATETIME_DBG(
+        if (!TIME_LT32(context.schedule_32hi, now_32hi) || !TIME_LT32(context.last_idle_32hi, context.schedule_32hi)) {
+            printf("S %lu, N %lu, R %d\n", context.schedule_32hi, now_32hi, restarted);
+        })
+
         context.idle_time_us += (context.schedule_32hi - context.last_idle_32hi)  * DWT_TICK_TO_NS_32 / 1000;
         context.rx_preamble_hunting_time_us += (now_32hi - context.schedule_32hi) * DWT_TICK_TO_NS_32 / 1000;
     }
 
     // radio switched to idle when rx_ok callback was issued
     context.is_rx_after_tx = false;
-    context.rx_delay_32hi = 0;
+    context.rx_delay_32hi  = 0;
     context.last_idle_32hi = now_32hi;
 
     context.state = DW1000_IDLE;
@@ -178,13 +196,14 @@ dw1000_statetime_after_rxerr(const uint32_t now_32hi)
 void
 dw1000_statetime_after_rx(const uint32_t sfd_rx_32hi, const uint16_t framelength)
 {
+    STATETIME_DBG(restarted = context.is_restarted);
     if (!context.tracing) return;
 
     WARNIF(context.state != DW1000_SCHEDULED_RX);
 
     if (context.is_restarted) {
         // start counting when the radio was turned on
-        dw1000_statetime_set_last_idle(context.schedule_32hi - (STATETIME_MCU_TO_RADIO_SLACK_NS / DWT_TICK_TO_NS_32));
+        dw1000_statetime_set_last_idle(context.schedule_32hi);
         context.is_restarted = false;
     }
 
@@ -202,6 +221,10 @@ dw1000_statetime_after_rx(const uint32_t sfd_rx_32hi, const uint16_t framelength
         WARNIF(!TIME_LT32(context.schedule_32hi, sfd_rx_32hi));
         WARNIF(!TIME_LT32(context.last_idle_32hi, context.schedule_32hi));
         schedule_sfd_time_ns = (sfd_rx_32hi - context.schedule_32hi) * DWT_TICK_TO_NS_32;
+        STATETIME_DBG(
+        if (!TIME_LT32(context.schedule_32hi, sfd_rx_32hi) || !TIME_LT32(context.last_idle_32hi, context.schedule_32hi)) {
+            printf("S %lu, SFD %lu, R %d\n", context.schedule_32hi, sfd_rx_32hi, restarted);
+        })
 
         // the radio can wake up and manage to sucessfully receive a packet despite
         // not having received the entire preamble.
