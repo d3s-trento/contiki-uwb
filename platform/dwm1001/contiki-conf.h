@@ -55,10 +55,16 @@
 #define DW1000_CONF_FRAMEFILTER 1
 #endif
 
+
+/*---------------------------------------------------------------------------
+inlcude file to have last_reset_reason variable
+*/
+#include "reset_reason.h"
+
 /*---------------------------------------------------------------------------
  * RADIO STACK NOTE:
  * here after some test are done to choose right radio stack....
- * radio is defined with the macro 
+ * radio is defined with the macro
  */
 
 /* #define XSTR(x) STR(x) */
@@ -68,7 +74,6 @@
 #ifndef NETSTACK_CONF_RADIO
 #define NETSTACK_CONF_RADIO dw1000_driver
 #endif
-
 
 #define HW_ACKS 0
 /*---------------------------------------------------------------------------*/
