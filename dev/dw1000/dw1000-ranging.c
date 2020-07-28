@@ -191,7 +191,7 @@ const static ranging_conf_t ranging_conf_6M8 = {
 /* SS and DS timeouts */
   .a = 500,           // evb1000 can do 400
   .rx_dly_a = 100,    // timeout starts after this
-  .to_a = 500,        // evb1000 can do 400
+  .to_a = 550,        // evb1000 can do 400
 
 /* DS timeouts */
   .b = 550,           // evb1000 can do 400
@@ -440,6 +440,11 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
       uint32_t resp_tx_time;
 
       PRINTF_RNG("dwr: got SS0.\n");
+      if (! (cb_data->status & SYS_STATUS_LDEDONE)) {
+        PRINTF_RNG_FAILED("SS0: LDE failed\n");
+        status = 16;
+        goto abort;
+      }
       /* Retrieve poll reception timestamp. */
       poll_rx_ts_64 = get_rx_timestamp_u64();
 
@@ -478,6 +483,12 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
       uint64_t poll_rx_ts_64;
 
       PRINTF_RNG("dwr: got DS0.\n");
+
+      if (! (cb_data->status & SYS_STATUS_LDEDONE)) {
+        PRINTF_RNG_FAILED("DS0: LDE failed\n");
+        status = 17;
+        goto abort;
+      }
 
       /* Retrieve poll and store poll reception timestamp. */
       poll_rx_ts_64 = get_rx_timestamp_u64();
@@ -580,6 +591,12 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
 
     PRINTF_RNG("dwr: got DS1.\n");
 
+    if (! (cb_data->status & SYS_STATUS_LDEDONE)) {
+      PRINTF_RNG_FAILED("DS1: LDE failed\n");
+      status = 18;
+      goto abort;
+    }
+
     uint64_t final_tx_ts_64;
     uint32_t final_tx_time;
     uint64_t poll_tx_ts_64, resp_rx_ts_64;
@@ -647,6 +664,11 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     }
 
     PRINTF_RNG("dwr: got DS2.\n");
+    if (! (cb_data->status & SYS_STATUS_LDEDONE)) {
+      PRINTF_RNG_FAILED("DS2: LDE failed\n");
+      status = 19;
+      goto abort;
+    }
 
     //dwt_readrxdata(rx_buf, pkt_len - DW1000_CRC_LEN, 0);
 
