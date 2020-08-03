@@ -789,8 +789,7 @@ glossy_rx_to_cb(const dwt_cb_data_t *cbdata)
     uint32_t status_reg = cbdata->status;
     bool tx_again  = false;
     int status;
-    STATETIME_MONITOR(uint32_t now = dwt_readsystimestamphi32(); dw1000_statetime_after_rxerr(now));
-    last_cb = now;
+    STATETIME_MONITOR(uint32_t now = dwt_readsystimestamphi32(); dw1000_statetime_after_rxerr(now); last_cb = now);
     /*-----------------------------------------------------------------------*/
     // collect debugging info first
     #if GLOSSY_STATS
@@ -836,8 +835,7 @@ glossy_rx_err_cb(const dwt_cb_data_t *cbdata)
     uint32_t status_reg = cbdata->status;
     int tx_again = false;
     int status;
-    STATETIME_MONITOR(uint32_t now = dwt_readsystimestamphi32(); dw1000_statetime_after_rxerr(now));
-    last_cb = now;
+    STATETIME_MONITOR(uint32_t now = dwt_readsystimestamphi32(); dw1000_statetime_after_rxerr(now);last_cb = now); 
 
     #if GLOSSY_STATS
     // detect the source of the rx error and increment

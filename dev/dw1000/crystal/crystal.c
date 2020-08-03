@@ -216,7 +216,7 @@ static size_t crystal_statetime_next_log = 0;
 #define STATETIME_MONITOR(...) __VA_ARGS__
 
 # else
-#define STATETIME_EPOCH_PRINT(...)  do {} while(0)
+#define STATETIME_EPOCH_APPEND(...) do {} while(0)
 #define STATETIME_LOG_APPEND(...)   do {} while(0)
 #define STATETIME_MONITOR(...)      do {} while(0)
 #endif // STATETIME_CONF_ON
