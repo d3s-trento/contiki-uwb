@@ -1,8 +1,9 @@
 # Statetime
 
-Statetime is a module for the DW1000 radio used to compute dwell times
+Statetime is a module for the DW1000 radio used to compute dwell times,
+i.e. the time spent in each state,
 using the accurate timestamps reported by the radio combined with
-analytical models on the expected frame duration.
+estimates on expected frame durations.
 
 Statetime is built replicating a subset of the DW1000 radio state machine
 and provides mechanism to infer dwell times also when complex
@@ -65,8 +66,8 @@ to make the radio switch back to IDLE in case of scheduling failures.
 
 
 * `dw1000_statetime_schedule_tx(const uint32_t schedule_tx_32hi)`
-    used when scheduling a delayed transmission. The argument, similarly
-    to the Decawave API is the time at which the RMarker transits the antenna.
+    used when scheduling a delayed transmission. The argument is the time at which the RMarker transits the antenna, not considering the antenna delay.
+    Statetime does not take into account the antenna delay in any way.
 
 * `dw1000_statetime_schedule_txrx(const uint32_t schedule_tx_32hi, const uint32_t rx_delay_uus)`
     used when scheduling a delayed tranmission followed by a reception. The rx delay
@@ -187,7 +188,7 @@ In which case:
      updated,
 
 7. the saved options for delayed reception are reset and the state is set
-     to `DW1000_SCHEDULED_RX`. 
+     to `DW1000_SCHEDULED_RX`.
 
 
 ### After Rx
@@ -218,21 +219,42 @@ hunting for the preamble.
 6. Finally, the state is set back to IDLE.
 
 
-### Considerations on the first operation
+### Considerations on the first and last operation
 
-Statetime starts tracing on the occurrence of the first radio event right after
-a `dw1000_statetime_start` is issued.
-When the first Statetime event function is issued, the variable `is_restarted`
-stored internally by Statetime is flagged. Statetime then uses the schedule or the SFD timestamp
+When issuing `dw1000_statetime_start`, the user instructs Statetime to trace
+any radio operation that follows, until requested to stop with the
+`dw1000_statetime_stop`.
+
+Statetime computes time differences when explicitly instructed to do so, i.e.:
+
+1. upon the occurrence of an event;
+2. when the user issues the `dw1000_statetime_abort` function
+    to consider dwell times before an abnormal interruption of
+    a radio operation.
+
+These functions act as **control points** for Statetime.
+
+
+The `dw1000_statetime_start` and `dw1000_statetime_stop` functions are not
+control points. Statetime therefore does not timestamp the moment they
+are issued and does not consider the time between their invocation and
+the next (for `dw1000_statetime_start`) or previous (for `dw1000_statetime_stop`)
+control point, respectively.
+
+This means that when the first event is triggered, Statetime has no reference
+idle timestamp to be used when computing time deltas.
+To address this issue, when the first Statetime event function is invoked,
+Statetime uses either the schedule or the SFD timestamp
 of the operation to set the initial idle moment as:
 
 1. *sfd_tx_32hi* - *P* - *S* in case of Tx
-2. *schedule_32hi* in case of Rx 
+2. *schedule_32hi* in case of Rx
 
-where *S* is a slack time of 8 *ns* which model variations in the SFD timestamp
+where *S* is a slack time of 8 *ns* which models variations in the SFD timestamp
 given by the 8 *ns* precision when scheduling.
 
-This behaviour allows Statetime not to rely on an initial reference time,
-which in the worst case is manually set.
 
+When considering the last operation, the user can issue a `dw1000_statetime_abort`
+call before the stop function, to consider the time elapsed between the last
+tracked operation and the moment Statetime is instructed to stop.
 
