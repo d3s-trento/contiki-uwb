@@ -375,6 +375,8 @@ static inline int glossy_resume_flood();
  *  the context.
  */
 static inline glossy_status_t glossy_validate_header(const glossy_header_t* rcvd_header);
+
+static void glossy_isr(void);
 /*---------------------------------------------------------------------------*/
 /*                           GLOSSY FRAME HANDLING                           */
 /*---------------------------------------------------------------------------*/
@@ -894,7 +896,7 @@ glossy_init(void)
     dwt_forcetrxoff();
 
     // Set interrupt handlers
-    dw1000_set_isr(dwt_isr);
+    dw1000_set_isr(glossy_isr);
     dwt_setcallbacks(&glossy_tx_done_cb,
             &glossy_rx_ok_cb,
             &glossy_rx_to_cb,
@@ -1572,4 +1574,125 @@ glossy_get_round_duration() {
     return g_context.state == GLOSSY_STATE_ACTIVE ?
         0 :
         g_context.ts_stop - g_context.ts_start;
+}
+/*---------------------------------------------------------------------------*/
+/**
+ * Mutual exclusive ISR, call the first ISR based on the
+ * triggered IRQs
+ */
+extern dwt_local_data_t *pdw1000local;
+static void glossy_isr(void) {
+    uint32 status = pdw1000local->cbData.status = dwt_read32bitreg(SYS_STATUS_ID); // Read status register low 32bits
+
+    // Handle TX confirmation event
+    if(status & SYS_STATUS_TXFRS) {
+        dwt_write32bitreg(SYS_STATUS_ID, (SYS_STATUS_ALL_TX | SYS_STATUS_ALL_RX_ERR | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_GOOD));
+
+        // In the case where this TXFRS interrupt is due to the automatic transmission of an ACK solicited by a response (with ACK request bit set)
+        // that we receive through using wait4resp to a previous TX (and assuming that the IRQ processing of that TX has already been handled), then
+        // we need to handle the IC issue which turns on the RX again in this situation (i.e. because it is wrongly applying the wait4resp after the
+        // ACK TX).
+        // See section "Transmit and automatically wait for response" in DW1000 User Manual
+        if((status & SYS_STATUS_AAT) && pdw1000local->wait4resp)
+        {
+            dwt_forcetrxoff(); // Turn the RX off
+            dwt_rxreset(); // Reset in case we were late and a frame was already being received
+        }
+
+        // Call the corresponding callback if present
+        if(pdw1000local->cbTxDone != NULL)
+        {
+            pdw1000local->cbTxDone(&pdw1000local->cbData);
+        }
+    }
+    // Handle frame reception/preamble detect timeout events
+    else if(status & SYS_STATUS_ALL_RX_TO) {
+        dwt_write32bitreg(SYS_STATUS_ID, (SYS_STATUS_ALL_TX | SYS_STATUS_ALL_RX_ERR | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_GOOD));
+
+        pdw1000local->wait4resp = 0;
+
+        // Because of an issue with receiver restart after error conditions, an RX reset must be applied after any error or timeout event to ensure
+        // the next good frame's timestamp is computed correctly.
+        // See section "RX Message timestamp" in DW1000 User Manual.
+        dwt_forcetrxoff();
+        dwt_rxreset();
+
+        // Call the corresponding callback if present
+        if(pdw1000local->cbRxTo != NULL)
+        {
+            pdw1000local->cbRxTo(&pdw1000local->cbData);
+        }
+    }
+    // Handle RX errors events
+    else if(status & SYS_STATUS_ALL_RX_ERR) {
+        dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_RXRFTO); // Clear RX timeout event bits
+
+        pdw1000local->wait4resp = 0;
+
+        // Because of an issue with receiver restart after error conditions, an RX reset must be applied after any error or timeout event to ensure
+        // the next good frame's timestamp is computed correctly.
+        // See section "RX Message timestamp" in DW1000 User Manual.
+        dwt_forcetrxoff();
+        dwt_rxreset();
+
+        // Call the corresponding callback if present
+        if(pdw1000local->cbRxErr != NULL)
+        {
+            pdw1000local->cbRxErr(&pdw1000local->cbData);
+        }
+    }
+    // Handle RX good frame event.
+    // This event has lowest priority because if any error has occured then
+    // it's likely that the SFD (which Glossy heavily relies on) is not available.
+    else if(status & SYS_STATUS_RXFCG) {
+        uint16 finfo16;
+        uint16 len;
+
+        dwt_write32bitreg(SYS_STATUS_ID, (SYS_STATUS_ALL_TX | SYS_STATUS_ALL_RX_ERR | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_GOOD));
+
+        pdw1000local->cbData.rx_flags = 0;
+
+        // Read frame info - Only the first two bytes of the register are used here.
+        finfo16 = dwt_read16bitoffsetreg(RX_FINFO_ID, RX_FINFO_OFFSET);
+
+        // Report frame length - Standard frame length up to 127, extended frame length up to 1023 bytes
+        len = finfo16 & RX_FINFO_RXFL_MASK_1023;
+        if(pdw1000local->longFrames == 0)
+        {
+            len &= RX_FINFO_RXFLEN_MASK;
+        }
+        pdw1000local->cbData.datalength = len;
+
+        // Report ranging bit
+        if(finfo16 & RX_FINFO_RNG)
+        {
+            pdw1000local->cbData.rx_flags |= DWT_CB_DATA_RX_FLAG_RNG;
+        }
+
+        // Report frame control - First bytes of the received frame.
+        dwt_readfromdevice(RX_BUFFER_ID, 0, FCTRL_LEN_MAX, pdw1000local->cbData.fctrl);
+
+        // Because of a previous frame not being received properly, AAT bit can be set upon the proper reception of a frame not requesting for
+        // acknowledgement (ACK frame is not actually sent though). If the AAT bit is set, check ACK request bit in frame control to confirm (this
+        // implementation works only for IEEE802.15.4-2011 compliant frames).
+        // This issue is not documented at the time of writing this code. It should be in next release of DW1000 User Manual (v2.09, from July 2016).
+        if((status & SYS_STATUS_AAT) && ((pdw1000local->cbData.fctrl[0] & FCTRL_ACK_REQ_MASK) == 0))
+        {
+            dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_AAT); // Clear AAT status bit in register
+            pdw1000local->cbData.status &= ~SYS_STATUS_AAT; // Clear AAT status bit in callback data register copy
+            pdw1000local->wait4resp = 0;
+        }
+
+        // Call the corresponding callback if present
+        if(pdw1000local->cbRxOk != NULL)
+        {
+            pdw1000local->cbRxOk(&pdw1000local->cbData);
+        }
+
+        if (pdw1000local->dblbuffon)
+        {
+            // Toggle the Host side Receive Buffer Pointer
+            dwt_write8bitoffsetreg(SYS_CTRL_ID, SYS_CTRL_HRBT_OFFSET, 1);
+        }
+    }
 }

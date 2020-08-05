@@ -64,6 +64,12 @@ typedef signed long int32;
 #define DWT_NUM_DW_DEV (1)
 #endif
 
+// Defines for ACK request bitmask in DATA and MAC COMMAND frame control (first byte) - Used to detect AAT bit wrongly set.
+#define FCTRL_ACK_REQ_MASK 0x20
+
+// Frame control maximum length in bytes.
+#define FCTRL_LEN_MAX 2
+
 #define DWT_SUCCESS (0)
 #define DWT_ERROR   (-1)
 
@@ -220,6 +226,29 @@ typedef struct
 
 // Call-back type for all events
 typedef void (*dwt_cb_t)(const dwt_cb_data_t *);
+
+// Structure to hold device data
+typedef struct
+{
+    uint32      partID ;            // IC Part ID - read during initialisation
+    uint32      lotID ;             // IC Lot ID - read during initialisation
+    uint8       vBatP ;             // IC V bat read during production and stored in OTP (Vmeas @ 3V3)
+    uint8       tempP ;             // IC V temp read during production and stored in OTP (Tmeas @ 23C)
+    uint8       longFrames ;        // Flag in non-standard long frame mode
+    uint8       otprev ;            // OTP revision number (read during initialisation)
+    uint32      txFCTRL ;           // Keep TX_FCTRL register config
+    uint32      sysCFGreg ;         // Local copy of system config register
+    uint8       dblbuffon;          // Double RX buffer mode flag
+    uint8       wait4resp ;         // wait4response was set with last TX start command
+    uint16      sleep_mode;         // Used for automatic reloading of LDO tune and microcode at wake-up
+    uint16      otp_mask ;          // Local copy of the OTP mask used in dwt_initialise call
+    dwt_cb_data_t cbData;           // Callback data structure
+    dwt_cb_t    cbTxDone;           // Callback for TX confirmation event
+    dwt_cb_t    cbRxOk;             // Callback for RX good frame event
+    dwt_cb_t    cbRxTo;             // Callback for RX timeout events
+    dwt_cb_t    cbRxErr;            // Callback for RX error events
+} dwt_local_data_t ;
+
 
 /*! ------------------------------------------------------------------------------------------------------------------
  * Structure typedef: dwt_config_t
@@ -669,8 +698,8 @@ void dwt_setsmarttxpower(int enable);
  *                         standard PHR mode allows up to 127 bytes
  *                         if > 127 is programmed, DWT_PHRMODE_EXT needs to be set in the phrMode configuration
  *                         see dwt_configure function
- * @param txFrameBytes   - Pointer to the user뭩 buffer containing the data to send.
- * @param txBufferOffset - This specifies an offset in the DW1000뭩 TX Buffer at which to start writing data.
+ * @param txFrameBytes   - Pointer to the user's buffer containing the data to send.
+ * @param txBufferOffset - This specifies an offset in the DW1000's TX Buffer at which to start writing data.
  *
  * output parameters
  *
@@ -898,7 +927,7 @@ int dwt_rxenable(int mode);
  * @param enable - 1 to enable SNIFF mode, 0 to disable. When 0, all other parameters are not taken into account.
  * @param timeOn - duration of receiver ON phase, expressed in multiples of PAC size. The counter automatically adds 1 PAC
  *                 size to the value set. Min value that can be set is 1 (i.e. an ON time of 2 PAC size), max value is 15.
- * @param timeOff - duration of receiver OFF phase, expressed in multiples of 128/125 탎 (~1 탎). Max value is 255.
+ * @param timeOff - duration of receiver OFF phase, expressed in multiples of 128/125 us (~1 us). Max value is 255.
  *
  * output parameters
  *
@@ -944,9 +973,9 @@ void dwt_setlowpowerlistening(int enable);
  * @brief Set duration of "short sleep" phase when in low-power listening mode.
  *
  * input parameters:
- * @param snooze_time - "short sleep" phase duration, expressed in multiples of 512/19.2 탎 (~26.7 탎). The counter
+ * @param snooze_time - "short sleep" phase duration, expressed in multiples of 512/19.2 us (~26.7 us). The counter
  *                      automatically adds 1 to the value set. The smallest working value that should be set is 1,
- *                      i.e. giving a snooze time of 2 units (or ~53 탎).
+ *                      i.e. giving a snooze time of 2 units (or ~53 us).
  *
  * output parameters
  *
@@ -1634,7 +1663,7 @@ float dwt_convertrawtemperature(uint8 raw_temp);
  *
  * output parameters:
  *
- * returns: temperature sensor value in DW IC temperature units (1.14캜 steps)
+ * returns: temperature sensor value in DW IC temperature units (1.14째C steps)
  */
 uint8 dwt_convertdegtemptoraw(int16 realtemp);
 
