@@ -22,8 +22,7 @@
 
 #define TIME_LT32(T1, T2) ((int32_t)(T2-T1) >= 0)
 
-// cope with the slack induced by the antenna delay, which can make
-// the SFD shift between -4 and +4 ns.
+// the schedule can shift of +-4 ns due to the scheduling precision.
 #define STATETIME_SFD_SLACK_4NS     2 // 8ns
 
 #if DEBUG
