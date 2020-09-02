@@ -17,6 +17,7 @@
 #include "deca_param_types.h"
 #include "deca_regs.h"
 #include "deca_device_api.h"
+#include "deca_driver_state.h"
 
 #include "dw1000-arch.h"
 
