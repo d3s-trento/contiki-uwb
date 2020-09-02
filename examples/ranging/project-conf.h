@@ -1,6 +1,9 @@
 #ifndef PROJECT_CONF_H_
 #define PROJECT_CONF_H_
 
+//#define LINKADDR_CONF_SIZE 8
+#define LINKADDR_CONF_SIZE 2
+
 #define APP_RADIO_CONF 1
 
 #if APP_RADIO_CONF == 1
