@@ -336,17 +336,10 @@ dw1000_ranging_init()
     case 7: hertz_to_ppm_multiplier = HERTZ_TO_PPM_MULTIPLIER_CHAN_3; break;
   }
 
-  /* Fill in the constant part of the TX buffer */
-  tx_buf[0] = 0x41;
-  tx_buf[1] = 0x88;
-  tx_buf[3] = IEEE802154_PANID & 0xff;
-  tx_buf[4] = IEEE802154_PANID >> 8;
-
   process_start(&dw1000_rng_process, NULL);
   state = S_WAIT_POLL;
 }
 /*---------------------------------------------------------------------------*/
-/* XXX now it works only with 2-byte addresses */
 bool
 dw1000_range_with(linkaddr_t *lladdr, dw1000_rng_type_t type)
 {
@@ -683,8 +676,6 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
       status = 19;
       goto abort;
     }
-
-    //dwt_readrxdata(rx_buf, pkt_len - DW1000_CRC_LEN, 0);
 
     /* ds_poll_rx_ts was stored on the previous step */
     /* Retrieve response transmission and final reception timestamps. */
