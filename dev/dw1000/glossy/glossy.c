@@ -38,6 +38,7 @@
  */
 #include "glossy.h"
 #include "deca_device_api.h"
+#include "deca_driver_state.h" // define a new ISR
 #include "deca_regs.h"
 /*---------------------------------------------------------------------------*/
 #include "dw1000-config.h"
@@ -1580,7 +1581,6 @@ glossy_get_round_duration() {
  * Mutual exclusive ISR, call the first ISR based on the
  * triggered IRQs
  */
-extern dwt_local_data_t *pdw1000local;
 static void glossy_isr(void) {
     uint32 status = pdw1000local->cbData.status = dwt_read32bitreg(SYS_STATUS_ID); // Read status register low 32bits
 
