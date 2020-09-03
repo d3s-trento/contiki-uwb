@@ -66,6 +66,7 @@
 #include "deca_device_api.h"
 #include "dw1000-arch.h"
 #include "dw1000-config.h"
+#include "bt2uwb-addr.h"
 
 /*---------------------------------------------------------------------------*/
 #if NETSTACK_CONF_WITH_IPV6
@@ -161,9 +162,17 @@ static void
 configure_addresses(void)
 {
   uint8_t ext_addr[8];
-  uint32_t part_id, lot_id;
 
+#if (DWM1001_USE_BT_ADDR_FOR_UWB && SOFTDEVICE_PRESENT)
+
+  /* Use the BT 6-byte address as the UWB address with a 2-byte prefix */
+  ble_gap_addr_t ble_addr;
+  sd_ble_gap_addr_get(&ble_addr);
+  dwm1001_bt2uwb_addr(ble_addr.addr, ext_addr);
+
+#elif (!DWM1001_USE_BT_ADDR_FOR_UWB)
   /* Read from the DW1000 OTP memory the DW1000 PART and LOT IDs */
+  uint32_t part_id, lot_id;
   part_id = dwt_getpartid();
   lot_id = dwt_getlotid();
 
@@ -176,6 +185,9 @@ configure_addresses(void)
   ext_addr[5] = (part_id & 0x00FF0000) >> 16;
   ext_addr[6] = (part_id & 0x0000FF00) >> 8;
   ext_addr[7] = (part_id & 0x000000FF);
+#else
+#error Requested to use BT address for UWB but SoftDevice is not present.
+#endif
 
   /* Populate linkaddr_node_addr (big-endian) */
   memcpy(&linkaddr_node_addr, &ext_addr[8 - LINKADDR_SIZE], LINKADDR_SIZE);
@@ -336,6 +348,10 @@ main(void)
   ENERGEST_ON(ENERGEST_TYPE_CPU);
 #endif
 
+#ifdef SOFTDEVICE_PRESENT
+  ble_stack_init();
+#endif /* SOFTDEVICE_PRESENT */
+
 #if NETSTACK_RADIO == dw1000_driver
   netstack_init(); /* Init the full UWB network stack */
 
@@ -358,9 +374,6 @@ main(void)
     }
   }
 
-#ifdef SOFTDEVICE_PRESENT
-  ble_stack_init();
-#endif /* SOFTDEVICE_PRESENT */
 
 #else  /*  NETSTACK_CONF_RADIO == dw1000_driver */
 #error "NETSTACK is not on UWB"
