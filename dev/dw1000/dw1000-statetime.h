@@ -45,10 +45,18 @@
  */
 typedef enum dw1000_state_t {
     DW1000_IDLE,
-    DW1000_RX_AFTER_TX,
     DW1000_SCHEDULED_TX,
     DW1000_SCHEDULED_RX
 } dw1000_state_t;
+
+typedef struct dw1000_statetime_log_t {
+    uint64_t idle_time_us;
+    uint64_t rx_preamble_hunting_time_us;
+    uint64_t rx_preamble_time_us;
+    uint64_t rx_data_time_us;
+    uint64_t tx_preamble_time_us;
+    uint64_t tx_data_time_us;
+} dw1000_statetime_log_t;
 
 /* Define a context to track the time spent in each radio state.
  * Currently, the module support the following states:
@@ -71,6 +79,7 @@ typedef struct dw1000_statetime_context_t {
     uint64_t tx_preamble_time_us;
     uint64_t tx_data_time_us;
 
+    bool     is_restarted;
     bool     tracing;                   // true if tracing is active
     uint32_t schedule_32hi;             // the timestamp of the last scheduled function
                                         //   (starttx or rxenable 4ns precision)
@@ -96,6 +105,8 @@ void dw1000_statetime_stop();
 /** \brief Retrieve the statetime context.
  */
 dw1000_statetime_context_t* dw1000_statetime_get_context();
+
+void dw1000_statetime_log(dw1000_statetime_log_t* entry);
 /*---------------------------------------------------------------------------*/
 /** \brief Print dwell times on each state.
  */
@@ -117,6 +128,8 @@ void dw1000_statetime_set_last_idle(const uint32_t ts_idle_32hi);
  *  \param framelength  the length of the frame received.
  */
 void dw1000_statetime_after_rx(const uint32_t sfd_rx_32hi, const uint16_t framelength);
+void dw1000_statetime_after_rxerr(const uint32_t now_32hi);
+void dw1000_statetime_abort(const uint32_t now_32hi);
 /*---------------------------------------------------------------------------*/
 /** \brief Perform tracing after a successful transmission.
  *

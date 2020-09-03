@@ -182,7 +182,7 @@ def get_project_conf_content(flag_values):
         "#define DW1000_CONF_SMART_TX_POWER_6M8\t%d"    % flag_values[PRJ_SMARTTX],
         "#define DW1000_CONF_TX_POWER\t%s"              % hex(flag_values[PRJ_TX_POWER]),
         "#define GLOSSY_N_TX\t%d"                       % flag_values[PRJ_NTX],
-        "#define GLOSSY_VERSION_EMPLOYED_CONF\t%s"      % flag_values[PRJ_VERSION],
+        "#define GLOSSY_VERSION_CONF\t%s"               % flag_values[PRJ_VERSION],
         "#define GLOSSY_DYNAMIC_SLOT_ESTIMATE_CONF\t%d" % flag_values[PRJ_DYN_SLOT_ESTIMATION],
         "#define GLOSSY_TEST_CONF_PAYLOAD_DATA_LEN\t%d" % flag_values[PRJ_PAYLOAD],
         "#define GLOSSY_LOG_LEVEL_CONF\t%s"             % flag_values[PRJ_LOG_LEVEL],

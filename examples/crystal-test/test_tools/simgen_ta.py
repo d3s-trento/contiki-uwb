@@ -126,7 +126,7 @@ def mk_env(power, radio_cfg, sink, num_senders, n_empty, glossy_version):
     "-DCRYSTAL_CONF_CHHOP_MAPPING=CHMAP_%s"%chmap,
     "-DCRYSTAL_CONF_BSTRAP_CHHOPPING=BSTRAP_%s"%boot_chop,
     "-DCRYSTAL_CONF_N_FULL_EPOCHS=%d"%full_epochs,
-    "-DGLOSSY_VERSION_EMPLOYED_CONF=%s"%version_map[glossy_version],
+    "-DGLOSSY_VERSION_CONF=%s"%version_map[glossy_version],
     ]
 
     if logging:
