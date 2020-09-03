@@ -347,8 +347,16 @@ main(void)
   process_start(&tcpip_process, NULL);
 #endif /* NETSTACK_CONF_NETWORK == sicslowpan_driver //IPV6 */
 
-  printf("Short address: 0x%02x%02x\n",
-	 linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1]);
+  printf("Link address: ");
+  for (int i=0; ; i++) {
+    if (i < LINKADDR_SIZE - 1) {
+      printf("%02x:", linkaddr_node_addr.u8[i]);
+    }
+    else {
+      printf("%02x\n", linkaddr_node_addr.u8[i]);
+      break;
+    }
+  }
 
 #ifdef SOFTDEVICE_PRESENT
   ble_stack_init();

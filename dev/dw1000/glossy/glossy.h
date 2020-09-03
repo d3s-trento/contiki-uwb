@@ -250,6 +250,11 @@ glossy_sync_t glossy_get_sync_opt(void);
  */
 uint8_t glossy_get_max_payload_len();
 
+/** Return the slot duration based on the expected payload len.*/
+uint32_t glossy_get_slot_duration(uint8_t payload_len);
+uint32_t glossy_get_round_duration();
+
+
 #if GLOSSY_STATS
 /**
  * \brief Get Glossy statistics

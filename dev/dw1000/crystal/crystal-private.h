@@ -4,7 +4,8 @@
 #include "crystal.h"
 
 //#define CRYSTAL_INTER_PHASE_GAP (RTIMER_SECOND / 250) // 4 ms
-#define CRYSTAL_INTER_PHASE_GAP (RTIMER_SECOND / 500) // 2 ms
+//#define CRYSTAL_INTER_PHASE_GAP (RTIMER_SECOND / 500) // 2 ms
+#define CRYSTAL_INTER_PHASE_GAP (RTIMER_SECOND / 1000) // 1 ms: evb1000 (tested with up to 110B payload)
 //#define CRYSTAL_INTER_PHASE_GAP (RTIMER_SECOND / 625) // 1.6 ms
 
 #define CRYSTAL_SHORT_GUARD           5
@@ -46,7 +47,8 @@
  * Guard-time when clock skew is not yet estimated
  */
 //#define CRYSTAL_INIT_GUARD  (RTIMER_SECOND / 50)     //  20 ms, IPSN'18
-#define CRYSTAL_INIT_GUARD  (RTIMER_SECOND / 100)    //  10 ms
+//#define CRYSTAL_INIT_GUARD  (RTIMER_SECOND / 100)    //  10 ms
+#define CRYSTAL_INIT_GUARD  (RTIMER_SECOND / 1000)    //  1 ms: evb1000 (tested with up to 110B payload)
 
 /**
  * Duration during bootstrapping at receivers.
