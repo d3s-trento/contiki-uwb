@@ -575,6 +575,11 @@ dw1000_wakeup(void)
 
   /* Restore antenna delay values for ranging */
   dw1000_restore_ant_delay();
+  
+#if LINKADDR_SIZE == 8
+  // DW1000 does not preserve the extended address while sleeping
+  NETSTACK_RADIO.set_object(RADIO_PARAM_64BIT_ADDR, linkaddr_node_addr.u8, 8);
+#endif
 
   return DWT_SUCCESS;
 }
