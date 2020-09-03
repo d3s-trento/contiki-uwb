@@ -2,7 +2,7 @@
 
 
 CONTIKI_TARGET_DIRS += . dev config
-CONTIKI_SOURCEFILES += contiki-main.c leds-arch.c nrf52dk-sensors.c button-sensor.c temperature-sensor.c
+CONTIKI_SOURCEFILES += contiki-main.c leds-arch.c nrf52dk-sensors.c button-sensor.c temperature-sensor.c bt2uwb-addr.c
 CONTIKI_SOURCEFILES += battery_read.c
 
 # Add DW1000 architecture-dependent drivers
