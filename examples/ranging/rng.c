@@ -45,7 +45,11 @@ AUTOSTART_PROCESSES(&range_process);
 /*---------------------------------------------------------------------------*/
 #define RANGING_TIMEOUT (CLOCK_SECOND / 10)
 /*---------------------------------------------------------------------------*/
-linkaddr_t dst = {{0x37, 0x9e}};
+#if LINKADDR_SIZE == 2
+linkaddr_t dst = {{0x5a, 0x34}};
+#elif LINKADDR_SIZE == 8
+linkaddr_t dst = {{0x01, 0x3a, 0x61, 0x02, 0xc4, 0x40, 0x5a, 0x34}};
+#endif
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(range_process, ev, data)
 {
@@ -73,7 +77,7 @@ PROCESS_THREAD(range_process, ev, data)
 
     while(1) {
       printf("R req\n");
-      status = range_with(&dst, DW1000_RNG_SS);
+      status = range_with(&dst, DW1000_RNG_DS);
       if(!status) {
         printf("R req failed\n");
       } else {

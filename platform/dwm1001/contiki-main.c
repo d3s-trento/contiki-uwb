@@ -45,6 +45,7 @@
 /*---------------------------------------------------------------------------*/
 #include "nordic_common.h"
 #include "nrfx_gpiote.h"
+#include "nrfx_power.h"
 /*---------------------------------------------------------------------------*/
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -64,6 +65,7 @@
 #include "deca_device_api.h"
 #include "dw1000-arch.h"
 #include "dw1000-config.h"
+#include "bt2uwb-addr.h"
 
 /*---------------------------------------------------------------------------*/
 #if NETSTACK_CONF_WITH_IPV6
@@ -82,7 +84,41 @@
 #define PRINTF(...)
 #endif //DEBUG
 
+/*---------------------------------------------------------------------------*/
+void app_error_handler(ret_code_t error_code, uint32_t line_num, const uint8_t * p_file_name)
+{
+  NRF_LOG_ERROR("err_handler: %ld at %s:%ld", error_code, p_file_name, line_num);
+  NRF_LOG_FLUSH();
+  printf("err_handler: %ld at %s:%ld", error_code, p_file_name, line_num);
+}
 
+void app_error_handler_bare(ret_code_t error_code)
+{
+  NRF_LOG_ERROR("err_handler: %ld", error_code);
+  NRF_LOG_FLUSH();
+  printf("err_handler: %ld", error_code);
+}
+
+/* void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info) */
+/* { */
+/*     NRF_LOG_ERROR("Received a fault! id: 0x%08x, pc: 0x%08x, info: 0x%08x", id, pc, info); */
+/* } */
+/*---------------------------------------------------------------------------*/
+/* if power module is enabled this function wll init it,
+ * if softdevice is used the setting will be done in its initialization
+ */
+static void
+power_init(void)
+{
+#if NRFX_POWER_ENABLED && !defined(SOFTDEVICE_PRESENT)
+  ret_code_t err_code;
+  nrfx_power_config_t config;
+  config.dcdcen = NRFX_POWER_CONFIG_DEFAULT_DCDCEN;
+
+  err_code = nrfx_power_init(&config);
+  APP_ERROR_CHECK(err_code);
+#endif /* NRFX_POWER_ENABLED */
+}
 /*---------------------------------------------------------------------------*/
 /**
  * \brief Board specific initialization
@@ -92,6 +128,14 @@
 static void
 board_init(void)
 {
+  // needed for button and for the DW1000 interrupt
+  if (!nrfx_gpiote_is_init()) {
+    nrfx_gpiote_init();
+  }
+}
+static void
+softdevice_init(void)
+{
 #ifdef SOFTDEVICE_PRESENT
   /* Initialize the SoftDevice handler module */
   // SOFTDEVICE_HANDLER_INIT(NRF_CLOCK_LFCLKSRC_XTAL_20_PPM, NULL);
@@ -100,20 +144,32 @@ board_init(void)
   err_code = nrf_sdh_enable_request();
   APP_ERROR_CHECK(err_code);
 
-#endif
-  // needed for button and for the DW1000 interrupt
-  if (!nrfx_gpiote_is_init()) {
-    nrfx_gpiote_init();
-  }
+#if NRFX_POWER_ENABLE == 1
+#if NRFX_POWER_CONFIG_DEFAULT_DCDCEN == 1
+  err_code = sd_power_dcdc_mode_set(NRF_POWER_DCDC_ENABLE);
+#else /* NRFX_POWER_CONFIG_DEFAULT_DCDCEN == 1 */
+  err_code = sd_power_dcdc_mode_set(NRF_POWER_DCDC_DISABLE);
+#endif /* NRFX_POWER_CONFIG_DEFAULT_DCDCEN == 1 */
+  APP_ERROR_CHECK(err_code);
+#endif /*NRFX_POWER_ENABLE == 1 */
+#endif /* SOFTDEVICE_PRESENT */
 }
 /*---------------------------------------------------------------------------*/
 static void
 configure_addresses(void)
 {
   uint8_t ext_addr[8];
-  uint32_t part_id, lot_id;
 
+#if (DWM1001_USE_BT_ADDR_FOR_UWB && SOFTDEVICE_PRESENT)
+
+  /* Use the BT 6-byte address as the UWB address with a 2-byte prefix */
+  ble_gap_addr_t ble_addr;
+  sd_ble_gap_addr_get(&ble_addr);
+  dwm1001_bt2uwb_addr(ble_addr.addr, ext_addr);
+
+#elif (!DWM1001_USE_BT_ADDR_FOR_UWB)
   /* Read from the DW1000 OTP memory the DW1000 PART and LOT IDs */
+  uint32_t part_id, lot_id;
   part_id = dwt_getpartid();
   lot_id = dwt_getlotid();
 
@@ -126,6 +182,9 @@ configure_addresses(void)
   ext_addr[5] = (part_id & 0x00FF0000) >> 16;
   ext_addr[6] = (part_id & 0x0000FF00) >> 8;
   ext_addr[7] = (part_id & 0x000000FF);
+#else
+#error Requested to use BT address for UWB but SoftDevice is not present.
+#endif
 
   /* Populate linkaddr_node_addr (big-endian) */
   memcpy(&linkaddr_node_addr, &ext_addr[8 - LINKADDR_SIZE], LINKADDR_SIZE);
@@ -172,10 +231,11 @@ static void log_init(void)
 #endif //defined(NRF_LOG_ENABLED) && NRF_LOG_ENABLED == 1
 }
 
+
+#ifdef SOFTDEVICE_PRESENT
 /**< A tag identifying the SoftDevice BLE configuration. */
 #define APP_BLE_CONN_CFG_TAG 1
 
-#ifdef SOFTDEVICE_PRESENT
 static void ble_stack_init(void) {
   // TODO move in cpu nrf52832 (under ble folder)
   ret_code_t err_code;
@@ -193,7 +253,7 @@ static void ble_stack_init(void) {
   err_code = nrf_sdh_ble_enable(&ram_start);
   APP_ERROR_CHECK(err_code);
 }
-#endif //SOFTDEVICE_PRESENT
+#endif /* SOFTDEVICE_PRESENT */
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -224,6 +284,10 @@ main(void)
   log_init();
   leds_init();
 
+  power_init();
+  /* softdevice initialization is moved here to catch is errors with app_error_handler and print on rtt */
+  softdevice_init();
+
   clock_init();
   rtimer_init();
 
@@ -244,6 +308,7 @@ main(void)
 #endif
 
   PRINTF("Starting " CONTIKI_VERSION_STRING "\n");
+  printf("Starting " CONTIKI_VERSION_STRING "\n");
 #ifdef NRF_SHOW_RESETREASON
   PRINTF("Reset reason %08lx ", resetreas);
   PRINTF("Reset decode1 %s%s%s%s*",
@@ -280,6 +345,10 @@ main(void)
   ENERGEST_ON(ENERGEST_TYPE_CPU);
 #endif
 
+#ifdef SOFTDEVICE_PRESENT
+  ble_stack_init();
+#endif /* SOFTDEVICE_PRESENT */
+
 #if NETSTACK_RADIO == dw1000_driver
   netstack_init(); /* Init the full UWB network stack */
 
@@ -291,12 +360,17 @@ main(void)
   process_start(&tcpip_process, NULL);
 #endif /* NETSTACK_CONF_NETWORK == sicslowpan_driver //IPV6 */
 
-  printf("Short address: 0x%02x%02x\n",
-	 linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1]);
+  printf("Link address: ");
+  for (int i=0; ; i++) {
+    if (i < LINKADDR_SIZE - 1) {
+      printf("%02x:", linkaddr_node_addr.u8[i]);
+    }
+    else {
+      printf("%02x\n", linkaddr_node_addr.u8[i]);
+      break;
+    }
+  }
 
-#ifdef SOFTDEVICE_PRESENT
-  ble_stack_init();
-#endif
 
 #else  /*  NETSTACK_CONF_RADIO == dw1000_driver */
 #error "NETSTACK is not on UWB"

@@ -51,13 +51,14 @@
 #include "dw1000-cir.h"
 #include "process.h"
 #include "deca_range_tables.h"
+#include "frame802154.h"
 /*---------------------------------------------------------------------------*/
 #include <stdio.h>
 /*---------------------------------------------------------------------------*/
 #if DW1000_RANGING_ENABLED
 
-#if LINKADDR_SIZE > 2
-#warning The ranging module will use 16-bit addresses. Make sure they are unique in your deployment!
+#if (DW1000_FRAMEFILTER == 0)
+#warning HW frame filtering disabled!
 #endif
 
 #define DEBUG 0
@@ -116,14 +117,34 @@ typedef enum {
 static state_t state;
 static state_t old_state;
 
+
+
+static const frame802154_t default_header = {
+  .fcf = {
+    .frame_type        = 1, // data
+    .security_enabled  = 0,
+    .frame_pending     = 0,
+    .ack_required      = 0,
+    .panid_compression = 1, // suppress src PAN ID
+    .sequence_number_suppression = 0,
+    .ie_list_present   = 0,
+    .dest_addr_mode    = (LINKADDR_SIZE == 8) ? 3 : 2,
+    .frame_version     = 0,
+    .src_addr_mode     = (LINKADDR_SIZE == 8) ? 3 : 2,
+  },
+  .dest_pid = IEEE802154_PANID,
+  .src_pid  = IEEE802154_PANID,
+};
+
+
 /* Packet lengths for different messages (include the 2-byte CRC!) */
-#define PKT_LEN_POLL 12
+#define PLD_LEN_POLL 1
 
-#define PKT_LEN_SS1 20
+#define PLD_LEN_SS1 9
 
-#define PKT_LEN_DS1 12
-#define PKT_LEN_DS2 24
-#define PKT_LEN_DS3 24
+#define PLD_LEN_DS1 1
+#define PLD_LEN_DS2 13
+#define PLD_LEN_DS3 13
 
 /* Packet types for different messages */
 #define MSG_TYPE_SS0 0xE0
@@ -135,29 +156,27 @@ static state_t old_state;
 #define MSG_TYPE_DS3 0xD3
 
 /* Indexes to access some of the fields in the frames defined above. */
-#define IDX_SN 2
-#define IDX_TYPE 9
+#define PLD_TYPE_OFS 0
 
 /*SS*/
-#define RESP_MSG_POLL_RX_TS_IDX 10
-#define RESP_MSG_RESP_TX_TS_IDX 14
+#define RESP_MSG_POLL_RX_TS_OFS 1
+#define RESP_MSG_RESP_TX_TS_OFS 5
 
 /*DS*/
-#define FINAL_MSG_POLL_TX_TS_IDX 10
-#define FINAL_MSG_RESP_RX_TS_IDX 14
-#define FINAL_MSG_FINAL_TX_TS_IDX 18
+#define FINAL_MSG_POLL_TX_TS_OFS 1
+#define FINAL_MSG_RESP_RX_TS_OFS 5
+#define FINAL_MSG_FINAL_TX_TS_OFS 9
 
-#define DISTANCE_MSG_POLL_RX_IDX 10
-#define DISTANCE_MSG_RESP_TX_IDX 14
-#define DISTANCE_MSG_FINAL_RX_IDX 18
+#define DISTANCE_MSG_POLL_RX_OFS 1
+#define DISTANCE_MSG_RESP_TX_OFS 5
+#define DISTANCE_MSG_FINAL_RX_OFS 9
 
 static uint8_t my_seqn;
 static uint8_t recv_seqn;
 static linkaddr_t ranging_with; /* the current ranging peer */
 
-#define RX_BUF_LEN 24
-static uint8_t tx_buf[RX_BUF_LEN];
-static uint8_t rx_buf[RX_BUF_LEN];
+#define TX_BUF_LEN 36
+static uint8_t tx_buf[TX_BUF_LEN];
 
 typedef struct {
   /* SS and DS timeouts */
@@ -176,28 +195,31 @@ typedef struct {
   double freq_offs_multiplier;
 } ranging_conf_t;
 
-/*
-*              DS0/SS0 --------->
-* timeout: to_a                  tx: rx_ts + a
-*              <--------- DS1/SS1
-* tx: rx_ts + b                  timeout: to_b
-*              DS2 ------------->
-* timeout: to_c                  tx: immediate
-*              <------------- DS3
+/* 
+* tx: tx_ts
+*           ----------- DS0/SS0 ----------->
+* listen:  txdone + rx_dly_a
+* timeout: txdone + rx_dly_a + to_a         tx: rx_ts + a
+*           <---------- DS1/SS1 ------------
+*                                           listen:  txdone + rx_dly_b   
+* tx: rx_ts + b                             timeout: txdone + rx_dly_b + to_b
+*           ------------- DS2 ------------->
+* timeout: txdone + to_c                    tx: asap
+*           <------------ DS3 --------------
 */
 
 /* The following are tuned for 128us preamble */
 const static ranging_conf_t ranging_conf_6M8 = {
 /* SS and DS timeouts */
-  .a = 500,           // evb1000 can do 400
+  .a = 600,
   .rx_dly_a = 100,    // timeout starts after this
-  .to_a = 500,        // evb1000 can do 400
+  .to_a = 600,
 
 /* DS timeouts */
-  .b = 550,           // evb1000 can do 400
+  .b = 650,
   .rx_dly_b = 100,    // timeout starts after this
-  .to_b = 550,        // evb1000 can do 400
-  .to_c = 550,        // evb1000 can do 400
+  .to_b = 650,
+  .to_c = 650,
 
   .finish_delay = 1, /* assumes millisecond clock tick! */
 
@@ -228,11 +250,6 @@ static double hertz_to_ppm_multiplier;
 
 static ranging_conf_t ranging_conf;
 /*---------------------------------------------------------------------------*/
-#define tx_buf_set_src() do { tx_buf[7] = linkaddr_node_addr.u8[LINKADDR_SIZE-1]; tx_buf[8] = linkaddr_node_addr.u8[LINKADDR_SIZE-2]; } while(0)
-#define tx_buf_set_dst() do { tx_buf[5] = ranging_with.u8[LINKADDR_SIZE-1]; tx_buf[6] = ranging_with.u8[LINKADDR_SIZE-2]; } while(0)
-#define tx_buf_set_dst_from_src() do { tx_buf[5] = rx_buf[7]; tx_buf[6] = rx_buf[8]; } while(0)
-#define rx_buf_check_dst() (rx_buf[5] == linkaddr_node_addr.u8[LINKADDR_SIZE-1] && rx_buf[6] == linkaddr_node_addr.u8[LINKADDR_SIZE-2]) /* TODO: check also PANID */
-#define rx_buf_check_src() (rx_buf[7] == ranging_with.u8[LINKADDR_SIZE-1] && rx_buf[8] == ranging_with.u8[LINKADDR_SIZE-2])
 /*---------------------------------------------------------------------------*/
 static inline uint64_t
 get_rx_timestamp_u64(void)
@@ -319,22 +336,16 @@ dw1000_ranging_init()
     case 7: hertz_to_ppm_multiplier = HERTZ_TO_PPM_MULTIPLIER_CHAN_3; break;
   }
 
-  /* Fill in the constant part of the TX buffer */
-  tx_buf[0] = 0x41;
-  tx_buf[1] = 0x88;
-  tx_buf[3] = IEEE802154_PANID & 0xff;
-  tx_buf[4] = IEEE802154_PANID >> 8;
-
   process_start(&dw1000_rng_process, NULL);
   state = S_WAIT_POLL;
 }
 /*---------------------------------------------------------------------------*/
-/* XXX now it works only with 2-byte addresses */
 bool
 dw1000_range_with(linkaddr_t *lladdr, dw1000_rng_type_t type)
 {
   int8_t irq_status;
   bool ret;
+  frame802154_t frame = default_header;
   if(type != DW1000_RNG_SS && type != DW1000_RNG_DS) {
     return false;
   }
@@ -364,11 +375,15 @@ dw1000_range_with(linkaddr_t *lladdr, dw1000_rng_type_t type)
 
   PRINTF_RNG("dwr: rng start %d type %d\n", my_seqn, rng_type);
 
-  /* Write frame data to DW1000 and prepare transmission. */
-  tx_buf[IDX_SN] = my_seqn;
-  tx_buf[IDX_TYPE] = (rng_type == DW1000_RNG_SS) ? MSG_TYPE_SS0 : MSG_TYPE_DS0;
-  tx_buf_set_dst();
-  tx_buf_set_src();
+  /* fill in non-constant fields of the header */
+  frame.seq = my_seqn;
+  memcpy(frame.dest_addr, lladdr->u8, LINKADDR_SIZE);
+  memcpy(frame.src_addr, linkaddr_node_addr.u8, LINKADDR_SIZE);
+
+  /* create the header */
+  uint8_t hdr_len = frame802154_create(&frame, tx_buf);
+  /* create the payload */
+  tx_buf[hdr_len + PLD_TYPE_OFS] = (rng_type == DW1000_RNG_SS) ? MSG_TYPE_SS0 : MSG_TYPE_DS0;
 
   /* Set expected response's delay and timeout.*/
   dwt_setrxaftertxdelay(ranging_conf.rx_dly_a);
@@ -376,8 +391,8 @@ dw1000_range_with(linkaddr_t *lladdr, dw1000_rng_type_t type)
 
   /* Write frame data to DW1000 and prepare transmission. */
   /* dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS); */
-  dwt_writetxdata(PKT_LEN_POLL, tx_buf, 0); /* Zero offset in TX buffer. */
-  dwt_writetxfctrl(PKT_LEN_POLL, 0, 1); /* Zero offset in TX buffer, ranging. */
+  dwt_writetxdata(hdr_len + PLD_LEN_POLL + DW1000_CRC_LEN, tx_buf, 0); /* Zero offset in TX buffer. */
+  dwt_writetxfctrl(hdr_len + PLD_LEN_POLL + DW1000_CRC_LEN, 0, 1); /* Zero offset in TX buffer, ranging. */
 
   /* Start transmission, indicating that a response is expected so that reception is enabled automatically after the frame is sent and the delay
    * set by dwt_setrxaftertxdelay() has elapsed. */
@@ -414,24 +429,38 @@ void
 dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
 {
   uint16_t pkt_len = cb_data->datalength;
+  uint8_t rx_buf[pkt_len]; // TODO: merge with tx_buf
+  uint8_t rx_hdr_len, tx_hdr_len;
+  frame802154_t rx_frame;
+  frame802154_t tx_frame = default_header;
+  uint8_t rx_type;
 
   /* if(! (cb_data->rx_flags & DWT_CB_DATA_RX_FLAG_RNG)) {
    *  goto abort; // got a non-ranging packet, abort the ranging session
    * } */
+  dwt_readrxdata(rx_buf, pkt_len - DW1000_CRC_LEN, 0);
+  rx_hdr_len = frame802154_parse(rx_buf, pkt_len - DW1000_CRC_LEN, &rx_frame);
+
+  if(!rx_hdr_len) {
+    status = 20;
+    goto abort;
+  }
+  
+  // TODO: if HW frame filtering is disabled, add address check here
+
+  uint8_t  pld_len = rx_frame.payload_len;
+  uint8_t* pld     = rx_frame.payload;
+
+  rx_type = pld[PLD_TYPE_OFS];
+  recv_seqn = rx_frame.seq;
 
   if(state == S_WAIT_POLL) {
-    if(pkt_len != PKT_LEN_POLL) {
+    if(pld_len != PLD_LEN_POLL) {
       status = 11;
       goto abort;
     }
 
-    dwt_readrxdata(rx_buf, pkt_len - DW1000_CRC_LEN, 0);
-
-    if(!rx_buf_check_dst()) {
-      status = 12;
-      goto abort;
-    }
-    if(rx_buf[IDX_TYPE] == MSG_TYPE_SS0) {  /* --- Single-sided poll --- */
+    if(rx_type == MSG_TYPE_SS0) {  /* --- Single-sided poll --- */
 
       /* Timestamps of frames transmission/reception.
        * As they are 40-bit wide, we need to define a 64-bit int type to handle them. */
@@ -440,6 +469,11 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
       uint32_t resp_tx_time;
 
       PRINTF_RNG("dwr: got SS0.\n");
+      if (! (cb_data->status & SYS_STATUS_LDEDONE)) {
+        PRINTF_RNG_FAILED("SS0: LDE failed\n");
+        status = 16;
+        goto abort;
+      }
       /* Retrieve poll reception timestamp. */
       poll_rx_ts_64 = get_rx_timestamp_u64();
 
@@ -450,19 +484,20 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
       /* Response TX timestamp is the transmission time we programmed plus the antenna delay. */
       resp_tx_ts_64 = (((uint64_t)(resp_tx_time & 0xFFFFFFFEUL)) << 8) + tx_ant_dly;
 
-      /* Write all timestamps in the final message. */
-      msg_set_ts(&tx_buf[RESP_MSG_POLL_RX_TS_IDX], poll_rx_ts_64);
-      msg_set_ts(&tx_buf[RESP_MSG_RESP_TX_TS_IDX], resp_tx_ts_64);
+      /* Fill in the response header */
+      tx_frame.seq = rx_frame.seq;
+      memcpy(tx_frame.src_addr, linkaddr_node_addr.u8, LINKADDR_SIZE);
+      memcpy(tx_frame.dest_addr, rx_frame.src_addr, LINKADDR_SIZE);
+      tx_hdr_len = frame802154_create(&tx_frame, tx_buf);
+
+      /* Fill in the SS1 payload */
+      tx_buf[tx_hdr_len + PLD_TYPE_OFS] = MSG_TYPE_SS1;
+      msg_set_ts(&tx_buf[tx_hdr_len + RESP_MSG_POLL_RX_TS_OFS], poll_rx_ts_64);
+      msg_set_ts(&tx_buf[tx_hdr_len + RESP_MSG_RESP_TX_TS_OFS], resp_tx_ts_64);
 
       /* Write and send the response message. */
-      recv_seqn = rx_buf[IDX_SN];
-      tx_buf[IDX_SN] = rx_buf[IDX_SN];
-      tx_buf[IDX_TYPE] = MSG_TYPE_SS1;
-      tx_buf_set_src();
-      tx_buf_set_dst_from_src();
-
-      dwt_writetxdata(PKT_LEN_SS1, tx_buf, 0); /* Zero offset in TX buffer. */
-      dwt_writetxfctrl(PKT_LEN_SS1, 0, 1); /* Zero offset in TX buffer, ranging. */
+      dwt_writetxdata(tx_hdr_len + PLD_LEN_SS1 + DW1000_CRC_LEN, tx_buf, 0); /* Zero offset in TX buffer. */
+      dwt_writetxfctrl(tx_hdr_len + PLD_LEN_SS1 + DW1000_CRC_LEN, 0, 1); /* Zero offset in TX buffer, ranging. */
       dwt_setrxaftertxdelay(0);
       dwt_setrxtimeout(0);
       dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M); /* errata TX-1: force rx timeout */
@@ -473,11 +508,17 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
         goto abort;
       }
       return; /* In this case, no other processing nor state change are needed */
-    } else if(rx_buf[IDX_TYPE] == MSG_TYPE_DS0) { /* --- Double-sided poll --- */
+    } else if(rx_type == MSG_TYPE_DS0) { /* --- Double-sided poll --- */
       uint32_t resp_tx_time;
       uint64_t poll_rx_ts_64;
 
       PRINTF_RNG("dwr: got DS0.\n");
+
+      if (! (cb_data->status & SYS_STATUS_LDEDONE)) {
+        PRINTF_RNG_FAILED("DS0: LDE failed\n");
+        status = 17;
+        goto abort;
+      }
 
       /* Retrieve poll and store poll reception timestamp. */
       poll_rx_ts_64 = get_rx_timestamp_u64();
@@ -487,21 +528,24 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
       resp_tx_time = (poll_rx_ts_64 + (ranging_conf.a * UUS_TO_DWT_TIME)) >> 8;
       dwt_setdelayedtrxtime(resp_tx_time);
 
-      /* Set expected delay and timeout for final message reception. */
+      /* Set expected delay and timeout for message reception. */
       dwt_setrxaftertxdelay(ranging_conf.rx_dly_b);
       dwt_setrxtimeout(ranging_conf.to_b);
 
-      /* Write and send the response message. */
-      recv_seqn = rx_buf[IDX_SN];
-      tx_buf[IDX_SN] = rx_buf[IDX_SN];
-      tx_buf[IDX_TYPE] = MSG_TYPE_DS1;
-      tx_buf_set_src();
-      tx_buf_set_dst_from_src();
-      ranging_with.u8[LINKADDR_SIZE-1] = rx_buf[7];
-      ranging_with.u8[LINKADDR_SIZE-2] = rx_buf[8];
+      memcpy(ranging_with.u8, rx_frame.src_addr, LINKADDR_SIZE);
 
-      dwt_writetxdata(PKT_LEN_DS1, tx_buf, 0); /* Zero offset in TX buffer. */
-      dwt_writetxfctrl(PKT_LEN_DS1, 0, 1); /* Zero offset in TX buffer, ranging. */
+      /* Fill in the response header */
+      tx_frame.seq = rx_frame.seq;
+      memcpy(tx_frame.src_addr, linkaddr_node_addr.u8, LINKADDR_SIZE);
+      memcpy(tx_frame.dest_addr, rx_frame.src_addr, LINKADDR_SIZE);
+      tx_hdr_len = frame802154_create(&tx_frame, tx_buf);
+      
+      /* Fill in the DS1 payload */
+      tx_buf[tx_hdr_len + PLD_TYPE_OFS] = MSG_TYPE_DS1;
+
+      /* Write and send the response message. */
+      dwt_writetxdata(tx_hdr_len + PLD_LEN_DS1 + DW1000_CRC_LEN, tx_buf, 0); /* Zero offset in TX buffer. */
+      dwt_writetxfctrl(tx_hdr_len + PLD_LEN_DS1 + DW1000_CRC_LEN, 0, 1); /* Zero offset in TX buffer, ranging. */
       dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M); /* errata TX-1: force rx timeout */
       int ret = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
       if(ret != DWT_SUCCESS) {
@@ -518,25 +562,14 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
       goto abort;
     }
   } else if(state == S_WAIT_SS1) { /* --- We are waiting for the SS1 response ---- */
-    if(pkt_len != PKT_LEN_SS1) {
+    if(pld_len != PLD_LEN_SS1) {
       status = 1;
       goto abort;
     }
 
-    dwt_readrxdata(rx_buf, pkt_len - DW1000_CRC_LEN, 0);
-
-    if(!rx_buf_check_dst()) {
-      status = 2;
-      goto abort;
-    }
-    if(!rx_buf_check_src()) {
-      status = 3;
-      goto abort; /* got reply from a wrong node */
-    }
-
     /* Check that the frame is the expected response */
-    if(rx_buf[IDX_TYPE] != MSG_TYPE_SS1) {
-      status = 4;
+    if(rx_type != MSG_TYPE_SS1) {
+      status = 3;
       goto abort;
     }
 
@@ -548,37 +581,32 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     clockOffsetRatio = dwt_readcarrierintegrator() * (ranging_conf.freq_offs_multiplier * hertz_to_ppm_multiplier / 1.0e6);
 
     /* Get timestamps embedded in response message. */
-    msg_get_ts(&rx_buf[RESP_MSG_POLL_RX_TS_IDX], &ss_poll_rx_ts);
-    msg_get_ts(&rx_buf[RESP_MSG_RESP_TX_TS_IDX], &ss_resp_tx_ts);
+    msg_get_ts(&rx_buf[rx_hdr_len + RESP_MSG_POLL_RX_TS_OFS], &ss_poll_rx_ts);
+    msg_get_ts(&rx_buf[rx_hdr_len + RESP_MSG_RESP_TX_TS_OFS], &ss_resp_tx_ts);
 
     old_state = state;
     state = S_RANGING_DONE;
 
     goto poll_the_process;
   } else if(state == S_WAIT_DS1) { /* --- We are waiting for the DS1 response --- */
-    if(pkt_len != PKT_LEN_DS1) {
+    if(pld_len != PLD_LEN_DS1) {
       status = 41;
       goto abort;
     }
 
-    dwt_readrxdata(rx_buf, pkt_len - DW1000_CRC_LEN, 0);
-
-    if(!rx_buf_check_dst()) {
-      status = 42;
-      goto abort;
-    }
-    if(!rx_buf_check_src()) {
-      status = 43;
-      goto abort; /* got reply from a wrong node */
-    }
-
     /* Check that the frame is the expected response */
-    if(rx_buf[IDX_TYPE] != MSG_TYPE_DS1) {
+    if(rx_type != MSG_TYPE_DS1) {
       status = 44;
       goto abort;
     }
 
     PRINTF_RNG("dwr: got DS1.\n");
+
+    if (! (cb_data->status & SYS_STATUS_LDEDONE)) {
+      PRINTF_RNG_FAILED("DS1: LDE failed\n");
+      status = 18;
+      goto abort;
+    }
 
     uint64_t final_tx_ts_64;
     uint32_t final_tx_time;
@@ -587,8 +615,6 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     /* Retrieve poll transmission and response reception timestamp. */
     poll_tx_ts_64 = get_tx_timestamp_u64();
     resp_rx_ts_64 = get_rx_timestamp_u64();
-
-    tx_buf[IDX_TYPE] = MSG_TYPE_DS2;
 
     /* Compute final message transmission time. */
     final_tx_time = (resp_rx_ts_64 + (ranging_conf.b * UUS_TO_DWT_TIME)) >> 8;
@@ -604,13 +630,22 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     ds_resp_rx_ts = (uint32_t)resp_rx_ts_64;
     ds_final_tx_ts = (uint32_t)final_tx_ts_64;
 
-    /* Write all timestamps in the final message. */
-    msg_set_ts(&tx_buf[FINAL_MSG_POLL_TX_TS_IDX], ds_poll_tx_ts);
-    msg_set_ts(&tx_buf[FINAL_MSG_RESP_RX_TS_IDX], ds_resp_rx_ts);
-    msg_set_ts(&tx_buf[FINAL_MSG_FINAL_TX_TS_IDX], ds_final_tx_ts);
+    /* Fill in the response header */
+    // TODO: can we reuse it from the previous time (DS0) ?
+    tx_frame.seq = rx_frame.seq;
+    memcpy(tx_frame.src_addr, linkaddr_node_addr.u8, LINKADDR_SIZE);
+    memcpy(tx_frame.dest_addr, rx_frame.src_addr, LINKADDR_SIZE);
+    tx_hdr_len = frame802154_create(&tx_frame, tx_buf);
 
-    dwt_writetxdata(PKT_LEN_DS2, tx_buf, 0); /* Zero offset in TX buffer. */
-    dwt_writetxfctrl(PKT_LEN_DS2, 0, 1); /* Zero offset in TX buffer, ranging. */
+    /* Fill in the DS2 payload */
+    tx_buf[tx_hdr_len + PLD_TYPE_OFS] = MSG_TYPE_DS2;
+
+    msg_set_ts(&tx_buf[tx_hdr_len + FINAL_MSG_POLL_TX_TS_OFS], ds_poll_tx_ts);
+    msg_set_ts(&tx_buf[tx_hdr_len + FINAL_MSG_RESP_RX_TS_OFS], ds_resp_rx_ts);
+    msg_set_ts(&tx_buf[tx_hdr_len + FINAL_MSG_FINAL_TX_TS_OFS], ds_final_tx_ts);
+
+    dwt_writetxdata(tx_hdr_len + PLD_LEN_DS2 + DW1000_CRC_LEN, tx_buf, 0); /* Zero offset in TX buffer. */
+    dwt_writetxfctrl(tx_hdr_len + PLD_LEN_DS2 + DW1000_CRC_LEN, 0, 1); /* Zero offset in TX buffer, ranging. */
     dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M); /* errata TX-1: force rx timeout */
     int ret = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
 
@@ -624,31 +659,23 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     state = S_WAIT_DS3;
     return;
   } else if(state == S_WAIT_DS2) { /* --- We are waiting for the DS2 response --- */
-    if(pkt_len != PKT_LEN_DS2) {
+    if(pld_len != PLD_LEN_DS2) {
       status = 51;
       goto abort;
     }
 
-    dwt_readrxdata(rx_buf, pkt_len - DW1000_CRC_LEN, 0);
-
-    if(!rx_buf_check_dst()) {
-      status = 52;
-      goto abort;
-    }
-    if(!rx_buf_check_src()) {
-      status = 53;
-      goto abort; /* got reply from a wrong node */
-    }
-
     /* Check that the frame is the expected response */
-    if(rx_buf[IDX_TYPE] != MSG_TYPE_DS2) {
+    if(rx_type != MSG_TYPE_DS2) {
       status = 54;
       goto abort;
     }
 
     PRINTF_RNG("dwr: got DS2.\n");
-
-    //dwt_readrxdata(rx_buf, pkt_len - DW1000_CRC_LEN, 0);
+    if (! (cb_data->status & SYS_STATUS_LDEDONE)) {
+      PRINTF_RNG_FAILED("DS2: LDE failed\n");
+      status = 19;
+      goto abort;
+    }
 
     /* ds_poll_rx_ts was stored on the previous step */
     /* Retrieve response transmission and final reception timestamps. */
@@ -656,23 +683,26 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     ds_final_rx_ts = (uint32_t)get_rx_timestamp_u64();
 
     /* Get timestamps embedded in the final message. */
-    msg_get_ts(&rx_buf[FINAL_MSG_POLL_TX_TS_IDX], &ds_poll_tx_ts);
-    msg_get_ts(&rx_buf[FINAL_MSG_RESP_RX_TS_IDX], &ds_resp_rx_ts);
-    msg_get_ts(&rx_buf[FINAL_MSG_FINAL_TX_TS_IDX], &ds_final_tx_ts);
+    msg_get_ts(&rx_buf[rx_hdr_len + FINAL_MSG_POLL_TX_TS_OFS], &ds_poll_tx_ts);
+    msg_get_ts(&rx_buf[rx_hdr_len + FINAL_MSG_RESP_RX_TS_OFS], &ds_resp_rx_ts);
+    msg_get_ts(&rx_buf[rx_hdr_len + FINAL_MSG_FINAL_TX_TS_OFS], &ds_final_tx_ts);
 
-    recv_seqn = rx_buf[IDX_SN];
-    tx_buf[IDX_SN] = rx_buf[IDX_SN];
-    tx_buf[IDX_TYPE] = MSG_TYPE_DS3;
-    tx_buf_set_src();
-    tx_buf_set_dst_from_src();
+    /* Fill in the response header */
+    // TODO: can we reuse it from the previous time (DS0) ?
+    tx_frame.seq = rx_frame.seq;
+    memcpy(tx_frame.src_addr, linkaddr_node_addr.u8, LINKADDR_SIZE);
+    memcpy(tx_frame.dest_addr, rx_frame.src_addr, LINKADDR_SIZE);
+    tx_hdr_len = frame802154_create(&tx_frame, tx_buf);
 
-    /* Reply with timestamps */
-    memcpy(&tx_buf[DISTANCE_MSG_POLL_RX_IDX], &ds_poll_rx_ts, 4);
-    memcpy(&tx_buf[DISTANCE_MSG_RESP_TX_IDX], &ds_resp_tx_ts, 4);
-    memcpy(&tx_buf[DISTANCE_MSG_FINAL_RX_IDX], &ds_final_rx_ts, 4);
+    /* Fill in the DS3 payload */
+    tx_buf[tx_hdr_len + PLD_TYPE_OFS] = MSG_TYPE_DS3;
 
-    dwt_writetxdata(PKT_LEN_DS3, tx_buf, 0); /* Zero offset in TX buffer. */
-    dwt_writetxfctrl(PKT_LEN_DS3, 0, 1); /* Zero offset in TX buffer, ranging. */
+    memcpy(&tx_buf[tx_hdr_len + DISTANCE_MSG_POLL_RX_OFS], &ds_poll_rx_ts, 4);
+    memcpy(&tx_buf[tx_hdr_len + DISTANCE_MSG_RESP_TX_OFS], &ds_resp_tx_ts, 4);
+    memcpy(&tx_buf[tx_hdr_len + DISTANCE_MSG_FINAL_RX_OFS], &ds_final_rx_ts, 4);
+
+    dwt_writetxdata(tx_hdr_len + PLD_LEN_DS3 + DW1000_CRC_LEN, tx_buf, 0); /* Zero offset in TX buffer. */
+    dwt_writetxfctrl(tx_hdr_len + PLD_LEN_DS3 + DW1000_CRC_LEN, 0, 1); /* Zero offset in TX buffer, ranging. */
     dwt_setrxaftertxdelay(0);
     dwt_setrxtimeout(0);
     dwt_starttx(DWT_START_TX_IMMEDIATE | DWT_RESPONSE_EXPECTED);
@@ -685,35 +715,22 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
 
     goto poll_the_process;
   } else if(state == S_WAIT_DS3) { /* --- We are waiting for the DS3 response --- */
-    if(pkt_len != PKT_LEN_DS3) {
+    if(pld_len != PLD_LEN_DS3) {
       status = 61;
       goto abort;
     }
 
-    dwt_readrxdata(rx_buf, pkt_len - DW1000_CRC_LEN, 0);
-
-    if(!rx_buf_check_dst()) {
-      status = 62;
-      goto abort;
-    }
-    if(!rx_buf_check_src()) {
-      status = 63;
-      goto abort; /* got reply from a wrong node */
-    }
-
     /* Check that the frame is the expected response */
-    if(rx_buf[IDX_TYPE] != MSG_TYPE_DS3) {
+    if(rx_type != MSG_TYPE_DS3) {
       status = 64;
       goto abort;
     }
 
     PRINTF("dwr: got DS3.\n");
 
-    dwt_readrxdata(rx_buf, pkt_len - DW1000_CRC_LEN, 0);
-
-    msg_get_ts(&rx_buf[DISTANCE_MSG_POLL_RX_IDX], &ds_poll_rx_ts);
-    msg_get_ts(&rx_buf[DISTANCE_MSG_RESP_TX_IDX], &ds_resp_tx_ts);
-    msg_get_ts(&rx_buf[DISTANCE_MSG_FINAL_RX_IDX], &ds_final_rx_ts);
+    msg_get_ts(&rx_buf[rx_hdr_len + DISTANCE_MSG_POLL_RX_OFS], &ds_poll_rx_ts);
+    msg_get_ts(&rx_buf[rx_hdr_len + DISTANCE_MSG_RESP_TX_OFS], &ds_resp_tx_ts);
+    msg_get_ts(&rx_buf[rx_hdr_len + DISTANCE_MSG_FINAL_RX_OFS], &ds_final_rx_ts);
 
     old_state = state;
     state = S_RANGING_DONE;

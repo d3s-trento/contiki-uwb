@@ -2,7 +2,7 @@
 
 
 CONTIKI_TARGET_DIRS += . dev config
-CONTIKI_SOURCEFILES += contiki-main.c leds-arch.c nrf52dk-sensors.c button-sensor.c temperature-sensor.c
+CONTIKI_SOURCEFILES += contiki-main.c leds-arch.c nrf52dk-sensors.c button-sensor.c temperature-sensor.c bt2uwb-addr.c
 
 # Add DW1000 architecture-dependent drivers
 CONTIKI_SOURCEFILES += dw1000-arch.c
@@ -10,7 +10,7 @@ CONTIKI_SOURCEFILES += dw1000-arch.c
 # DecaWave DW1000 Drivers
 CONTIKIDIRS += $(UWB_CONTIKI)/dev/dw1000 $(UWB_CONTIKI)/dev/dw1000/decadriver
 CONTIKI_SOURCEFILES += deca_device.c deca_params_init.c deca_range_tables.c
-CONTIKI_SOURCEFILES += dw1000.c dw1000-ranging.c dw1000-config.c dw1000-util.c dw1000-cir.c dw1000-diag.c
+CONTIKI_SOURCEFILES += dw1000.c dw1000-ranging.c dw1000-config.c dw1000-util.c dw1000-cir.c dw1000-diag.c dw1000-statetime.c
 
 #To include project-conf (throug contiki.h) in sdk_config of nRF5 SDK
 CFLAGS+=-DUSE_APP_CONFIG
@@ -113,8 +113,8 @@ motelist:
 match($$0, "J-Link\\[([[:digit:]]+)\\].*Serial number: ([[:digit:]]*)", m) {printf(" %s\t%s\n",m[1],m[2])}'
 
 %.upload: %.hex %.jlink 
-	@echo Flashing: $^
-	$(JLINK) $(JLINK_OPTS) -CommanderScript $*.jlink
+	@echo Flashing: $*.hex
+	$(Q)$(JLINK) $(JLINK_OPTS) -CommanderScript $*.jlink
 
 RTT_TELNET_PORT ?= 19021
 

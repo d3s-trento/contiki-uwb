@@ -42,7 +42,11 @@
 #include <stdio.h>
 
 
+#if LINKADDR_SIZE == 2
 linkaddr_t dst = {{0x5a, 0x34}};
+#elif LINKADDR_SIZE == 8
+linkaddr_t dst = {{0x01, 0x3a, 0x61, 0x02, 0xc4, 0x40, 0x5a, 0x34}};
+#endif
 
 
 /*---------------------------------------------------------------------------*/
