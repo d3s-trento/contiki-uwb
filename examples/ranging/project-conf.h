@@ -1,8 +1,9 @@
 #ifndef PROJECT_CONF_H_
 #define PROJECT_CONF_H_
 
-//#define LINKADDR_CONF_SIZE 8
 #define LINKADDR_CONF_SIZE 2
+//#define LINKADDR_CONF_SIZE 8
+//#define DWM1001_USE_BT_ADDR_FOR_UWB 1
 
 #define APP_RADIO_CONF 1
 
