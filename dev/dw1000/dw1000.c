@@ -95,6 +95,7 @@ static uint16_t data_len; /* received data length (payload without CRC) */
 static bool frame_pending;
 static bool auto_ack_enabled;
 static bool wait_ack_txdone;
+static bool frame_uploaded;
 static volatile bool tx_done; /* flag indicating the end of TX */
 /*---------------------------------------------------------------------------*/
 PROCESS(dw1000_process, "DW1000 driver");
@@ -147,7 +148,9 @@ rx_ok_cb(const dwt_cb_data_t *cb_data)
   data_len = cb_data->datalength - DW1000_CRC_LEN;
   /* Set the appropriate event flag */
   frame_pending = true;
-
+#if DEBUG
+  radio_status = cb_data->status;
+#endif
   /* if we have auto-ACKs enabled and an ACK was requested, */
   /* don't signal the reception until the TX done interrupt */
   if(auto_ack_enabled && (cb_data->status & SYS_STATUS_AAT)) {
@@ -208,6 +211,7 @@ tx_conf_cb(const dwt_cb_data_t *cb_data)
 #endif
 
   tx_done = 1; /* to stop waiting in dw1000_transmit() */
+  frame_uploaded = 0;
 
   /*if we are sending an auto ACK, signal the frame reception here */
   if(wait_ack_txdone) {
@@ -277,18 +281,25 @@ dw1000_prepare(const void *payload, unsigned short payload_len)
 {
   uint8_t frame_len;
 
+  frame_uploaded = 0;
 #if DW1000_RANGING_ENABLED
   if(dw1000_is_ranging()) {
-    return 1;   /* error */
+    return RADIO_TX_ERR;
   }
 #endif
 
   frame_len = payload_len + DW1000_CRC_LEN;
+  
+  if (frame_len > 127) {
+    PRINTF("Err: TX len %u\n", frame_len);
+    return RADIO_TX_ERR;
+  }
 
   /* Write frame data to DW1000 and prepare transmission */
   dwt_writetxdata(frame_len, (uint8_t *)payload, 0); /* Zero offset in TX buffer. */
   dwt_writetxfctrl(frame_len, 0, 0); /* Zero offset in TX buffer, no ranging. */
   /* TODO: check the return status of the operations above */
+  frame_uploaded = 1;
   return 0;
 }
 /*---------------------------------------------------------------------------*/
@@ -296,6 +307,10 @@ static int
 dw1000_transmit(unsigned short transmit_len)
 {
   int ret;
+  if (!frame_uploaded) {
+    PRINTF("Err: transmit without prepare\n");
+    return RADIO_TX_ERR;
+  }
   int8_t irq_status = dw1000_disable_interrupt();
 #if DW1000_RANGING_ENABLED
   if(dw1000_is_ranging()) {
@@ -489,7 +504,12 @@ PROCESS_THREAD(dw1000_process, ev, data)
   while(1) {
     PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
 
-    PRINTF("dwr frame\n");
+#if DEBUG
+    uint32_t r1 = radio_status;
+    printf("RX OK: %02x %02x %02x %02x\n",
+           (uint8_t)(r1 >> 24), (uint8_t)(r1 >> 16),
+           (uint8_t)(r1 >> 8), (uint8_t)r1);
+#endif
 
     if(!frame_pending) {
       /* received a frame but it was already read (e.g. ACK) */

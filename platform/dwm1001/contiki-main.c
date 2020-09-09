@@ -256,7 +256,7 @@ void ble_stack_init(void) {
   err_code = nrf_sdh_ble_enable(&ram_start);
   APP_ERROR_CHECK(err_code);
 }
-#endif //SOFTDEVICE_PRESENT
+#endif /* SOFTDEVICE_PRESENT */
 
 /*---------------------------------------------------------------------------*/
 /**

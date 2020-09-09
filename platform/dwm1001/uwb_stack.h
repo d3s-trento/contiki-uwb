@@ -51,6 +51,10 @@
 #define NETSTACK_CONF_NETWORK sicslowpan_driver
 #else
 #define NETSTACK_CONF_NETWORK rime_driver
+
+// Instruct chameleon to not duplicate MAC addresses in its headers
+#define CHAMELEON_CONF_WITH_MAC_LINK_ADDRESSES 1
+
 #endif /* NETSTACK_CONF_WITH_IPV6 */
 #endif /* NETSTACK_CONF_NETWORK */
 

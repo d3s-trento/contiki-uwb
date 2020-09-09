@@ -22,9 +22,6 @@ This port includes support for:
 * [Glossy](https://ieeexplore.ieee.org/document/5779066), a fast flooding and synchronisation primitive (only EVB1000)
 * [Crystal](https://dl.acm.org/doi/10.1145/2994551.2994558), a fast and reliable data collection protocol based on Glossy (only EVB1000)
 
-
-Note that the ranging mechanisms are currently implemented using short IEEE 802.15.4 addresses.
-
 ## Code Structure
 ```
 ├── cpu
@@ -140,9 +137,9 @@ It is also required to completely erase flash when switching between application
 and the ones that do not.
 
 #### Configuring the ranging application
-Note that the ranging application requires to set the IEEE 802.15.4 short address of the responder (i.e., the node 
+Note that the ranging application requires to set the IEEE 802.15.4 link layer address of the responder (i.e., the node 
 to range with in the **rng.c** file). After flashing a device with any application from this code, the device should
-show its short IEEE address in the LCD display. Set this address appropriately in the line:
+show its IEEE address in the LCD display. Set this address appropriately in the line:
 ```
 linkaddr_t dst = {{0xdd, 0x37}};
 ```
@@ -150,9 +147,13 @@ This particular address should be displayed in the LCD (EVB1000 only) as `dd37`,
 output when the node boots.
 
 ### IEEE Addresses
-In this port, we generate the IEEE 802.15.4 addresses used for the network stacks and ranging 
+In this port, we generate the IEEE 802.15.4 link layer addresses used for the network stacks and ranging 
 using the DW1000 part id and lot id numbers. To see how we generate the addresses look at 
 the **set_rf_params()** function in **platform/evb1000/contiki-main.c**.
+
+Alternatively, only for dwm1001, 802.15.4 link layer addresses might be generated from the unique
+Bluetooth address of the device. To request this, set `#define DWM1001_USE_BT_ADDR_FOR_UWB 1` in
+`project-conf.h` of your application.
 
 ### Serial Port 
 After you flash the node, you should be able to connect to the serial port and see the serial input printed by the device by:
