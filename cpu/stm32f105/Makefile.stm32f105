@@ -144,7 +144,8 @@ CFLAGS += -Wall #-Wextra
 CFLAGS += -nostdlib -s -ffunction-sections 
 CFLAGS += -fdata-sections -MD
 
-LDFLAGS += -mthumb -mcpu=cortex-m3 -march=armv7-m -mfloat-abi=soft
+LDFLAGS += --specs=nosys.specs
+LDFLAGS += -mthumb -mcpu=cortex-m3 -march=armv7-m -mfloat-abi=soft 
 LDFLAGS += -L$(LINKER_SCRIPT_INCLUDES) -T $(LINKER_SCRIPT) 
 LDFLAGS += -Wl,--gc-sections
 LDFLAGS += -Wl,-Map=$(@:.elf=-$(TARGET).map)
