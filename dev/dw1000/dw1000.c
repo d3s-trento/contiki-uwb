@@ -42,6 +42,7 @@
 #include "dw1000-arch.h"
 #include "dw1000-ranging.h"
 #include "dw1000-config.h"
+#include "dw1000-shared-state.h"
 #include "net/packetbuf.h"
 #include "net/rime/rimestats.h"
 #include "net/netstack.h"
@@ -74,29 +75,36 @@
 #else
 #define LEDS_TOGGLE(x)
 #endif
+
 /*---------------------------------------------------------------------------*/
+/* Configuration constants */
+/*#define DW1000_RX_AFTER_TX_DELAY 60 */
+#define DW1000_RX_AFTER_TX_DELAY 0
+/*---------------------------------------------------------------------------*/
+
+#if DEBUG
 typedef enum {
   FRAME_RECEIVED = 1,
   RECV_TO,
   RECV_ERROR,
   TX_SUCCESS,
 } dw1000_event_t;
-/*---------------------------------------------------------------------------*/
-/* Configuration constants */
-/*#define DW1000_RX_AFTER_TX_DELAY 60 */
-#define DW1000_RX_AFTER_TX_DELAY 0
-/*---------------------------------------------------------------------------*/
-/* Static variables */
-#if DEBUG
 static dw1000_event_t dw_dbg_event;
 static uint32_t radio_status;
 #endif
+
+/* Static variables */
 static uint16_t data_len; /* received data length (payload without CRC) */
 static bool frame_pending;
+static bool frame_uploaded;
 static bool auto_ack_enabled;
 static bool wait_ack_txdone;
-static bool frame_uploaded;
+
 static volatile bool tx_done; /* flag indicating the end of TX */
+
+/* Variables exported to other modules of the radio driver */
+bool dw1000_is_sleeping; /* true when the radio is in DEEP SLEEP mode */
+
 /*---------------------------------------------------------------------------*/
 PROCESS(dw1000_process, "DW1000 driver");
 #if DEBUG
@@ -199,6 +207,8 @@ rx_err_cb(const dwt_cb_data_t *cb_data)
   /* Set LED PC8 */
   /*LEDS_TOGGLE(LEDS_RED); // not informative with frame filtering */
 }
+
+/*---------------------------------------------------------------------------*/
 /* Callback to process TX confirmation events */
 static void
 tx_conf_cb(const dwt_cb_data_t *cb_data)
@@ -281,6 +291,11 @@ dw1000_prepare(const void *payload, unsigned short payload_len)
 {
   uint8_t frame_len;
 
+  if (dw1000_is_sleeping) {
+    PRINTF("Err: TX prepare requested while sleeping\n");
+    return RADIO_TX_ERR;
+  }
+
   frame_uploaded = 0;
 #if DW1000_RANGING_ENABLED
   if(dw1000_is_ranging()) {
@@ -307,6 +322,12 @@ static int
 dw1000_transmit(unsigned short transmit_len)
 {
   int ret;
+
+  if (dw1000_is_sleeping) {
+    PRINTF("Err: transmit requested while sleeping\n");
+    return RADIO_TX_ERR;
+  }
+  
   if (!frame_uploaded) {
     PRINTF("Err: transmit without prepare\n");
     return RADIO_TX_ERR;
@@ -326,6 +347,7 @@ dw1000_transmit(unsigned short transmit_len)
   dwt_setrxaftertxdelay(DW1000_RX_AFTER_TX_DELAY);
 
   tx_done = false;
+  wait_ack_txdone = false;
 
   /* Start transmission, indicating that a response is expected so that reception
    * is enabled automatically after the frame is sent and the delay set by
@@ -349,6 +371,11 @@ dw1000_transmit(unsigned short transmit_len)
 static int
 dw1000_send(const void *payload, unsigned short payload_len)
 {
+  if (dw1000_is_sleeping) {
+    PRINTF("Err: send requested while sleeping\n");
+    return RADIO_TX_ERR;
+  }
+
   if(0 == dw1000_prepare(payload, payload_len)) {
     return dw1000_transmit(payload_len);
   } else {
@@ -359,6 +386,9 @@ dw1000_send(const void *payload, unsigned short payload_len)
 static int
 dw1000_radio_read(void *buf, unsigned short buf_len)
 {
+  if (dw1000_is_sleeping)
+    return 0;
+
   if(!frame_pending) {
     return 0;
   }
@@ -370,6 +400,9 @@ dw1000_radio_read(void *buf, unsigned short buf_len)
 static int
 dw1000_channel_clear(void)
 {
+  if (dw1000_is_sleeping)
+    return 0;
+
 #if DW1000_RANGING_ENABLED
   if(dw1000_is_ranging()) {
     return 0;
@@ -402,6 +435,11 @@ dw1000_pending_packet(void)
 static int
 dw1000_on(void)
 {
+  if (dw1000_is_sleeping) {
+    PRINTF("Err: radio ON requested while sleeping\n");
+    return RADIO_RESULT_ERROR;
+  }
+
   /* Enable RX */
   dwt_setrxtimeout(0);
   dwt_rxenable(DWT_START_RX_IMMEDIATE);
@@ -411,12 +449,18 @@ dw1000_on(void)
 static int
 dw1000_off(void)
 {
+  if (dw1000_is_sleeping) {
+    PRINTF("Warning: radio OFF requested while sleeping\n");
+    return 0;
+  }
+
   /* Turn off the transceiver */
   int8_t irq_status = dw1000_disable_interrupt();
 #if DW1000_RANGING_ENABLED
   dw1000_range_reset(); /* In case we were ranging */
 #endif
   dwt_forcetrxoff();
+  wait_ack_txdone = 0;
   dw1000_enable_interrupt(irq_status);
 
   return 0;
@@ -425,12 +469,18 @@ dw1000_off(void)
 static radio_result_t
 dw1000_get_value(radio_param_t param, radio_value_t *value)
 {
+  if (dw1000_is_sleeping)
+    return RADIO_RESULT_ERROR;  
+
   return RADIO_RESULT_NOT_SUPPORTED;
 }
 /*---------------------------------------------------------------------------*/
 static radio_result_t
 dw1000_set_value(radio_param_t param, radio_value_t value)
 {
+  if (dw1000_is_sleeping)
+    return RADIO_RESULT_ERROR;  
+
   switch(param) {
   case RADIO_PARAM_PAN_ID:
     dwt_setpanid(value & 0xFFFF);
@@ -458,6 +508,9 @@ dw1000_set_value(radio_param_t param, radio_value_t value)
 static radio_result_t
 dw1000_get_object(radio_param_t param, void *dest, size_t size)
 {
+  if (dw1000_is_sleeping)
+    return RADIO_RESULT_ERROR;  
+
   if(param == RADIO_PARAM_64BIT_ADDR) {
     if(size != 8 || dest == NULL) {
       return RADIO_RESULT_INVALID_VALUE;
@@ -477,6 +530,9 @@ dw1000_get_object(radio_param_t param, void *dest, size_t size)
 static radio_result_t
 dw1000_set_object(radio_param_t param, const void *src, size_t size)
 {
+  if (dw1000_is_sleeping)
+    return RADIO_RESULT_ERROR;  
+
   if(param == RADIO_PARAM_64BIT_ADDR) {
     if(size != 8 || src == NULL) {
       return RADIO_RESULT_INVALID_VALUE;
@@ -562,12 +618,20 @@ const struct radio_driver dw1000_driver =
 void
 dw1000_sleep(void)
 {
-  int8_t irq_status = dw1000_disable_interrupt();
+  if (dw1000_is_sleeping)
+    return;
+
+  dw1000_disable_interrupt(); // disable and keep disabled until wakeup
+
 #if DW1000_RANGING_ENABLED
   dw1000_range_reset(); /* In case we were ranging */
 #endif
+
+  frame_pending   = 0;
+  frame_uploaded  = 0; // frame is not preserved during sleep
+  wait_ack_txdone = 0;
   dwt_entersleep();
-  dw1000_enable_interrupt(irq_status);
+  dw1000_is_sleeping = 1;
 }
 /*---------------------------------------------------------------------------*/
 /* Reimplementation of the dwt_spicswakeup() function to suppor both the
@@ -575,6 +639,8 @@ dw1000_sleep(void)
 int
 dw1000_wakeup(void)
 {
+  dw1000_disable_interrupt();
+  
   if(dwt_readdevid() != DWT_DEVICE_ID) { // Device was in deep sleep (the first read fails)
     /* To wake up the DW1000 we keep the SPI CS line low for (at least) 500us.
      * This can be achieved with a long read SPI transaction. Unfortunately, the
@@ -597,13 +663,18 @@ dw1000_wakeup(void)
     deca_sleep(5);
   } else {
     /* The DW1000 is not in SLEEP mode */
-    return DWT_SUCCESS;
+    dw1000_is_sleeping = 0;
+    goto end;
   }
 
   /* DEBUG - check if still in sleep mode */
-  if(dwt_readdevid() != DWT_DEVICE_ID)
-    return DWT_ERROR;
+  if(dwt_readdevid() != DWT_DEVICE_ID) {
+    dw1000_is_sleeping = 1;
+    goto end;
+  }
 
+  dw1000_is_sleeping = 0;
+  
   /* Restore antenna delay values for ranging */
   dw1000_restore_ant_delay();
   
@@ -612,12 +683,22 @@ dw1000_wakeup(void)
   NETSTACK_RADIO.set_object(RADIO_PARAM_64BIT_ADDR, linkaddr_node_addr.u8, 8);
 #endif
 
-  return DWT_SUCCESS;
+end:
+  if (dw1000_is_sleeping) {
+    return DWT_ERROR;
+  }
+  else {
+    dw1000_enable_interrupt(1);
+    return DWT_SUCCESS;
+  }  
 }
 /*---------------------------------------------------------------------------*/
 bool
 range_with(linkaddr_t *dst, dw1000_rng_type_t type)
 {
+  if (dw1000_is_sleeping)
+    return false;
+
 #if DW1000_RANGING_ENABLED
   return dw1000_range_with(dst, type);
 #else
