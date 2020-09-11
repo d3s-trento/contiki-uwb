@@ -616,6 +616,11 @@ dw1000_sleep(void)
     return;
 
   dw1000_disable_interrupt(); // disable and keep disabled until wakeup
+
+#if DW1000_RANGING_ENABLED
+  dw1000_range_reset(); /* In case we were ranging */
+#endif
+
   frame_pending   = 0;
   frame_uploaded  = 0; // frame is not preserved during sleep
   wait_ack_txdone = 0;
