@@ -42,6 +42,15 @@
 #include "deca_device_api.h"
 #include "deca_param_types.h"
 #include "dw1000-arch.h"
+#include "dw1000-shared-state.h"
+
+#define DEBUG 0
+#if DEBUG
+#include <stdio.h>
+#define PRINTF(...) printf(__VA_ARGS__)
+#else
+#define PRINTF(...) do {} while(0)
+#endif
 
 /* Buffered configuration */
 static dwt_config_t   current_cfg;
@@ -90,6 +99,12 @@ const uint32_t tx_power_tbl[2][6][2] = {
  */
 bool
 dw1000_configure(dwt_config_t *cfg) {
+  
+  if (dw1000_is_sleeping) {
+    PRINTF("Err: Radio configure requested while sleeping\n");
+    return 0;
+  }
+
   int8_t irq_status = dw1000_disable_interrupt();
 
   dwt_forcetrxoff();
@@ -110,6 +125,12 @@ dw1000_configure(dwt_config_t *cfg) {
  */
 bool
 dw1000_configure_ch(uint8_t chan, uint8_t txCode, uint8_t rxCode) {
+  
+  if (dw1000_is_sleeping) {
+    PRINTF("Err: Channel configure requested while sleeping\n");
+    return 0;
+  }
+  
   int8_t irq_status = dw1000_disable_interrupt();
 
   // assume standard SFD
@@ -162,8 +183,12 @@ dw1000_configure_ch(uint8_t chan, uint8_t txCode, uint8_t rxCode) {
 }
 
 /* Configure only the TX parameters of the radio */
-void 
+bool 
 dw1000_configure_tx(const dwt_txconfig_t* tx_cfg, bool smart) {
+  if (dw1000_is_sleeping) {
+    PRINTF("Err: TX configure requested while sleeping\n");
+    return 0;
+  }
   int8_t irq_status = dw1000_disable_interrupt();
 
   current_tx_cfg = *tx_cfg;
@@ -172,11 +197,16 @@ dw1000_configure_tx(const dwt_txconfig_t* tx_cfg, bool smart) {
   dwt_setsmarttxpower(current_smart_power);
   
   dw1000_enable_interrupt(irq_status);
+  return 1;
 }
 
 /* Configure antenna delays */
-void 
+bool
 dw1000_configure_ant_dly(uint16_t rx_dly, uint16_t tx_dly) {
+  if (dw1000_is_sleeping) {
+    PRINTF("Err: Ant dly configure requested while sleeping\n");
+    return 0;
+  }
   int8_t irq_status = dw1000_disable_interrupt();
 
   current_rx_ant_dly = rx_dly;
@@ -185,13 +215,18 @@ dw1000_configure_ant_dly(uint16_t rx_dly, uint16_t tx_dly) {
   dwt_settxantennadelay(current_tx_ant_dly);
   
   dw1000_enable_interrupt(irq_status);
+  return 1;
 }
 
 
 /* Configures the radio with the pre-defined default parameters */
-void 
+bool
 dw1000_reset_cfg() {
-
+  if (dw1000_is_sleeping) {
+    PRINTF("Err: Reset cfg requested while sleeping\n");
+    return 0;
+  }
+  
   // use the configuration constants
   dwt_config_t default_cfg = {
     .chan = DW1000_CHANNEL,        
@@ -235,6 +270,8 @@ dw1000_reset_cfg() {
 
   // set antenna delays
   dw1000_configure_ant_dly(DW1000_CONF_RX_ANT_DLY, DW1000_CONF_TX_ANT_DLY);
+
+  return 1;
 }
 
 
@@ -295,8 +332,7 @@ dw1000_set_recommended_tx_cfg(bool smart) {
     return false;
   }
   
-  dw1000_configure_tx(&tmp, smart);
-  return true;
+  return dw1000_configure_tx(&tmp, smart);
 }
 
 
@@ -331,10 +367,10 @@ dw1000_get_current_ant_dly(uint16_t* rx_dly, uint16_t* tx_dly) {
 }
 
 /* Restore antenna delay configuration after wake-up */
-void
+bool
 dw1000_restore_ant_delay(void)
 {
-  dw1000_configure_ant_dly(current_rx_ant_dly, current_tx_ant_dly);
+  return dw1000_configure_ant_dly(current_rx_ant_dly, current_tx_ant_dly);
 }
 
 /* Get the current (cached) status of the Smart TX power control feature */

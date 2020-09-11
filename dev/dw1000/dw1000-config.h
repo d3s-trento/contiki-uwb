@@ -125,15 +125,15 @@ bool
 dw1000_configure_ch(uint8_t chan, uint8_t txCode, uint8_t rxCode);
 
 /* Configure only the TX parameters of the radio */
-void
+bool
 dw1000_configure_tx(const dwt_txconfig_t* tx_cfg, bool smart);
 
 /* Configure only the antenna delays */
-void
+bool
 dw1000_configure_ant_dly(uint16_t rx_dly, uint16_t tx_dly);
 
 /* Configures the radio with the pre-defined default parameters */
-void
+bool
 dw1000_reset_cfg();
 
 /* Get the recommended tx config for the given radio config and the smart TX 
@@ -165,7 +165,7 @@ void
 dw1000_get_current_ant_dly(uint16_t* rx_dly, uint16_t* tx_dly);
 
 /* Restore antenna delay configuration after wake-up */
-void dw1000_restore_ant_delay(void);
+bool dw1000_restore_ant_delay(void);
 
 /* Get the current (cached) status of the Smart TX power control feature */
 bool
