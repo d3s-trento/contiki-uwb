@@ -245,6 +245,30 @@ dw1000_arch_init()
   gpio_conf.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_Init(DW1000_RST_PORT, &gpio_conf);
 
+
+  /* For initialisation, DW1000 clocks must be temporarily set to crystal speed.
+   * After initialisation SPI rate can be increased for optimum performance.
+   */
+
+  dw1000_arch_reset(); /* Target specific drive of RSTn line into DW1000 low for a period.*/
+
+  if (dwt_readdevid() != DWT_DEVICE_ID) {
+    printf("Radio sleeping?\n");
+    dw1000_arch_wakeup();
+    dw1000_arch_reset();
+  }
+
+  if(dwt_initialise(DWT_LOADUCODE | DWT_READ_OTP_PID | DWT_READ_OTP_LID |
+                    DWT_READ_OTP_BAT | DWT_READ_OTP_TMP) 
+          == DWT_ERROR) {
+    lcd_display_str("INIT FAILED");
+    while(1) {
+      /* If the init function fails, we stop here */
+      // XXX handle this in a better way!
+    }
+  }
+  spix_change_speed(DW1000_SPI, DW1000_SPI_FAST);
+
   /* DW1000 IRQ Pin Configuration */
   /* 
    * Enable DW1000 IRQ Pin for external interrupt.
@@ -273,25 +297,6 @@ dw1000_arch_init()
   nvic_conf.NVIC_IRQChannelCmd = ENABLE;
   NVIC_Init(&nvic_conf);
 
-  /* Issue a wake-up in case DW1000 is asleep.
-   * Since DW1000 is not woken by the reset line, we could get here
-   * with it asleep. */
-  dw1000_wakeup();
-
-  /* Reset and initialise DW1000.
-   * For initialisation, DW1000 clocks must be temporarily set to crystal speed.
-   * After initialisation SPI rate can be increased for optimum performance.
-   */
-  dw1000_arch_reset(); /* Target specific drive of RSTn line into DW1000 low for a period.*/
-  if(dwt_initialise(DWT_LOADUCODE | DWT_READ_OTP_PID | DWT_READ_OTP_LID |
-                    DWT_READ_OTP_BAT | DWT_READ_OTP_TMP) 
-          == DWT_ERROR) {
-    lcd_display_str("INIT FAILED");
-    while(1) {
-      /* If the init function fails, we stop here */
-    }
-  }
-  spix_change_speed(DW1000_SPI, DW1000_SPI_FAST);
 }
 /*---------------------------------------------------------------------------*/
 void
@@ -308,6 +313,8 @@ dw1000_arch_reset()
   /* Clear the RST pin to reset the DW1000 */
   GPIO_ResetBits(DW1000_RST_PORT, DW1000_RST_PIN);
 
+  clock_delay_usec(1);
+
   /* Set the RST pin back as an input */
   gpio_conf.GPIO_Pin = DW1000_RST_PIN;
   gpio_conf.GPIO_Mode = GPIO_Mode_AIN;
@@ -316,6 +323,16 @@ dw1000_arch_reset()
 
   /* Sleep 2 ms to get the DW1000 restarted */
   clock_wait(2);
-  /* clock_delay_usec(2000) */
 }
 /*---------------------------------------------------------------------------*/
+void dw1000_arch_wakeup() {
+    /* To wake up the DW1000 we keep the SPI CS line low for (at least) 500us.
+     * This can be achieved with a long read SPI transaction.*/
+  uint8_t wakeup_buffer[600];
+  dwt_readfromdevice(0x0, 0x0, 600, wakeup_buffer);
+  /* Need 5ms for XTAL to start and stabilise
+   * (could wait for PLL lock IRQ status bit !!!)
+   * NOTE: Polling of the STATUS register is not possible
+   * unless frequency is < 3MHz */
+  clock_wait(5);
+}

@@ -47,6 +47,7 @@ void dw1000_set_isr(dw1000_isr_t new_dw1000_isr);
 /*---------------------------------------------------------------------------*/
 void dw1000_arch_init();
 void dw1000_arch_reset();
+void dw1000_arch_wakeup();
 void dw1000_spi_open(void);
 void dw1000_spi_close(void);
 int dw1000_spi_read(uint16 hdrlen, const uint8 *hdrbuf, uint32 len, uint8 *buf);

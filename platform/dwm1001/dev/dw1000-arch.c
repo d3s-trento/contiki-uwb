@@ -251,10 +251,31 @@ dw1000_spi_write(uint16 hdrlen, const uint8 *hdrbuf, uint32 len, const uint8 *bu
 void
 dw1000_arch_init()
 {
-  dw1000_spi_init_slow_rate();
 
-  /* Set the RST pin as an input */
-  nrf_gpio_cfg_input(DW1000_RST, NRF_GPIO_PIN_NOPULL);
+  dw1000_arch_reset(); /* Target specific drive of RSTn line into DW1000 low for a period.*/
+
+  /* For initialisation, DW1000 clocks must be temporarily set to crystal speed.
+   * After initialisation SPI rate can be increased for optimum performance.
+   */
+  dw1000_spi_init_slow_rate();
+  
+  if (dwt_readdevid() != DWT_DEVICE_ID) {
+    printf("Radio sleeping?\n");
+    dw1000_arch_wakeup();
+    dw1000_arch_reset();
+  }
+
+  if(dwt_initialise(DWT_LOADUCODE | DWT_READ_OTP_PID | DWT_READ_OTP_LID |
+                    DWT_READ_OTP_BAT | DWT_READ_OTP_TMP)
+          == DWT_ERROR) {
+    printf("DW1000 INIT FAILED\n");
+    while(1) {
+      /* If the init function fails, we stop here */
+      nrf_delay_ms(500);
+      // XXX handle this in a better way!
+    }
+  }
+  dw1000_spi_init_fast_rate();
 
   /* Enable DW1000 IRQ Pin for external interrupt.
    * NOTE: The DW1000 IRQ Pin should be Pull Down to
@@ -265,26 +286,6 @@ dw1000_arch_init()
   nrfx_gpiote_in_init(DW1000_IRQ_EXTI, &in_config, dw1000_irq_handler);
   nrfx_gpiote_in_event_enable(DW1000_IRQ_EXTI, true);
   dw1000_irqn_status = 1;
-
-  /* Issue a wake-up in case DW1000 is asleep.
-   * Since DW1000 is not woken by the reset line, we could get here
-   * with it asleep. */
-  dw1000_wakeup();
-
-  /* Reset and initialise DW1000.
-   * For initialisation, DW1000 clocks must be temporarily set to crystal speed.
-   * After initialisation SPI rate can be increased for optimum performance.
-   */
-  dw1000_arch_reset(); /* Target specific drive of RSTn line into DW1000 low for a period.*/
-  if(dwt_initialise(DWT_LOADUCODE | DWT_READ_OTP_PID | DWT_READ_OTP_LID |
-                    DWT_READ_OTP_BAT | DWT_READ_OTP_TMP)
-          == DWT_ERROR) {
-    printf("DW1000 INIT FAILED\n");
-    while(1) {
-      /* If the init function fails, we stop here */
-    }
-  }
-  dw1000_spi_init_fast_rate();
 }
 /*---------------------------------------------------------------------------*/
 void
@@ -296,11 +297,7 @@ dw1000_arch_reset()
   /* Clear the RST pin to reset the DW1000 */
   nrf_gpio_pin_clear(DW1000_RST);
 
-  /* TO CHECK: DO WE NEED THE FOLLOWING?
-   * From the GitHub repository */
-  // nrf_delay_ms(200);
-  // nrf_gpio_pin_set(DW1000_RST);
-  // nrf_delay_ms(50);
+  nrf_delay_us(1);
 
   /* Set the RST pin back as an input */
   nrf_gpio_cfg_input(DW1000_RST, NRF_GPIO_PIN_NOPULL);
@@ -309,3 +306,18 @@ dw1000_arch_reset()
   nrf_delay_ms(2);
 }
 /*---------------------------------------------------------------------------*/
+void dw1000_arch_wakeup() {
+    /* To wake up the DW1000 we keep the SPI CS line low for (at least) 500us.
+     * This can be achieved with a long read SPI transaction. Unfortunately, the
+     * DWM1001 Nordic nRF MCU only supports transactions of up to 255 bytes.
+     * To handle this case, we perform several 128 byte SPI transactions */
+    uint8_t wakeup_buffer[128];
+    dwt_readfromdevice(0x0, 0x0, 128, wakeup_buffer);
+    dwt_readfromdevice(0x0, 0x0, 128, wakeup_buffer);
+    dwt_readfromdevice(0x0, 0x0, 128, wakeup_buffer);
+    /* Need 5ms for XTAL to start and stabilise
+     * (could wait for PLL lock IRQ status bit !!!)
+     * NOTE: Polling of the STATUS register is not possible
+     * unless frequency is < 3MHz */
+    nrf_delay_ms(5);
+}
