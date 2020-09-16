@@ -62,16 +62,15 @@
 #endif
 
 // print module state periodically
-#define DEBUG_RNG_PERIODIC 1
+#define DEBUG_RNG_PERIODIC 0
 
 // print debug info on failed ranging attempts
-#define DEBUG_RNG_FAILED 1
+#define DEBUG_RNG_FAILED 0
 
 // print inside interrupts (typically dangerous)
 #define DEBUG_RNG_INT 0
 
 // print debug info on all ranging attempts
-#define DEBUG_RNG 0
 #ifndef DEBUG_RNG
 #define DEBUG_RNG 0
 #endif
