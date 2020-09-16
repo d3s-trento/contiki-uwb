@@ -1,8 +1,11 @@
 CONTIKI_PROJECT = rng
 all: $(CONTIKI_PROJECT)
 
-#enable softdevice
+# enable softdevice
 NRF52_SOFTDEVICE = 132
+
+# print over NRF RTT
+#PRINTF_OVER_RTT = 1
 
 CFLAGS += -DNRF_SHOW_RESETREASON
 
