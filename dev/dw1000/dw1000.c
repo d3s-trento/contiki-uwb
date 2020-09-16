@@ -61,14 +61,6 @@
 #define PRINTF(...) do {} while(0)
 #endif
 
-#define DEBUG_RNG_FAILED 0
-#if DEBUG_RNG_FAILED
-#include <stdio.h>
-#define PRINTF_RNG_FAILED(...) printf(__VA_ARGS__)
-#else
-#define PRINTF_RNG_FAILED(...) do {} while(0)
-#endif
-
 #undef LEDS_TOGGLE
 #if DW1000_DEBUG_LEDS
 #define LEDS_TOGGLE(x) leds_toggle(x)
@@ -150,7 +142,6 @@ rx_ok_cb(const dwt_cb_data_t *cb_data)
   /* got a non-ranging packet: reset the ranging module if */
   /* it was in the middle of ranging */
   dw1000_range_reset();
-  PRINTF_RNG_FAILED("Err, non-rng.\n");
 #endif
 
   data_len = cb_data->datalength - DW1000_CRC_LEN;
@@ -176,7 +167,6 @@ rx_to_cb(const dwt_cb_data_t *cb_data)
 {
 #if DW1000_RANGING_ENABLED
   dw1000_range_reset();
-  PRINTF_RNG_FAILED("Err, to.\n");
 #endif
 #if DEBUG
   dw_dbg_event = RECV_TO;
@@ -195,7 +185,6 @@ rx_err_cb(const dwt_cb_data_t *cb_data)
 {
 #if DW1000_RANGING_ENABLED
   dw1000_range_reset();
-  PRINTF_RNG_FAILED("Err, bad-rx.\n");
 #endif
 #if DEBUG
   dw_dbg_event = RECV_ERROR;
@@ -642,36 +631,13 @@ dw1000_wakeup(void)
   dw1000_disable_interrupt();
   
   if(dwt_readdevid() != DWT_DEVICE_ID) { // Device was in deep sleep (the first read fails)
-    /* To wake up the DW1000 we keep the SPI CS line low for (at least) 500us.
-     * This can be achieved with a long read SPI transaction. Unfortunately, the
-     * DWM1001 Nordic nRF MCU only supports transactions of up to 255 bytes.
-     * To handle this case, we perform several 128 byte SPI transactions */
-#if CONTIKI_TARGET_DWM1001
-    uint8_t wakeup_buffer[128];
-    dwt_readfromdevice(0x0, 0x0, 128, wakeup_buffer);
-    dwt_readfromdevice(0x0, 0x0, 128, wakeup_buffer);
-    dwt_readfromdevice(0x0, 0x0, 128, wakeup_buffer);
-#else /* CONTIKI_TARGET_DWM1001 */
-    uint8_t wakeup_buffer[600];
-    dwt_readfromdevice(0x0, 0x0, 600, wakeup_buffer);
-#endif /* CONTIKI_TARGET_DWM1001 */
-
-    /* Need 5ms for XTAL to start and stabilise
-     * (could wait for PLL lock IRQ status bit !!!)
-     * NOTE: Polling of the STATUS register is not possible
-     * unless frequency is < 3MHz */
-    deca_sleep(5);
-  } else {
-    /* The DW1000 is not in SLEEP mode */
-    dw1000_is_sleeping = 0;
-    goto end;
-  }
-
-  /* DEBUG - check if still in sleep mode */
-  if(dwt_readdevid() != DWT_DEVICE_ID) {
-    dw1000_is_sleeping = 1;
-    goto end;
-  }
+    dw1000_arch_wakeup();
+    
+    if(dwt_readdevid() != DWT_DEVICE_ID) {
+      dw1000_is_sleeping = 1;
+      return DWT_ERROR;
+    }
+  } 
 
   dw1000_is_sleeping = 0;
   
@@ -683,23 +649,23 @@ dw1000_wakeup(void)
   NETSTACK_RADIO.set_object(RADIO_PARAM_64BIT_ADDR, linkaddr_node_addr.u8, 8);
 #endif
 
-end:
-  if (dw1000_is_sleeping) {
-    return DWT_ERROR;
-  }
-  else {
-    dw1000_enable_interrupt(1);
-    return DWT_SUCCESS;
-  }  
+  dw1000_enable_interrupt(1);
+#if DW1000_DEBUG_LEDS
+  dwt_setleds(DWT_LEDS_ENABLE);
+#endif
+  return DWT_SUCCESS;
 }
 /*---------------------------------------------------------------------------*/
 bool
 range_with(linkaddr_t *dst, dw1000_rng_type_t type)
 {
+#if DW1000_RANGING_ENABLED
   if (dw1000_is_sleeping)
     return false;
 
-#if DW1000_RANGING_ENABLED
+  wait_ack_txdone = 0;
+  frame_pending   = 0;
+  frame_uploaded  = 0;
   return dw1000_range_with(dst, type);
 #else
   return false;
@@ -717,11 +683,11 @@ PROCESS_THREAD(dw1000_dbg_process, ev, data)
     PROCESS_WAIT_EVENT();
     if(ev == PROCESS_EVENT_POLL) {
       r1 = radio_status;
-      printf("RX ERR(%u) %02x %02x %02x %02x\n",
+      printf("RX FAIL(%u) %02x %02x %02x %02x\n",
              dw_dbg_event, (uint8_t)(r1 >> 24), (uint8_t)(r1 >> 16),
              (uint8_t)(r1 >> 8), (uint8_t)r1);
     }
-    if(etimer_expired(&et)) {
+    if(etimer_expired(&et) && !dw1000_is_sleeping) {
       r1 = dwt_read32bitoffsetreg(SYS_STATUS_ID, 0);
       r2 = dwt_read8bitoffsetreg(SYS_STATUS_ID, 4);
       printf("*** SYS_STATUS %02x %02x %02x %02x %02x ***\n",
