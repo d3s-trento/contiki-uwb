@@ -61,14 +61,6 @@
 #define PRINTF(...) do {} while(0)
 #endif
 
-#define DEBUG_RNG_FAILED 0
-#if DEBUG_RNG_FAILED
-#include <stdio.h>
-#define PRINTF_RNG_FAILED(...) printf(__VA_ARGS__)
-#else
-#define PRINTF_RNG_FAILED(...) do {} while(0)
-#endif
-
 #undef LEDS_TOGGLE
 #if DW1000_DEBUG_LEDS
 #define LEDS_TOGGLE(x) leds_toggle(x)
@@ -150,7 +142,6 @@ rx_ok_cb(const dwt_cb_data_t *cb_data)
   /* got a non-ranging packet: reset the ranging module if */
   /* it was in the middle of ranging */
   dw1000_range_reset();
-  PRINTF_RNG_FAILED("Err, non-rng.\n");
 #endif
 
   data_len = cb_data->datalength - DW1000_CRC_LEN;
@@ -176,7 +167,6 @@ rx_to_cb(const dwt_cb_data_t *cb_data)
 {
 #if DW1000_RANGING_ENABLED
   dw1000_range_reset();
-  PRINTF_RNG_FAILED("Err, to.\n");
 #endif
 #if DEBUG
   dw_dbg_event = RECV_TO;
@@ -195,7 +185,6 @@ rx_err_cb(const dwt_cb_data_t *cb_data)
 {
 #if DW1000_RANGING_ENABLED
   dw1000_range_reset();
-  PRINTF_RNG_FAILED("Err, bad-rx.\n");
 #endif
 #if DEBUG
   dw_dbg_event = RECV_ERROR;
@@ -215,6 +204,10 @@ tx_conf_cb(const dwt_cb_data_t *cb_data)
 {
   /* Set LED PC9 */
   /*LEDS_TOGGLE(LEDS_ORANGE); */
+
+#if DW1000_RANGING_ENABLED
+  dw1000_rng_tx_conf_cb(cb_data);
+#endif
 
   tx_done = 1; /* to stop waiting in dw1000_transmit() */
   frame_uploaded = 0;
@@ -239,7 +232,9 @@ dw1000_init(void)
   dw1000_reset_cfg();
 
   /* Print the current configuration */
+#ifndef DW1000_SKIP_PRINT_CONFIG
   dw1000_print_cfg();
+#endif
 
   /* Configure DW1000 GPIOs to show TX/RX activity with the LEDs */
 #if DW1000_DEBUG_LEDS
@@ -664,10 +659,10 @@ dw1000_wakeup(void)
 bool
 range_with(linkaddr_t *dst, dw1000_rng_type_t type)
 {
+#if DW1000_RANGING_ENABLED
   if (dw1000_is_sleeping)
     return false;
 
-#if DW1000_RANGING_ENABLED
   wait_ack_txdone = 0;
   frame_pending   = 0;
   frame_uploaded  = 0;
