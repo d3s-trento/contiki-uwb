@@ -58,17 +58,44 @@
 #include <stdbool.h>
 
 /*---------------------------------------------------------------------------*/
+#define NRF_DEBUG_PINS 0
+
+#if NRF_DEBUG_PINS
+#include "nrf_gpio.h"
+
+#define PIN1 15 // pin 3 of the RPi header of DWM1001-DEV
+#define PIN2 8  // pin 5 of the RPi header of DWM1001-DEV
+
+#define PIN_INIT(x) nrf_gpio_cfg_output(x);
+#define PIN_SET(x)  NRF_GPIO->OUTSET = (1 << x)
+#define PIN_CLR(x)  NRF_GPIO->OUTCLR = (1 << x)
+#define PIN_TGL(x)  nrf_gpio_pin_toggle(x)
+#else
+#define PIN_INIT(x)
+#define PIN_SET(x)
+#define PIN_CLR(x)
+#define PIN_TGL(x)
+#endif
+
+/*---------------------------------------------------------------------------*/
 /*static*/ const nrfx_rtc_t rtc   = NRFX_RTC_INSTANCE(PLATFORM_CLOCK_RTC_INSTANCE_ID); /**< RTC instance used for platform clock */
 // APP_TIMER_DEF(timer_id);
 /*---------------------------------------------------------------------------*/
 static volatile uint32_t ticks;
-void clock_update(void);
-
-/* empty event handelr needed by nrfx_clock driver */
-void clock_event_handler(nrfx_clock_evt_type_t event)
+/*---------------------------------------------------------------------------*/
+static inline void
+clock_update(void)
 {
+  // we sometimes miss this interrupt, so compensate the counter here
+  static uint32_t previous = 0;
+  uint32_t current = nrfx_rtc_counter_get(&rtc);
+  ticks += (current - previous) % 0x1000000; // 24-bit counter
+  previous = current;
+  PIN_TGL(PIN1);
+  if (etimer_pending()) {
+    etimer_request_poll();
+  }
 }
-
 /**
  * \brief Function for handling the RTC0 interrupts
  * \param int_type Type of interrupt to be handled
@@ -82,6 +109,9 @@ rtc_handler(nrfx_rtc_int_type_t int_type)
 }
 
 #ifndef SOFTDEVICE_PRESENT
+/* empty event handelr needed by nrfx_clock driver */
+static void clock_event_handler(nrfx_clock_evt_type_t event){}
+
 /** \brief Function starting the internal LFCLK XTAL oscillator.
  */
 static void
@@ -134,6 +164,7 @@ rtc_config(void)
 void
 clock_init(void)
 {
+  PIN_INIT(PIN1);
   ticks = 0;
 #ifndef SOFTDEVICE_PRESENT
   lfclk_config();
@@ -148,15 +179,6 @@ clock_time(void)
   // We cannot use directly the following as the RTC register is 24-bit, 
   // which breaks Contiki's assumptions about the clock counter
   //return nrfx_rtc_counter_get(&rtc);
-}
-/*---------------------------------------------------------------------------*/
-void
-clock_update(void)
-{
-  ticks++;
-  if (etimer_pending()) {
-    etimer_request_poll();
-  }
 }
 /*---------------------------------------------------------------------------*/
 CCIF unsigned long
