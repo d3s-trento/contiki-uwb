@@ -37,6 +37,13 @@
  * 		Pablo Corbalan <p.corbalanpelegrin@unitn.it>
  */
 
+#include <stdio.h>
+#include "deca_usb.h"
+#include "deca_device_api.h"
+/*---------------------------------------------------------------------------*/
+#include "stm32f10x.h"
+#include "stm32f10x_gpio.h"
+/*---------------------------------------------------------------------------*/
 #include "contiki.h"
 #include "sys/clock.h"
 #include "sys/rtimer.h"
@@ -44,7 +51,6 @@
 #include "dev/radio.h"
 #include "lib/random.h"
 #include "net/netstack.h"
-#include <stdio.h>
 #include "serial-line.h"
 /*---------------------------------------------------------------------------*/
 /* For IPv6 Stack */
@@ -57,13 +63,6 @@
 #include "lcd.h"
 #include "dw1000-arch.h"
 #include "dw1000-config.h"
-#include "deca_usb.h"
-/*---------------------------------------------------------------------------*/
-#include "stm32f10x.h"
-#include "stm32f10x_gpio.h"
-/*---------------------------------------------------------------------------*/
-/* DW1000 Radio Driver */
-#include "deca_device_api.h"
 /*---------------------------------------------------------------------------*/
 static void
 fade_leds(void)
