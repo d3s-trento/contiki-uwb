@@ -254,7 +254,8 @@ dw1000_arch_init()
 
   if (dwt_readdevid() != DWT_DEVICE_ID) {
     printf("Radio sleeping?\n");
-    dw1000_arch_wakeup();
+    dw1000_arch_wakeup_nowait();
+    clock_wait(5);
     dw1000_arch_reset();
   }
 
@@ -325,14 +326,12 @@ dw1000_arch_reset()
   clock_wait(2);
 }
 /*---------------------------------------------------------------------------*/
-void dw1000_arch_wakeup() {
+/* Note that after calling this function you need to wait 5ms for XTAL to 
+ * start and stabilise (or wait for PLL lock IRQ status bit: in SLOW SPI mode)
+ */
+void dw1000_arch_wakeup_nowait() {
     /* To wake up the DW1000 we keep the SPI CS line low for (at least) 500us.
      * This can be achieved with a long read SPI transaction.*/
   uint8_t wakeup_buffer[600];
   dwt_readfromdevice(0x0, 0x0, 600, wakeup_buffer);
-  /* Need 5ms for XTAL to start and stabilise
-   * (could wait for PLL lock IRQ status bit !!!)
-   * NOTE: Polling of the STATUS register is not possible
-   * unless frequency is < 3MHz */
-  clock_wait(5);
 }

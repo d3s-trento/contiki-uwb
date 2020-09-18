@@ -623,15 +623,14 @@ dw1000_sleep(void)
   dw1000_is_sleeping = 1;
 }
 /*---------------------------------------------------------------------------*/
-/* Reimplementation of the dwt_spicswakeup() function to suppor both the
- * Decawave EVB1000 and the DWM1001 platforms */
 int
 dw1000_wakeup(void)
 {
   dw1000_disable_interrupt();
   
   if(dwt_readdevid() != DWT_DEVICE_ID) { // Device was in deep sleep (the first read fails)
-    dw1000_arch_wakeup();
+    dw1000_arch_wakeup_nowait();
+    deca_sleep(5); // need to sleep 5 ms to let crystal stabilise
     
     if(dwt_readdevid() != DWT_DEVICE_ID) {
       dw1000_is_sleeping = 1;
