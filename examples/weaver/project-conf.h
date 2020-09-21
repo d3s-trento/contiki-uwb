@@ -1,0 +1,21 @@
+#ifndef PROJECT_CONF_H_
+#define PROJECT_CONF_H_
+
+#define DW1000_CONF_CHANNEL        4
+#define DW1000_CONF_PRF            DWT_PRF_64M
+#define DW1000_CONF_PLEN           DWT_PLEN_64
+#define DW1000_CONF_PAC            DWT_PAC8
+#define DW1000_CONF_SFD_MODE       0
+#define DW1000_CONF_DATA_RATE      DWT_BR_6M8
+#define DW1000_CONF_PHR_MODE       DWT_PHRMODE_STD
+#define DW1000_CONF_PREAMBLE_CODE  17
+
+#define DW1000_CONF_SFD_TIMEOUT    (65 + 32 + 8 - 8)
+#define DW1000_CONF_PG_DELAY       0x95
+
+#define DW1000_CONF_SMART_TX_POWER_6M8 0
+#define DW1000_CONF_TX_POWER       0x9a9a9a9a
+
+#define STATETIME_CONF_ON 1
+
+#endif /* PROJECT_CONF_H_ */
