@@ -261,7 +261,8 @@ dw1000_arch_init()
   
   if (dwt_readdevid() != DWT_DEVICE_ID) {
     printf("Radio sleeping?\n");
-    dw1000_arch_wakeup();
+    dw1000_arch_wakeup_nowait();
+    nrf_delay_ms(5);
     dw1000_arch_reset();
   }
 
@@ -306,7 +307,10 @@ dw1000_arch_reset()
   nrf_delay_ms(2);
 }
 /*---------------------------------------------------------------------------*/
-void dw1000_arch_wakeup() {
+/* Note that after calling this function you need to wait 5ms for XTAL to 
+ * start and stabilise (or wait for PLL lock IRQ status bit: in SLOW SPI mode)
+ */
+void dw1000_arch_wakeup_nowait() {
     /* To wake up the DW1000 we keep the SPI CS line low for (at least) 500us.
      * This can be achieved with a long read SPI transaction. Unfortunately, the
      * DWM1001 Nordic nRF MCU only supports transactions of up to 255 bytes.
@@ -315,9 +319,4 @@ void dw1000_arch_wakeup() {
     dwt_readfromdevice(0x0, 0x0, 128, wakeup_buffer);
     dwt_readfromdevice(0x0, 0x0, 128, wakeup_buffer);
     dwt_readfromdevice(0x0, 0x0, 128, wakeup_buffer);
-    /* Need 5ms for XTAL to start and stabilise
-     * (could wait for PLL lock IRQ status bit !!!)
-     * NOTE: Polling of the STATUS register is not possible
-     * unless frequency is < 3MHz */
-    nrf_delay_ms(5);
 }
