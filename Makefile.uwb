@@ -15,6 +15,15 @@ ifeq ($(UWB_WITH_GLOSSY),1)
   CONTIKI_WITH_RIME = 0
 endif
 
+# If requested, include TSM and disable other stacks
+ifeq ($(UWB_WITH_TSM),1)
+  CFLAGS += -DNETSTACK_CONF_WITH_TSM=1
+  UWB_MODULES += dev/dw1000/tsm
+  CFLAGS+=-DNETSTACK_CONF_NETWORK=dummynet_driver
+  CONTIKI_WITH_IPV6 = 0
+  CONTIKI_WITH_RIME = 0
+endif
+
 # use to print configuration macros at compile time
 ifeq ($(UWB_CONTIKI_PRINT_DEF),1)
   CFLAGS += -DUWB_CONTIKI_PRINT_DEF=1
