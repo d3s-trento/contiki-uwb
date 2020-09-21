@@ -13,6 +13,7 @@ ifeq ($(UWB_WITH_GLOSSY),1)
   CFLAGS+=-DNETSTACK_CONF_NETWORK=dummynet_driver
   CONTIKI_WITH_IPV6 = 0
   CONTIKI_WITH_RIME = 0
+	# CONTIKI_WITH_TREX = 0 # ?
 endif
 
 # If requested, include TSM and disable other stacks
@@ -22,6 +23,7 @@ ifeq ($(UWB_WITH_TSM),1)
   CFLAGS+=-DNETSTACK_CONF_NETWORK=dummynet_driver
   CONTIKI_WITH_IPV6 = 0
   CONTIKI_WITH_RIME = 0
+	# CONTIKI_WITH_GLOSSY = 0 # ?
 endif
 
 # use to print configuration macros at compile time
