@@ -1,6 +1,6 @@
 PARAMS = {
-    "app_dir": "../..",                     # Path where the main .c file is
-    "sims_dir": "./weaver-sink19",       # Path where to store simulations in
+    "app_dir": "../..",                 # Path where the weaver.c file is
+    "sims_dir": "./weaver-sink19",      # Path used to store simulations
 
     # list of nodes available
     "nodes" : [ 1,  2,  3,  4,  5,  6,  7,  8,  9, 10,
@@ -9,16 +9,18 @@ PARAMS = {
                31, 32, 33, 34, 35, 36],
 
     # <sink_id, sink_radius>
-    "sinks": [(19, 7)],   # single sink per simulation
+    "sinks": [(19, 7)],                 # single sink per simulation
 
-    "num_originators": [30],
-    "epochs_per_cycle": 100,
+    "num_originators": [0, 1, 5, 10, 20, 30],
+    "epochs_per_cycle": 100,            # number of different originator combinations
 
-    "start_epoch": 20,
+    "start_epoch": 20,                  # the first epoch where all U originators will start
+                                        # disseminating their data
 
     "seed": 123,
-    "payload": 0,   # 23B frame
+    "payload": 0,                       # 0 = 23B frame
 
+    # Testbed run paramenters
     "start_time": "asap",
     "duration": 300
 }
