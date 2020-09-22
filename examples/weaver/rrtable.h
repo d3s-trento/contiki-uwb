@@ -59,7 +59,6 @@ typedef struct rr_table_t {
     rr_entry_t* tail_busy;
     rr_entry_t* head_free;
     rr_entry_t* cur_busy;
-    // uint8_t     max_counter;
 } rr_table_t;
 
 void rr_table_init(rr_table_t* table, rr_entry_t* entries_array);
@@ -75,11 +74,10 @@ bool rr_table_contains(rr_table_t* table, uint16_t originator_id);
 /** Return true if the table has no free entry left */
 bool rr_table_is_empty(rr_table_t* table);
 
-
 void rr_table_update_deadlines(rr_table_t* table, int16_t current_slot);
 rr_entry_t* rr_table_get_next(rr_table_t* table);
 
 void rr_table_print(rr_table_t* table);
 
-
 #endif // RR_TABLE_H
+

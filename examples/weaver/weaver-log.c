@@ -44,29 +44,28 @@
 #define LOG_PREFIX "E"  // epoch
 #include "logging.h"
 
-void weaver_log_append(weaver_log_t *entry);
-void weaver_log_print();
-void weaver_log_init();
-
 #define WEAVER_LOGS_MAX 100
 static weaver_log_t weaver_slot_logs[WEAVER_LOGS_MAX];
 static size_t next_log = 0;
 
 void
-weaver_log_init() {
+weaver_log_init()
+{
     next_log = 0;
 }
 
 void
-weaver_log_append(weaver_log_t *entry) {
+weaver_log_append(weaver_log_t *entry)
+{
     if (next_log < WEAVER_LOGS_MAX) {
         weaver_slot_logs[next_log] = *entry;
         next_log++;
     }
 }
 
-void 
-weaver_log_print() {
+void
+weaver_log_print()
+{
     weaver_log_t *s;
     char stat_label[2] = "";
 
@@ -92,3 +91,4 @@ weaver_log_print() {
                 logging_context, s->idx, stat_label, s->node_dist, s->originator_id, s->lhs, s->acked, s->buffer);
     }
 }
+

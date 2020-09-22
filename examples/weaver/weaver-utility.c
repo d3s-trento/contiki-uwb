@@ -40,7 +40,6 @@
 #include <stdio.h>
 
 #include "weaver-utility.h"
-
 #include "logging.h"
 
 #define DEBUG 1

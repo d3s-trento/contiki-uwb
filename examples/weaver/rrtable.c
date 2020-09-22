@@ -66,7 +66,6 @@ rr_table_find(rr_table_t* table, uint16_t originator_id)
     return tmp;
 }
 
-
 bool
 rr_table_add(rr_table_t* table, uint16_t originator_id, uint8_t* data, size_t data_len)
 {
@@ -105,7 +104,6 @@ rr_table_add(rr_table_t* table, uint16_t originator_id, uint8_t* data, size_t da
     }
     return true;
 }
-
 
 bool
 rr_table_remove(rr_table_t* table, uint16_t originator_id)
