@@ -30,14 +30,16 @@ This port includes support for:
 ├── dev
 │   └── dw1000
 │       ├── crystal
-│       └── glossy
+│       ├── glossy
+│       └── tsm
 ├── examples
 │   ├── crystal-test
 │   ├── deployment
 │   ├── glossy-test
 │   ├── ranging
 │   ├── range-collect
-│   └── sensniff
+│   ├── sensniff
+│   └── weaver
 └── platform
     ├── evb1000
     └── dwm1001
@@ -180,6 +182,12 @@ If you want to use Glossy and/or Crystal, define the following in your applicati
 UWB_WITH_GLOSSY = 1
 ```
 This will include Glossy and Crystal into the compilation process and exclude all other Contiki stacks.
+
+If you want to use TSM, define the following in your application Makefile:
+```
+UWB_WITH_TSM = 1
+```
+This will include TSM into the compilation process and exclude all other Contiki stacks.
 
 
 ## Porting to other Platforms / MCUs
