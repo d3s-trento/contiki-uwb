@@ -114,7 +114,6 @@
 #define PERIOD_SINK ( 500000 * UUS_TO_DWT_TIME_32)                   // ~ 500ms
 #endif // WEAVER_LOG_VERBOSE
 
-//#define PERIOD_PEER (PERIOD_SINK - (1000 * UUS_TO_DWT_TIME_32))     // ~ 1ms less than sink period
 #define PERIOD_PEER (PERIOD_SINK)
 
 // These are now computed at runtime
@@ -124,7 +123,6 @@
 #define JITTERINO_STEP (0x2) // DWT32 LSB is 4ns, 8ns is therefore 0x2, or 1 << 1
 #define MAX_JITTERINO_MULT  (125) // 1us/8ns
 
-// #define WEAVER_MAX_JITTERONE (20 * UUS_TO_DWT_TIME_32)
 #ifndef WEAVER_MAX_JITTERONE
 #define WEAVER_MAX_JITTERONE -1 // don't use fixed delay to transmit non-data packets, use jitterino
 #endif
@@ -315,7 +313,7 @@ struct peer_rx_ok_return {
 
 /*---------------------------------------------------------------------------*/
 // moved here for visibility
-static uint8_t global_ack_counter;          // [DN10C] keep track of the ACK period
+static uint8_t global_ack_counter;
 /*---------------------------------------------------------------------------*/
 static char sink_thread() {
     static uint16_t epoch;
@@ -334,7 +332,7 @@ static char sink_thread() {
         STATETIME_MONITOR(dw1000_statetime_context_init(); dw1000_statetime_start());
         weaver_log_init();
         epoch ++;                       // start from epoch 1
-        node_acked = 0x0;               // forget previous ack
+        node_acked = 0x0;               // forget previous acks
         global_ack_counter = 0;
         termination_counter = 0;
         termination_cap = WEAVER_SINK_TERMINATION_COUNT;
@@ -461,11 +459,11 @@ static char peer_thread() {
     static bool is_sync = false;
     static int  n_missed_bootstrap = 0;
     static bool is_bootstrapped = false;
-    static int  boot_redundancy_counter;        // be sure it's int...
+    static int  boot_redundancy_counter;
     static struct peer_rx_ok_return rx_updates; // received something new in the very current slot
     static bool node_pkt_bootstrapped;          // set to true iff originators packet has been globally acked within the bootstrap phase
-    static bool new_gack_last_tx;         // [DN10C] flag for global ACKs reception
-    static bool i_tx;                           // [DN10C] force TX in next iteration
+    static bool new_gack_last_tx;               // flag for global ACKs reception
+    static bool i_tx;                           // force TX in next iteration
     static uint16_t seqno;
     static bool leak;                           // set to true when receiving a packet from a previous epoch in the scanning phase
     static bool must_sleep;                     // set to true when the node receives a sleep command from the sink
@@ -497,7 +495,7 @@ static char peer_thread() {
 
         if (is_originator) {
             seqno ++;
-            node_pkt.seqno = seqno;             // unknown epoch atm
+            node_pkt.seqno = seqno;
             node_pkt.epoch = 0;                 // unknown epoch atm
             node_pkt.originator_id = node_id;
             node_pkt.last_heard_originator_id = node_id;
@@ -584,9 +582,6 @@ static char peer_thread() {
               // is_bootstrapped = false; // probably not needed, should be already false
               break;
             }
-            // If the slot has been shrinked it's not possible to keep these
-            // guards bigger. Keep the default value set in TSM.
-            //NA.rx_guard_time = (100 * UUS_TO_DWT_TIME_32); // keep a longer guard
         }
         // Used in next epoch
         is_sync = n_missed_bootstrap >= WEAVER_MISSED_BOOTSTRAP_BEFORE_SCAN ? false : true;
@@ -758,7 +753,7 @@ static char peer_thread() {
                 pkt_pool_get_next();
             }
 
-            // [DN10C] Boolean to force tranmission of ACK-only messages
+            // Boolean to force tranmission of ACK-only messages
             i_tx = (global_ack_counter == 0) && new_gack_last_tx;
 
             // Decide if the next TR slot should be silent (account for i_tx)
@@ -804,7 +799,7 @@ static char peer_thread() {
         WEAVER_LOG_PRINT();
 
         // APP-code:
-        // Check if the node is an originator in the next epoch[thanks to crystal-test for the code]
+        // Check if the node is an originator in the next epoch.
         // start generating data from a given epoch
         is_originator = false;
         if (epoch >= WEAVER_APP_START_EPOCH) {
@@ -859,7 +854,6 @@ PROCESS_THREAD(weaver_test, ev, data)
         tmp_bitmap |= ((uint64_t) 1 << tmp_i);
     }
 
-    // use do while to define prefix array more than once
     do {
         char prefix[3] = "BO";
         print_bitmap(prefix, 3, tmp_bitmap); // Bitmap Order: list node ids accordingly to their position in the bitmap
@@ -941,7 +935,7 @@ peer_rx_ok()
         return result;
     }
 
-    // [DN10] Only the reception of a new ACK bitmap is now considered new info
+    // Only the reception of a new ACK bitmap is now considered new info
 
     // accepts pkts from nodes at same hop-distance
     if (rcvd.originator_id != SINK_ID_CONSTANT && rcvd.hop_counter >= node_dist) {
@@ -1056,7 +1050,7 @@ pkt_pool_get_next() {
 
     // pkt is different, swap node_pkt
     if (sizeof(node_pkt) < entry->data_len) {
-        PRINTF("Error: invalid pkt dimension\n"); // TODO: use new logging here
+        ERR("Invalid pkt dimension.");
     }
     memcpy(&node_pkt, entry->data, entry->data_len);
 }
