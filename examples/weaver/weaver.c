@@ -272,7 +272,6 @@ static inline void update_termination(
   const uint8_t global_ack_counter,
   const int boot_redundancy_counter,
   const struct peer_rx_ok_return rx_updates);
-static void print_table();
 
 /*---------------------------------------------------------------------------*/
 /*                          STATIC VARIABLES                                 */
@@ -1053,17 +1052,6 @@ pkt_pool_get_next() {
         ERR("Invalid pkt dimension.");
     }
     memcpy(&node_pkt, entry->data, entry->data_len);
-}
-
-static void print_table() {
-    for (rr_entry_t *tmp=pkt_pool_space; tmp < pkt_pool_space + PKT_POOL_LEN; tmp++) {
-        if (tmp == pkt_pool.cur_busy)
-            printf("S %"PRIu16", DL %u, C %d, N %"PRIu16"  <--\n",
-                tmp->originator_id, tmp->data_len, tmp->deadline, tmp->next == NULL ? 0 : tmp->next->originator_id);
-        else
-            printf("S %"PRIu16", DL %u, C %d, N %"PRIu16"\n",
-                tmp->originator_id, tmp->data_len, tmp->deadline, tmp->next == NULL ? 0 : tmp->next->originator_id);
-    }
 }
 
 static inline uint64_t
