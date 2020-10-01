@@ -120,12 +120,8 @@
 #define SLOT_DURATION (3000*UUS_TO_DWT_TIME_32)                     // ~ 3 ms
 #define TIMEOUT (SLOT_DURATION - 1000*UUS_TO_DWT_TIME_32)           // slot timeout
 
-#define JITTERINO_STEP (0x2) // DWT32 LSB is 4ns, 8ns is therefore 0x2, or 1 << 1
-#define MAX_JITTERINO_MULT  (125) // 1us/8ns
-
-#ifndef WEAVER_MAX_JITTERONE
-#define WEAVER_MAX_JITTERONE -1 // don't use fixed delay to transmit non-data packets, use jitterino
-#endif
+#define JITTER_STEP         (0x2) // DWT32 LSB is 4ns, 8ns is therefore 0x2, or 1 << 1
+#define MAX_JITTER_MULT     (125) // 1us/8ns
 
 #ifndef NODES_DEPLOYED
 #define NODES_DEPLOYED \
@@ -215,7 +211,6 @@
 
 #define PKT_POOL_LEN                            35
 
-#pragma message STRDEF(WEAVER_MAX_JITTERONE)
 #pragma message STRDEF(WEAVER_N_ORIGINATORS)
 #pragma message STRDEF(WEAVER_EPOCHS_PER_CYCLE)
 #pragma message STRDEF(WEAVER_APP_START_EPOCH)
@@ -621,14 +616,7 @@ static char peer_thread() {
                 }
                 do {
 
-                    // always use jitterino
-                    NA.tx_delay = MAX_JITTERINO_MULT ? ((random_rand() % (MAX_JITTERINO_MULT+1))*JITTERINO_STEP) : 0;
-
-                    if (!node_has_data && WEAVER_MAX_JITTERONE > 0) {
-                        // peers transmit non-data pkts (i.e. global-acks) with a fixed jitterone
-                        // in addition to jitterino
-                        NA.tx_delay += WEAVER_MAX_JITTERONE;
-                    }
+                    NA.tx_delay = MAX_JITTER_MULT ? ((random_rand() % (MAX_JITTER_MULT+1))*JITTER_STEP) : 0;
 
                     if (node_has_data) { TSM_TX_SLOT(&pt, buffer, sizeof(info_t)); }
                     else { TSM_TX_SLOT(&pt, buffer, sizeof(info_t) - EXTRA_PAYLOAD_LEN); }
@@ -865,11 +853,8 @@ PROCESS_THREAD(weaver_test, ev, data)
     } while (0);
 
     max_jitter_4ns = 0;
-#if MAX_JITTERINO_MULT > 0
-    max_jitter_4ns = JITTERINO_STEP * MAX_JITTERINO_MULT;
-#endif
-#if WEAVER_MAX_JITTERONE > 0
-    max_jitter_4ns += WEAVER_MAX_JITTERONE;
+#if MAX_JITTER_MULT > 0
+    max_jitter_4ns = JITTER_STEP * MAX_JITTER_MULT;
 #endif
 
     framelength = (sizeof(info_t) + sizeof(struct tsm_header) + 2); // 2 = TREXD_BYTE_OVERHEAD
