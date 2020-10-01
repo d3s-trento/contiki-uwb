@@ -448,7 +448,6 @@ static inline uint16_t tsm_preambleto_to_pacs(const uint32_t timeout_4ns)
   // the function automatically adds 1 PAC more to the given value
   uint16_t npacs = ((timeout_4ns * DWT_TICK_TO_NS_32) / pac_ns);
 
-  ERR("NPACs %d", npacs);
   return npacs;
 }
 
