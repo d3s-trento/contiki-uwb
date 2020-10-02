@@ -89,7 +89,7 @@ void app_post_S(int received, uint8_t* payload) {
 // the sndtbl.c file is written by simgen_ta,
 // it defines the list of sensor nodes allowed to
 // generate new packets in the first T slot
-#if CONCURRENT_TXS > 0
+#if CONCURRENT_TXS >= 0
     int i;
     int cur_idx;
     if (crystal_info.epoch >= START_EPOCH) {
@@ -102,8 +102,7 @@ void app_post_S(int received, uint8_t* payload) {
             }
         }
     }
-// if CONCURRENT_TXS is not defined, then let every receiver
-// generate a new packet
+// if U < 0 then every receiver generates a new packet
 #else
     app_new_packet();
     app_have_packet = 1;
@@ -205,6 +204,10 @@ PROCESS_THREAD(crystal_test, ev, data) {
     is_sink = node_id == SINK_ID;
 
     crystal_init();
+    crystal_slot_log_init();
+#if CRYSTAL_DW1000 && STATETIME_CONF_ON
+    crystal_statetime_log_init();
+#endif
 
     if (is_sink)
         etimer_set(&et, START_DELAY_SINK*CLOCK_SECOND);
@@ -232,6 +235,15 @@ PROCESS_THREAD(crystal_test, ev, data) {
         if (ev==EPOCH_END_EV) {
             int i;
             crystal_print_epoch_logs();
+
+            // print and then reset
+            crystal_slot_log_print();
+            crystal_slot_log_init();
+#if CRYSTAL_DW1000 && STATETIME_CONF_ON
+            crystal_statetime_log_print();
+            crystal_statetime_log_init();
+#endif
+
             if (is_sink) {
                 for (i=0; i<n_pkt_recv; i++) {
                     printf("B %u:%u %u %u\n", crystal_info.epoch,
