@@ -13,6 +13,7 @@ CRYSTAL_SILENCE = 4
 CRYSTAL_TX = 5
 
 ENERGY_LOGS = 0
+STATETIME_LOGS = 0
 
 
 ssum = read.table("send_summary.log", header=T, colClasses=c("numeric"))
@@ -26,6 +27,12 @@ if (file.exists("energy.log") && file.exists("energy_tf.log")) {
   energy = read.table("energy.log", header=T, colClasses=c("numeric"))
   energy_tf = read.table("energy_tf.log", header=T, colClasses=c("numeric"))
   energy = merge(energy, energy_tf, by=c("epoch", "node"))
+}
+if (file.exists("energy.log")) {
+  energy = read.table("energy.log", header=T, colClasses=c("numeric", "numeric", "character", "numeric", "numeric", "numeric", "numeric", "numeric", "numeric"))
+  if (dim(energy)[1] > 0) {
+    STATETIME_LOGS = 1
+  }
 }
 
 params = read.table("params_tbl.txt", header=T)
@@ -72,6 +79,10 @@ ssum = ssum[e>=min_epoch & e<=max_epoch,]
 e = rsum$epoch
 rsum = rsum[e>=min_epoch & e<=max_epoch,]
 if (ENERGY_LOGS) {
+  e = energy$epoch
+  energy = energy[e>=min_epoch & e<=max_epoch,]
+}
+if (STATETIME_LOGS) {
   e = energy$epoch
   energy = energy[e>=min_epoch & e<=max_epoch,]
 }
@@ -141,7 +152,7 @@ rm(t)
 usend = unique(send[c("src", "seqn", "epoch")])
 # merging send records from both app and Crystal logs
 all_send = merge(asend[,c("src", "seqn", "epoch", "acked")], usend, by=c("src", "seqn", "epoch"), all=T)
-t = aggregate(epoch ~ src + seqn, all_send, FUN=length)
+t = setNames(tryCatch(aggregate(epoch ~ src + seqn, all_send, FUN=length), error=function(e) data.frame(matrix(vector(), 0, 3))), c("src", "seqn", "n_epochs"))
 colnames(t) <- c("src", "seqn", "n_epochs")
 if (max(t$n_epochs) > 1) {
   message("Inconsistent epoch numbers in app and Crystal logs")
@@ -398,8 +409,127 @@ if (ENERGY_LOGS) {
   write.table(energy_pernode, "pernode_energy.txt", row.names=F)
 }
 
+
+if (STATETIME_LOGS) {
+  
+  # In case of underflows in statetime, some of the values collected (typically idle and rx_hunt)
+  # reaches a huge value ~4e6 which is underflow of the uint32_t/1e3 (done by statetime).
+  # Here we want to filer out the epoch where such condition occur.
+  # Note: in real experiments we DO NOT keep our radio turned on for 4s!
+  MAX_T = 4e6
+  mask = (energy$idle > MAX_T | energy$rx_hunt > MAX_T |
+          energy$tx_preamble > MAX_T | energy$tx_data > MAX_T |
+          energy$rx_preamble > MAX_T | energy$rx_data > MAX_T)
+  eepoch_remove = energy[mask,]$epoch
+  energy = subset(energy, !(energy$epoch %in% eepoch_remove)) # remove all datas (wrt all nodes) related to that epoch        
+
+
+  # Configuration Considered: Ch 2, plen 128, 64Mhz PRF, 6.8Mbps Datarate
+  # Setting N of page 30 DW1000 Datasheet ver 2.17.
+  # Average consumption coefficients considered.
+  ref_voltage = 3.3 #V
+  e_coeff = list(idle=18.0, tx_preamble=83.0, tx_data = 52.0, rx_hunt = 113.0, rx_preamble = 113.0, rx_data = 118.0) # milliamp
+  e_coeff = lapply(e_coeff, function(curr_mA) curr_mA / 1e3 * ref_voltage) # watt
+
+  # a statistic on its own
+  # 1. Sum all energy related to different phases of a given epoch
+  per_epoch = aggregate(. ~ node + epoch, subset(energy, select=-c(phase)), sum)
+  per_epoch = within(per_epoch, {
+                     idle        <- idle        * e_coeff$idle
+                     tx_preamble <- tx_preamble * e_coeff$tx_preamble
+                     tx_data     <- tx_data     * e_coeff$tx_data
+                     rx_hunt     <- rx_hunt     * e_coeff$rx_hunt
+                     rx_preamble <- rx_preamble * e_coeff$rx_preamble
+                     rx_data     <- rx_data     * e_coeff$rx_data})
+
+  per_epoch = within(per_epoch, e_total<-(idle + tx_preamble + tx_data + rx_hunt + rx_preamble + rx_data))
+  per_node = do.call(data.frame, aggregate(e_total ~ node, per_epoch, FUN = function(x) c(mean = mean(x), sd = sd(x))))
+  names(per_node) = c("node", "e_total_mean", "e_total_sd")
+
+  write.table(per_epoch, "perepoch_energy.txt", row.names=F)
+  write.table(per_node,  "pernode_energy.txt", row.names=F)
+
+  ## sum statetime per node-phase-epoch
+  #per_phase_epoch = aggregate(. ~ node + epoch + phase, energy, sum)
+  ## compute per-epoch average wrt energy for all phases
+  #per_phase_epoch$epoch = NULL
+  #per_phase_avg = aggregate(. ~ node + phase, per_phase_epoch, mean)
+
+  ## sum the mean of energy spent in the three phases
+  #per_phase_avg$phase = NULL
+  #per_node = aggregate(. ~ node, per_phase_avg, sum)
+
+  message("RX-TX Energy per node")
+  per_node
+}
+
+
+
 if (is.nan(PDR)) PDR = NA
 
+# -- Crystal slot time analysis -------------------------------------------------------
+# contributor: Diego Lobba
+
+message("Computing slots time analysis")
+
+# epoch	node	phase	slot_d	round_d	ntx	nrx
+slot_log = read.table("glossy_slot.log", header=T, colClasses=c("numeric", "numeric", "character", "numeric", "numeric", "numeric", "numeric"))
+
+# validate statetime with glossy slots info
+# sum statetime and glossy slot entries related to the same node-epoch
+uniq_phases = unique(energy$phase)
+if ("F" %in% uniq_phases) {
+  if (length(uniq_phases) > 1)
+  # you can make statetime either report full epoch energy (F records), or
+  # individual phases estimate (S, T, A without F records).
+  stop("Full epochs and single phases energy stats have been found. Stop.")
+} else {
+
+  # this makes sense only when having S, T, A records
+  e_perepoch = aggregate(. ~ node + epoch, subset(energy, select=-c(phase)), sum)
+  e_perepoch = within(e_perepoch, t_total<-(idle + tx_preamble + tx_data + rx_hunt + rx_preamble + rx_data))
+  e_perepoch = subset(e_perepoch, select=c(node, epoch, t_total))
+  g_perepoch = aggregate(. ~ node + epoch, subset(slot_log, select=-c(phase)), sum)
+  g_perepoch = within(g_perepoch, round_d<- round_d * 4.0064 / 1e3) # from 4ns to us
+  g_perepoch = subset(g_perepoch, select=c(node, epoch, round_d)) # from 4ns to us
+  e_validate = merge(e_perepoch, g_perepoch, by=c("node", "epoch"))
+  write.table(e_validate, "statetime_validation.txt", row.names=F)
+  e_validate$st_diff = e_validate$t_total - e_validate$round_d
+  message("Comparison Epoch time: statetime - time_diff")
+  summary(e_validate$st_diff)
+}
+
+
+slot_log["nround"] = slot_log$round_d / slot_log$slot_d
+slot_log = ddply(.data=slot_log, .variables=.(node, epoch, phase),
+      .fun=function(df) {
+        data.frame("nround"=sum(df$nround), "ntx"=sum(df$ntx), "nrx"=sum(df$nrx))})
+colnames(slot_log) = c("node", "epoch", "phase", "nround", "ntx", "nrx")
+
+# filter epochs
+slot_log = slot_log[slot_log$epoch >= min_epoch & slot_log$epoch <= max_epoch, ]
+
+# average per epoch
+perphase_slot_log = ddply(.data=slot_log, .variables=.(node, phase),
+      .fun=function(df) {
+        data.frame("nround_avg"=mean(df$nround), "nround_std"=sd(df$nround), "ntx"=mean(df$ntx), "nrx"=mean(df$nrx))})
+
+# sum the average number of per-phase slots for each node
+pernode_slot_log = ddply(.data=perphase_slot_log, .variables=.(node),
+      .fun=function(df) {
+        data.frame("nround_avg"=sum(df$nround_avg), "ntx"=sum(df$ntx), "nrx"=sum(df$nrx))})
+
+write.table(perphase_slot_log, "slot_perphase.txt", row.names=F)
+write.table(pernode_slot_log,  "slot_pernode.txt", row.names=F)
+
+message("N slots at the sink: ")
+print(pernode_slot_log[pernode_slot_log$node == SINK,])
+message("Per phase slots at the sink: ")
+print(perphase_slot_log[perphase_slot_log$node == SINK,])
+
+rm(slot_log)
+rm(perphase_slot_log)
+rm(pernode_slot_log)
 
 # -- Per-node and advanced stats ------------------------------------------------------
 
@@ -643,6 +773,7 @@ if (ENERGY_LOGS) {
                      extra_tas_mean=more_tas, missing_tas_mean=fewer_tas,
                      n_early_sleepers_mean=mean_early_sleepers, n_early_sleepers_max=max_early_sleepers, 
                      n_late_sleepers_mean=mean_late_sleepers, n_late_sleepers_max=max_late_sleepers, 
+                     n_epochs=n_epochs,
                      n_early_sleep_epochs_mean=mean_early_sleep_epochs, n_early_sleep_epochs_max=max_early_sleep_epochs,
                      n_late_sleep_epochs_mean=mean_late_sleep_epochs, n_late_sleep_epochs_max=max_late_sleep_epochs,
                      noise_mean=noise_mean, noise_max=noise_max,

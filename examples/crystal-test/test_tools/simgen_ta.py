@@ -40,6 +40,7 @@ sys.path += [".", os.path.join(apppath,"test_tools")]
 params = args.config
 
 def rnd_unique(nodes, n):
+    """@deprecated in favor of random.sample"""
     l = 0
     r = []
     while (l<n):
@@ -51,11 +52,13 @@ def rnd_unique(nodes, n):
 
 def generate_table_array(nodes, num_epochs, concurrent_txs):
     tbl = []
+    unique_nodes = set(nodes)
     if seed is not None:
-        random.seed(seed)
-
+        random_tbl = random.Random(seed)
+    else:
+        random_tbl = random.Random()
     for _ in range(num_epochs):
-        tbl += rnd_unique(nodes, concurrent_txs)
+        tbl += random_tbl.sample(unique_nodes, concurrent_txs)
     return "static const uint8_t sndtbl[] = {%s};"%",".join([str(x) for x in tbl])
 
 
@@ -113,9 +116,9 @@ def mk_env(power, radio_cfg, sink, num_senders, n_empty, glossy_version):
     "-DCRYSTAL_CONF_NTX_S=%d"%n_tx_s,
     "-DCRYSTAL_CONF_NTX_T=%d"%n_tx_t,
     "-DCRYSTAL_CONF_NTX_A=%d"%n_tx_a,
-    "-DCRYSTAL_CONF_DUR_S_MS=%d"%dur_s,
-    "-DCRYSTAL_CONF_DUR_T_MS=%d"%dur_t,
-    "-DCRYSTAL_CONF_DUR_A_MS=%d"%dur_a,
+    "-DCRYSTAL_CONF_DUR_S_MS=%.2f"%dur_s,
+    "-DCRYSTAL_CONF_DUR_T_MS=%.2f"%dur_t,
+    "-DCRYSTAL_CONF_DUR_A_MS=%.2f"%dur_a,
     "-DCRYSTAL_CONF_SYNC_ACKS=%d"%sync_ack,
     "-DCRYSTAL_CONF_SINK_MAX_EMPTY_TS=%d"%n_empty.r,
     "-DCRYSTAL_CONF_MAX_SILENT_TAS=%d"%n_empty.y,
@@ -204,7 +207,7 @@ simnum = 0
 for (power, sink, num_senders, n_empty, glossy_version) in itertools.product(powers, sinks, num_senderss, n_emptys, glossy_versions):
     n_empty = NemptyTuple(*n_empty)
     power = PowerTuple(*power)
-    simdir = "sink%03d_snd%02d_%s_p%1d_%06x_c%02d_e%.2f_ns%02d_nt%02d_na%02d_ds%02d_dt%02d_da%02d_syna%d_pl%03d_r%02dy%02dz%02dx%02d_dyn%d_fe%02d_%s_%s_B%s"%(sink, num_senders, glossy_version, power.smart, power.power, radio_cfg, period, n_tx_s, n_tx_t, n_tx_a, dur_s, dur_t, dur_a, sync_ack, payload, n_empty.r, n_empty.y, n_empty.z, n_empty.x, dyn_nempty, full_epochs, testbed, chmap, boot_chop)
+    simdir = "sink%03d_snd%02d_%s_p%1d_%06x_c%02d_e%.2f_ns%02d_nt%02d_na%02d_ds%.2f_dt%.2f_da%.2f_syna%d_pl%03d_r%02dy%02dz%02dx%02d_dyn%d_fe%02d_%s_%s_B%s"%(sink, num_senders, glossy_version, power.smart, power.power, radio_cfg, period, n_tx_s, n_tx_t, n_tx_a, dur_s, dur_t, dur_a, sync_ack, payload, n_empty.r, n_empty.y, n_empty.z, n_empty.x, dyn_nempty, full_epochs, testbed, chmap, boot_chop)
 
     testbed_filled_template   = testbed_template.render(
         ts_init = START_TIME,
