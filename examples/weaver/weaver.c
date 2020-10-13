@@ -32,7 +32,6 @@
  * \author    Matteo Trobinger    <matteo.trobinger@unitn.it>
  * \author    Davide Vecchia      <davide.vecchia@unitn.it>
  * \author    Diego Lobba         <diego.lobba@gmail.com>
- * \author    Timofei Istomin     <tim.ist@gmail.com>
  */
 #include <stdio.h>
 #include <string.h>
