@@ -29,9 +29,9 @@
  *
  */
 /*
+ * \author    Diego Lobba         <diego.lobba@gmail.com>
  * \author    Matteo Trobinger    <matteo.trobinger@unitn.it>
  * \author    Davide Vecchia      <davide.vecchia@unitn.it>
- * \author    Diego Lobba         <diego.lobba@gmail.com>
  */
 #ifndef WEAVER_LOG_H_
 #define WEAVER_LOG_H_

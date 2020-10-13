@@ -1,3 +1,40 @@
+/*
+ * Copyright (c) 2020, University of Trento.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above
+ *    copyright notice, this list of conditions and the following
+ *    disclaimer in the documentation and/or other materials provided
+ *    with the distribution.
+ * 3. The name of the author may not be used to endorse or promote
+ *    products derived from this software without specific prior
+ *    written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
+/*
+ * \file      Low-level slot operation driver for the Time Slot Manager (TSM)
+ *
+ * \author    Timofei Istomin     <tim.ist@gmail.com>
+ * \author    Diego Lobba         <diego.lobba@gmail.com>
+ */
+
 /* configure the debug output */
 #define LOG_PREFIX "td"
 #define LOG_LEVEL LOG_WARN
@@ -34,8 +71,7 @@ static struct {
   trexd_slot_t slot;
   uint32_t tx_antenna_delay_4ns;    // cache the antenna delay value
   uint32_t preamble_duration_4ns;   // cache the preamble duration
-  uint16_t rx_slot_preambleto_pacs;   // define the detection timeout in terms of
-                                    // PACs to be used in the rx_slot function
+  uint16_t rx_slot_preambleto_pacs; // preamble detection timeout in PACs
 } context;
 
 /* Convert time from the ~4ns device time unit to UWB microseconds */

@@ -1,3 +1,40 @@
+/*
+ * Copyright (c) 2020, University of Trento.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above
+ *    copyright notice, this list of conditions and the following
+ *    disclaimer in the documentation and/or other materials provided
+ *    with the distribution.
+ * 3. The name of the author may not be used to endorse or promote
+ *    products derived from this software without specific prior
+ *    written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
+/*
+ * \file      Time Slot Manager (TSM)
+ *
+ * \author    Timofei Istomin     <tim.ist@gmail.com>
+ * \author    Diego Lobba         <diego.lobba@gmail.com>
+ */
+
 #define LOG_PREFIX "tsm"
 #define LOG_LEVEL LOG_WARN
 #include "logging.h"
@@ -75,6 +112,8 @@
  *    reception. In case of correct reception, the TSM is synchronised to the 
  *    slot series of the transmitter. Received packet (if any) is available to
  *    the application.
+ *    Note that if this operation is invoked right after RESTART, the scanning
+ *    will start at the very beginning of the next slot series.
  *
  *  - TX -- transmit in the next slot, according to the current slot series timing.
  *    Packet to transmit and the payload length must be provided.

@@ -30,6 +30,8 @@
  */
 
 /*
+ * \file Radio State Monitor module (aka statetime)
+ *
  * \author
  *      Diego Lobba <diego.lobba@gmail.com>
  */

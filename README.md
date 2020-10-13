@@ -1,17 +1,17 @@
-# DecaWave EVB1000/DWM1001 Contiki Port with integrated Glossy and Crystal
+# Contiki-based software package for the DecaWave EVB1000/DWM1001 platforms
 
 ## Overview 
 [Contiki](https://github.com/contiki-os/contiki) is an open source operating system that runs on constrained embedded systems and provides standardized low-power wireless communication.
 
-This repository contains a Contiki OS port for the DecaWave EVB1000 and DWM1001 platforms and
-includes our implementations of Glossy and Crystal communication protocols and UWB ranging primitives.
+This repository contains a Contiki OS port for the DecaWave (now Qorvo) EVB1000 and DWM1001 platforms and
+includes our implementations of Glossy, Crystal and Weaver communication protocols, as well as UWB ranging primitives.
 
 
-## Port Features
-This port includes support for:
+## Package Features
+This package includes support for:
 * Contiki system clock and rtimers
 * Watchdog timer
-* Serial-over-USB logging using printf
+* Serial-over-USB logging using printf (ans/or RTT for DWM1001)
 * LCD display
 * LEDs
 * Rime stack over UWB
@@ -21,6 +21,7 @@ This port includes support for:
 * Bluetooth support (only DWM1001, and without integration with Contiki stacks)
 * [Glossy](https://ieeexplore.ieee.org/document/5779066), a fast flooding and synchronisation primitive (only EVB1000)
 * [Crystal](https://dl.acm.org/doi/10.1145/2994551.2994558), a fast and reliable data collection protocol based on Glossy (only EVB1000)
+* Weaver, accepted at SenSys'20 (only EVB1000)
 
 ## Code Structure
 ```
@@ -39,6 +40,7 @@ This port includes support for:
 │   ├── ranging
 │   ├── range-collect
 │   ├── sensniff
+│   ├── tsm-test
 │   └── weaver
 └── platform
     ├── evb1000
@@ -207,7 +209,7 @@ This port has been published as a poster at [EWSN'18](https://ewsn2018.networks.
 * **[Poster: Enabling Contiki on Ultra-Wideband Radios](http://pablocorbalan.com/files/posters/contikiuwb-ewsn18.pdf)**.
 Pablo Corbalán, Timofei Istomin, and Gian Pietro Picco. In Proceedings of the 15th International Conference on Embedded Wireless Systems and Networks (EWSN), Madrid (Spain), February 2018.
 
-Please, consider citing this poster when using this port in your work.
+Please, consider citing this poster when using this Contiki port in your work.
 ```
 @inproceedings{contiki-uwb,
  title = {{Poster: Enabling Contiki on Ultra-wideband Radios}},
@@ -223,9 +225,10 @@ A research paper about our Glossy and Crystal implementations for DW1000 has bee
 * **Concurrent Transmissions for Multi-hop Communication on Ultra-wideband Radios**.
 Diego Lobba, Matteo Trobinger, Davide Vecchia, Timofei Istomin, Gian Pietro Picco (University of Trento).
 
+
 ## License
-This port makes use of low-level drivers provided by DecaWave and STMicroelectronics. These drivers are licensed on a separate terms.
+This software package makes use of low-level drivers provided by DecaWave and STMicroelectronics. These drivers are licensed on a separate terms.
 The files developed by our research group for this port are under BSD license.
 
 ## Disclaimer
-Although we tested the code extensively, this port is a research prototype that likely contains bugs. We take no responsibility for and give no warranties in respect of using this code.
+Although we tested the code extensively, it is considered a research prototype that likely contains bugs. We take no responsibility for and give no warranties in respect of using this code.
