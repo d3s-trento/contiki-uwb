@@ -188,7 +188,6 @@ rr_table_update_deadlines(rr_table_t* table, int16_t current_slot) {
 
     rr_entry_t *tmp = table->head_busy;
     for (; tmp != NULL; tmp = tmp->next) {
-        // TODO > vs >=
         if (tmp->deadline != -1 && current_slot > tmp->deadline) {
             tmp->deadline = -1;              // flag the need for the pkt to be tx again
         }

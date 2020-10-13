@@ -164,9 +164,6 @@
 #define BITMAP_ALL_ONE(TYPE)                ( (TYPE) -1 )
 #define IS_SLEEP_BITMAP(BITMAP)             ( BITMAP == BITMAP_ALL_ONE(typeof(BITMAP))  )
 
-/* TBC: maybe (2 * (H - 2) - 1 + H + 3 * Y -\
- * (C + H + 2 * (H - 2)) % (3 * Y)) might be more accurate.
- * We need to test it.*/
 #define WEAVER_LOCAL_ACK_SUPPRESSION_INTERVAL(H, C, Y) \
     (2 * (H - 2) + H + 3 * Y -\
      (C + H + 2 * (H - 2)) % (3 * Y))
@@ -622,7 +619,7 @@ static char peer_thread() {
                     else { TSM_TX_SLOT(&pt, buffer, sizeof(info_t) - EXTRA_PAYLOAD_LEN); }
 
                     termination_counter += 1;
-                    boot_redundancy_counter = boot_redundancy_counter <= 0 ? 0 : boot_redundancy_counter - 1; // just to avoid underflow --- TBC
+                    boot_redundancy_counter = boot_redundancy_counter <= 0 ? 0 : boot_redundancy_counter - 1;
                     new_gack_last_tx = false;
 
                     // prepare log, keeping the originator_id that was set when preparing the packet
@@ -636,11 +633,11 @@ static char peer_thread() {
 
                     ntx_slot ++;
                 } while (ntx_slot < WEAVER_NTX);
-                last_heard_originator_id = SINK_ID_CONSTANT; // TBC --- Is the best choice to reset lhs after tx the previous one?
+                last_heard_originator_id = SINK_ID_CONSTANT;
             }
             else {
                 silent_tx = false;
-                last_heard_originator_id = SINK_ID_CONSTANT; // TBC ---  Is the best choice to reset lhs before starting rx?
+                last_heard_originator_id = SINK_ID_CONSTANT;
 
                 TSM_RX_SLOT(&pt, buffer);
 
@@ -720,7 +717,6 @@ static char peer_thread() {
                 nrx_slot++;
             } while (nrx_slot < WEAVER_NRX);
 
-            // TBC ---
             if (is_originator &&
                 (!node_pkt_bootstrapped) &&
                 is_node_acked(node_acked, node_id)) {
@@ -961,18 +957,8 @@ peer_rx_ok()
         (sender_entry != NULL || lhs_entry != NULL)) {
 
         // directly perform the local ack to the entry
-        /*
-        TBC: If the packet has been already locally ACKed is it better
-             to reset the counter to 0 (as a node closer to the sink is
-             trying to transmit that packet) or not?
-             Reset it to 0 will reduce contention, but also limit spatial diversity.
-             For now we don't reset the counter. If we decide to reset the counter
-             each time, probably it is worth to remove !node_has_data  from the previous
-             if statement.
-        */
         if (sender_entry != NULL &&
             sender_entry->deadline == -1) {
-            // TODO: pick a fancier and possibly shorter name :(
             sender_entry->deadline = PA.slot_idx + WEAVER_LOCAL_ACK_SUPPRESSION_INTERVAL(node_dist, global_ack_counter, GLOBAL_ACK_PERIOD);
         }
         if (lhs_entry != NULL &&
@@ -1012,7 +998,7 @@ pkt_pool_get_mypkt() {
 
     // pkt is different, swap node_pkt
     if (sizeof(node_pkt) < entry->data_len) {
-        PRINTF("Error: invalid pkt dimension\n"); // TODO: use new logging here
+        ERR("Invalid pkt dimension.");
     }
     memcpy(&node_pkt, entry->data, entry->data_len);
 }
