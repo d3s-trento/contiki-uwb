@@ -1,5 +1,14 @@
 # DWM1001 platform makefile
 
+BOARD ?= dwm1001-dev
+
+THIS_FILE_PATH = $(dir $(lastword $(MAKEFILE_LIST)))
+BOARD_ROOT_PATH := $(THIS_FILE_PATH)/$(BOARD)
+
+include $(BOARD_ROOT_PATH)/Makefile.$(BOARD)
+
+#CONTIKI_TARGET_DIRS += $(BOARD)
+CONTIKIDIRS += $(addprefix $(BOARD_ROOT_PATH)/, $(BOARD_DIRS))
 
 CONTIKI_TARGET_DIRS += . dev config
 CONTIKI_SOURCEFILES += contiki-main.c leds-arch.c nrf52dk-sensors.c button-sensor.c temperature-sensor.c bt2uwb-addr.c
