@@ -4,3 +4,24 @@
 BOARD_DIRS = . dev
 
 CONTIKI_SOURCEFILES += button-sensor.c leds-arch.c dwm1001-sensors.c
+
+ifeq ($(ENABLE_SEGGER_RTT),1)
+#Those settings is related to CPU sdk but they are here because Segger programer depends on
+# platform and not on CPU chip
+EXTERNALDIRS += $(NRF52_SDK_ROOT)/external/segger_rtt/
+SDK_SOURCE_FILES += external/segger_rtt/SEGGER_RTT.c
+SDK_SOURCE_FILES += external/segger_rtt/SEGGER_RTT_printf.c
+CFLAGS+=-DNRF_LOG_ENABLED=1
+CFLAGS+=-DNRF_LOG_USES_RTT=1
+endif
+
+ifeq ($(PRINTF_OVER_RTT),1)
+BOARDS_DIRS += rtt
+CONTIKI_SOURCEFILES += rtt-printf.c segger-rtt.c segger-rtt-printf.c
+# else ifeq($(PRINTF_OVER_NRF_LOG),1)
+# $(info "printf over NRF_LOG")
+# CONTIKI_SOURCEFILES += nrf_log_printf.c
+PRINTF_OVER_UART=0
+else
+PRINtF_OVER_UART=1
+endif

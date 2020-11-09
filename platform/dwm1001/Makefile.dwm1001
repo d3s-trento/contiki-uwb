@@ -25,26 +25,11 @@ CONTIKI_SOURCEFILES += dw1000.c dw1000-ranging.c dw1000-config.c dw1000-util.c d
 #To include project-conf (throug contiki.h) in sdk_config of nRF5 SDK
 CFLAGS+=-DUSE_APP_CONFIG
 
-ifeq ($(ENABLE_SEGGER_RTT),1)
-#Those settings is related to CPU sdk but they are here because Segger programer depends on
-# platform and not on CPU chip
-EXTERNALDIRS += $(NRF52_SDK_ROOT)/external/segger_rtt/
-SDK_SOURCE_FILES += external/segger_rtt/SEGGER_RTT.c
-SDK_SOURCE_FILES += external/segger_rtt/SEGGER_RTT_printf.c
-CFLAGS+=-DNRF_LOG_ENABLED=1
-CFLAGS+=-DNRF_LOG_USES_RTT=1
-endif
-
 # XXX Include PWM (for the buzzer of Janus platform)
 SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_pwm.c
 
-ifeq ($(PRINTF_OVER_RTT),1)
-CONTIKI_TARGET_DIRS += rtt
-CONTIKI_SOURCEFILES += rtt-printf.c segger-rtt.c segger-rtt-printf.c
-# else ifeq($(PRINTF_OVER_NRF_LOG),1)
-# $(info "printf over NRF_LOG")
-# CONTIKI_SOURCEFILES += nrf_log_printf.c
-else
+PRINTF_OVER_UART?=1
+ifeq ($(PRINTF_OVER_UART),1)
 ### Use the existing debug I/O in cpu/arm/common
 CONTIKI_TARGET_DIRS += dbg-io
 CONTIKI_SOURCEFILES += dbg.c
