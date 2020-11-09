@@ -324,7 +324,7 @@ SOFTDEVICE_DEPS = %.s$(NRF52_SOFTDEVICE).hex
 
 %.s$(NRF52_SOFTDEVICE).hex:
 	@echo Merge $*.hex with softdevice
-	$(MERGEHEX) -m $*.hex $(NRF52_SOFTDEVICE_HEX) -o $@
+	$(Q) $(MERGEHEX) -m $*.hex $(NRF52_SOFTDEVICE_HEX) -o $@
 else #MERGEHEX
 $(warning mergehex is not found, it is needed to create a single file with app and softdevice)
 endif #MERGEHEX

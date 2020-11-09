@@ -14,6 +14,8 @@
 #include "nrfx_config.h"
 #include "serial_baudrate.h"
 
+#include "dwm1001-module-board.h"
+
 #ifndef DWM1001_DEV_H
 #define DWM1001_DEV_H
 
@@ -45,29 +47,6 @@
 #define DWM1001_LEDS_MASK (DWM1001_LED_1_MASK | DWM1001_LED_2_MASK | DWM1001_LED_3_MASK | DWM1001_LED_4_MASK)
 /*---------------------------------------------------------------------------*/
 
-/*---------------------------------------------------------------------------*/
-/* DW1000 Architecture-dependent pins */
-#define DW1000_RST    24
-#define DW1000_IRQ_EXTI 19
-#define SPI_CS_PIN   17
-#define SPI_INSTANCE  1 /* SPI instance index */
-
-/*---------------------------------------------------------------------------*/
-
-/* SPIM1 connected to DW1000 */
-#define SPI1_SCK_PIN   16  /* DWM1001 SPIM1 sck connected to DW1000 */
-#define SPI1_MOSI_PIN  20  /* DWM1001 SPIM1 mosi connected to DW1000 */
-#define SPI1_MISO_PIN  18  /* DWM1001 SPIM1 miso connected to DW1000 */
-#define SPI1_IRQ_PRIORITY 6 // APP_IRQ_PRIORITY_LOW /* */
-// #define SPI1_SS_PIN    XX  /*  Not used with DMW1001 */
-
-/* Low frequency clock source to be used by the SoftDevice */
-#define NRF_CLOCK_LFCLKSRC      { .source = NRF_CLOCK_LF_SRC_XTAL, \
-                                  .rc_ctiv = 0, \
-                                  .rc_temp_ctiv = 0, \
-                                  .xtal_accuracy = NRF_CLOCK_LF_XTAL_ACCURACY_20_PPM }
-
-/*---------------------------------------------------------------------------*/
 /* UART configuration, comunication parater are in nrfx_config and sdk_config */
 #define UART0_TX_PIN_NUMBER 5
 #define UART0_RX_PIN_NUMBER 11
