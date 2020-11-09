@@ -7,11 +7,11 @@ BOARD_ROOT_PATH := $(THIS_FILE_PATH)/$(BOARD)
 
 include $(BOARD_ROOT_PATH)/Makefile.$(BOARD)
 
-#CONTIKI_TARGET_DIRS += $(BOARD)
-CONTIKIDIRS += $(addprefix $(BOARD_ROOT_PATH)/, $(BOARD_DIRS))
+#preceed contikidirs with boards path
+CONTIKIDIRS := $(addprefix $(BOARD_ROOT_PATH)/, $(BOARD_DIRS)) $(CONTIKIDIRS)
 
 CONTIKI_TARGET_DIRS += . dev config
-CONTIKI_SOURCEFILES += contiki-main.c leds-arch.c nrf52dk-sensors.c button-sensor.c temperature-sensor.c bt2uwb-addr.c
+CONTIKI_SOURCEFILES += contiki-main.c leds-arch.c nrf52dk-sensors.c temperature-sensor.c bt2uwb-addr.c
 CONTIKI_SOURCEFILES += battery_read.c
 
 # Add DW1000 architecture-dependent drivers
@@ -73,27 +73,6 @@ include $(CONTIKI_CPU)/Makefile.nrf52832
 MODULES += core/net
 MODULES += core/net/mac
 MODULES += core/net/llsec
-
-###############################################################################
-# Network Stack Configuration
-# This platform includes two radios: a DecaWave DW1000 radio and a BLE radio.
-# We provide support for the Rime stack only in UWB. The IPv6 stack is supported
-# both in UWB and in BLE (using the softdevice network stack provided by Nordic).
-# Only one network stack configuration (e.g., IPv6 over UWB) can be used at a
-# time.
-###############################################################################
-#THIS IS LEFT HERE AS MEMEORY AND REFERENCE
-# ifeq ($(CONTIKI_WITH_RIME),1)
-# 	CFLAGS += -DUWB_WITH_RIME=1 
-# endif
-
-# ifeq ($(CONTIKI_WITH_IPV6),1)
-# 	ifneq ($(NRF52_WITHOUT_SOFTDEVICE),1)
-# 		CFLAGS += -DBLE_WITH_IPV6=1 
-# 	else
-# 		CFLAGS += -DUWB_WITH_IPV6=1 
-# 	endif
-# endif
 
 ###############################################################################
 # Login Command 

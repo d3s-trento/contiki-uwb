@@ -1,4 +1,6 @@
 
 #This platform Makefile
 
-BOARD_DIRS = .
+BOARD_DIRS = . dev
+
+CONTIKI_SOURCEFILES += button-sensor.c
