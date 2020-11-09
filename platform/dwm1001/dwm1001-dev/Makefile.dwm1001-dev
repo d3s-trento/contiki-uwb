@@ -3,4 +3,4 @@
 
 BOARD_DIRS = . dev
 
-CONTIKI_SOURCEFILES += button-sensor.c
+CONTIKI_SOURCEFILES += button-sensor.c leds-arch.c dwm1001-sensors.c
