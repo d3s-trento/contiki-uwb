@@ -2,10 +2,15 @@
 
 BOARD ?= dwm1001-dev
 
-THIS_FILE_PATH = $(dir $(lastword $(MAKEFILE_LIST)))
-BOARD_ROOT_PATH := $(THIS_FILE_PATH)/$(BOARD)
+BOARD_PATHS := $(DWM1001_EXTRA_BOARDS) $(dir $(lastword $(MAKEFILE_LIST)))
+board_makefile := $(wildcard $(foreach BPATH, $(BOARD_PATHS), $(BPATH)/$(BOARD)/Makefile.$(BOARD)))
 
-include $(BOARD_ROOT_PATH)/Makefile.$(BOARD)
+ifeq ($(strip $(board_makefile)),)
+  $(error Missing board or is misspelled)
+endif
+
+include $(board_makefile)
+BOARD_ROOT_PATH := $(dir $(board_makefile))
 
 #preceed contikidirs with boards path
 CONTIKIDIRS := $(addprefix $(BOARD_ROOT_PATH)/, $(BOARD_DIRS)) $(CONTIKIDIRS)
