@@ -33,7 +33,7 @@
  *
  */
 
-#include "dwm1001-dev-board.h"
+#include "contiki.h"
 /*---------------------------------------------------------------------------*/
 #include "nrf.h"
 #include "nrfx_spi.h"
@@ -42,7 +42,6 @@
 #include "app_util_platform.h"
 #include "app_error.h"
 /*---------------------------------------------------------------------------*/
-#include "contiki.h"
 #include "sys/clock.h"
 /*---------------------------------------------------------------------------*/
 #include "leds.h"

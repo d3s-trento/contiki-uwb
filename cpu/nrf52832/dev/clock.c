@@ -43,7 +43,7 @@
  *         Wojciech Bober <wojciech.bober@nordicsemi.no>
  *
  */
-#include "dwm1001-dev-board.h"
+#include "contiki.h"
 /*---------------------------------------------------------------------------*/
 #include "nrf.h"
 #include "nrf52832_peripherals.h"
@@ -52,7 +52,7 @@
 #include "nrf_delay.h"
 #include "app_error.h"
 /*---------------------------------------------------------------------------*/
-#include "contiki.h"
+
 /*---------------------------------------------------------------------------*/
 #include <stdint.h>
 #include <stdbool.h>

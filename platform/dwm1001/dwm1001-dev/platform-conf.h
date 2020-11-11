@@ -78,19 +78,15 @@
 /* Notify various examples that we have Buttons */
 #define PLATFORM_HAS_BUTTON      1
 
-#ifndef REPLY_PLATFORM
+#ifdef REPLY_PLATFORM
+#error REPLY_PLATFORM is old workaround please delete and use BOARDS
+#endif
+
 /* configre button's macro*/
 #define DWM1001_USER_BUTTON   2
 #define BUTTON_PULL           NRF_GPIO_PIN_PULLUP
 #define BUTTONS_ACTIVE_STATE  0
 #define DWM1001_BUTTON_MASK   (1 << DWM1001_USER_BUTTON)
-#else
-#define DWM1001_USER_BUTTON   28
-#define BUTTON_PULL           NRF_GPIO_PIN_PULLUP
-#define BUTTONS_ACTIVE_STATE  1
-#define DWM1001_BUTTON_MASK   (1 << DWM1001_USER_BUTTON)
-#endif
-
 
 /** @} */
 /*---------------------------------------------------------------------------*/

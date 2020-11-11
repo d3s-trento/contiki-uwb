@@ -37,7 +37,7 @@
  * \author
  *      Wojciech Bober <wojciech.bober@nordicsemi.no>
  */
-#include "dwm1001-dev-board.h"
+#include "contiki.h"
 /*---------------------------------------------------------------------------*/
 #include "nrf.h"
 #include "nrfx_timer.h"
@@ -47,8 +47,6 @@
 #ifdef SOFTDEVICE_PRESENT
 #include "nrf_sdh.h"
 #endif /* SOFTDEVICE_PRESENT */
-/*---------------------------------------------------------------------------*/
-#include "contiki.h"
 /*---------------------------------------------------------------------------*/
 #include <stdint.h>
 #include <stddef.h>

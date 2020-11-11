@@ -39,8 +39,6 @@
 #include "contiki.h"
 #include "reset_reason.h"
 #include "contiki-net.h"
-#include "custom_board.h"
-#include "dwm1001-dev-board.h"
 #include "leds.h"
 #include "lib/sensors.h"
 /*---------------------------------------------------------------------------*/

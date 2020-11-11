@@ -35,7 +35,7 @@
  * 		This is required to avoid using a Nordic platform board
  *
  * \author
- * 		Pablo Corbalan <p.corbalanpelegrin@unitn.it>
+ * 	Davide Molteni <davide.molteni@unitn.it>
  */
 
-#include "dwm1001-dev-board.h"
+#include "platform-conf.h"
