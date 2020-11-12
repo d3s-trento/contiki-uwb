@@ -34,13 +34,11 @@
  * \file
  *      Implementation of the architecture dependent rtimer functions for the nRF52
  */
-#include "dwm1001-dev-board.h"
+#include "contiki.h"
 /*---------------------------------------------------------------------------*/
 #include "nrf.h"
 #include "nrfx_rtc.h"
 #include "app_error.h"
-/*---------------------------------------------------------------------------*/
-#include "contiki.h"
 /*---------------------------------------------------------------------------*/
 #include <stdint.h>
 #include <stddef.h>

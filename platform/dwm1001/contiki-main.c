@@ -37,9 +37,8 @@
 #include <stdint.h>
 /*---------------------------------------------------------------------------*/
 #include "contiki.h"
+#include "reset_reason.h"
 #include "contiki-net.h"
-#include "custom_board.h"
-#include "dwm1001-dev-board.h"
 #include "leds.h"
 #include "lib/sensors.h"
 /*---------------------------------------------------------------------------*/
@@ -84,19 +83,21 @@
 #define PRINTF(...)
 #endif //DEBUG
 
+reset_reason_t last_reset_reason;
+
 /*---------------------------------------------------------------------------*/
 void app_error_handler(ret_code_t error_code, uint32_t line_num, const uint8_t * p_file_name)
 {
-  NRF_LOG_ERROR("err_handler: %ld at %s:%ld", error_code, p_file_name, line_num);
+  NRF_LOG_ERROR("err_handler: 0x%lx at %s:0x%lx", error_code, p_file_name, line_num);
   NRF_LOG_FLUSH();
-  printf("err_handler: %ld at %s:%ld", error_code, p_file_name, line_num);
+  printf("err_handler: 0x%lx at %s:0x%ldx\n", error_code, p_file_name, line_num);
 }
 
 void app_error_handler_bare(ret_code_t error_code)
 {
-  NRF_LOG_ERROR("err_handler: %ld", error_code);
+  NRF_LOG_ERROR("err_handler: 0x%lx", error_code);
   NRF_LOG_FLUSH();
-  printf("err_handler: %ld", error_code);
+  printf("err_handler: 0x%lx\n", error_code);
 }
 
 /* void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info) */
@@ -236,7 +237,7 @@ static void log_init(void)
 /**< A tag identifying the SoftDevice BLE configuration. */
 #define APP_BLE_CONN_CFG_TAG 1
 
-static void ble_stack_init(void) {
+void ble_stack_init(void) {
   // TODO move in cpu nrf52832 (under ble folder)
   ret_code_t err_code;
 
@@ -263,10 +264,10 @@ static void ble_stack_init(void) {
 int
 main(void)
 {
-#ifdef NRF_SHOW_RESETREASON
-  uint32_t resetreas = NRF_POWER->RESETREAS;
+  uint32_t temp = NRF_POWER->RESETREAS;
+  *(uint8_t*)&last_reset_reason = temp & 0x0000000f;
+  *(uint8_t*)&last_reset_reason |= (temp & 0x000f0000) >> 12;
   NRF_POWER->RESETREAS = 0xffffffff; /* to clear reset reason*/
-#endif //NRF_SHOW_RESETREASON
 
   board_init();
 
@@ -310,18 +311,18 @@ main(void)
   PRINTF("Starting " CONTIKI_VERSION_STRING "\n");
   printf("Starting " CONTIKI_VERSION_STRING "\n");
 #ifdef NRF_SHOW_RESETREASON
-  PRINTF("Reset reason %08lx ", resetreas);
+  PRINTF("Reset reason %hx", *(uint8_t*)&last_reset_reason);
   PRINTF("Reset decode1 %s%s%s%s*",
-	 ((resetreas & POWER_RESETREAS_NFC_Msk) == POWER_RESETREAS_NFC_Msk) ? "NFC," :  "",
-	 ((resetreas & POWER_RESETREAS_DIF_Msk) == POWER_RESETREAS_DIF_Msk) ? "DIF," :  "",
-	 ((resetreas & POWER_RESETREAS_LPCOMP_Msk) == POWER_RESETREAS_LPCOMP_Msk) ? "LPCOMP," :  "",
-	 ((resetreas & POWER_RESETREAS_OFF_Msk) == POWER_RESETREAS_OFF_Msk) ? "OFF," :  ""
+	 (last_reset_reason.nfc) ? "NFC," :  "",
+	 (last_reset_reason.debug_interface) ? "DIF," :  "",
+	 (last_reset_reason.lp_comp) ? "LPCOMP," :  "",
+	 (last_reset_reason.system_off) ? "OFF," :  ""
 	 );
   PRINTF("Reset decode2 %s%s%s%s*",
-	 ((resetreas & POWER_RESETREAS_LOCKUP_Msk) == POWER_RESETREAS_LOCKUP_Msk) ? "LOCKUP," :  "",
-	 ((resetreas & POWER_RESETREAS_SREQ_Msk) == POWER_RESETREAS_SREQ_Msk) ? "SREQ," :  "",
-	 ((resetreas & POWER_RESETREAS_DOG_Msk) == POWER_RESETREAS_DOG_Msk) ? "DOG," :  "",
-	 ((resetreas & POWER_RESETREAS_RESETPIN_Msk) == POWER_RESETREAS_RESETPIN_Msk) ? "RESETPIN," :  ""
+	 (last_reset_reason.lockup) ? "LOCKUP," :  "",
+	 (last_reset_reason.soft_reset) ? "SREQ," :  "",
+	 (last_reset_reason.watchdog) ? "DOG," :  "",
+	 (last_reset_reason.reset_pin) ? "RESETPIN," :  ""
 	 );
 #endif //NRF_SHOW_RESETREASON
 

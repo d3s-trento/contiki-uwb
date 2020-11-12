@@ -42,9 +42,14 @@
  *         Platform features configuration.
  * \author
  *         Wojciech Bober <wojciech.bober@nordicsemi.no>
+ *         Davide Molteni <davide.molteni@unitn.it>
  *
  */
 
+/* include the platform-conf of module dwm1001 */
+#include "dwm1001-platform-conf.h"
+
+/* include board definition */
 #include "dwm1001-dev-board.h"
 
 #include "nrf_gpio.h"
@@ -73,98 +78,15 @@
 /* Notify various examples that we have Buttons */
 #define PLATFORM_HAS_BUTTON      1
 
+#ifdef REPLY_PLATFORM
+#error REPLY_PLATFORM is old workaround please delete and use BOARDS
+#endif
+
 /* configre button's macro*/
-#define DWM1001_USER_BUTTON       2
-#define BUTTON_PULL    NRF_GPIO_PIN_PULLUP
-#define BUTTONS_ACTIVE_STATE 0
-#define DWM1001_BUTTON_MASK (1 << DWM1001_USER_BUTTON)
-
-
-/**
- * \brief nRF52 RTC instance to be used for Contiki clock driver.
- * \note RTC 0 is used by the SoftDevice.
- */
-#define PLATFORM_CLOCK_RTC_INSTANCE_ID     1
-
-
-
-/** @} */
-/*---------------------------------------------------------------------------*/
-/**
- * \name Compiler configuration and platform-specific type definitions
- *
- * Those values are not meant to be modified by the user
- * @{
- */
-
-/* If you need to change the clock frequency, make sure to
- * adjust the NRF SDK setting NRFX_RTC_DEFAULT_CONFIG_FREQUENCY
- */
-#define CLOCK_CONF_SECOND 1024
-
-/* Compiler configurations */
-#define CCIF
-#define CLIF
-
-/* Platform typedefs */
-typedef uint32_t clock_time_t;
-typedef uint32_t uip_stats_t;
-
-/* Clock (time) comparison macro */
-#define CLOCK_LT(a, b)  ((signed long)((a) - (b)) < 0)
-
-
-/* RTimer frequency.
- * It depends on the selected clock source for RTimer.
- *
- */
-#if NRF52_RTIMER_USE_HFCLK
-
-/* Setting for HFCLK.
- * Note that this setting should correspond with the
- * frequency in NRF configuration (NRFX_TIMER_DEFAULT_CONFIG_FREQUENCY).
- *
- * Related files: 
- *    - config/nrfx_config.h 
- *    - config/sdk_config.h
- */
-#define RTIMER_ARCH_SECOND 1000000L
-
-/**
- * \brief nRF52 timer instance to be used for Contiki rtimer driver.
- * \note Timer 0 is used by the SoftDevice.
- */
-#define PLATFORM_RTIMER_TIMER_INSTANCE_ID   1
-
-
-#else
-
-/* Setting for LFCLK */
-#define RTIMER_ARCH_SECOND 32768L
-
-/**
- * \brief nRF52 rtc instance to be used for Contiki rtimer driver.
- * \note RTC 0 is used by the SoftDevice.
- */
-#define PLATFORM_RTIMER_RTC_INSTANCE_ID   2
-#endif
-
-/*
- * rtimer.h typedefs rtimer_clock_t as unsigned short. We need to define
- * RTIMER_CLOCK_DIFF to override this
- */
-typedef uint32_t rtimer_clock_t;
-#define RTIMER_CLOCK_DIFF(a,b)     ((int32_t)((a)-(b)))
-
-
-
-#ifndef DW1000_CONF_RX_ANT_DLY
-#define DW1000_CONF_RX_ANT_DLY 16455 // TODO: needs calibration
-#endif
-
-#ifndef DW1000_CONF_TX_ANT_DLY
-#define DW1000_CONF_TX_ANT_DLY 16455 // TODO: needs calibration
-#endif
+#define DWM1001_USER_BUTTON   2
+#define BUTTON_PULL           NRF_GPIO_PIN_PULLUP
+#define BUTTONS_ACTIVE_STATE  0
+#define DWM1001_BUTTON_MASK   (1 << DWM1001_USER_BUTTON)
 
 /** @} */
 /*---------------------------------------------------------------------------*/

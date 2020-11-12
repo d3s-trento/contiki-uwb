@@ -145,10 +145,11 @@ SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_uarte.c
 SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_rng.c
 SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_clock.c
 SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_power.c
+SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_saadc.c
 
 SDK_SOURCE_FILES += components/serialization/connectivity/ser_conn_error_handling.c
 
-SDK_SOURCE_FILES += components/libraries/util/app_error.c
+
 SDK_SOURCE_FILES += components/libraries/log/src/nrf_log_frontend.c
 SDK_SOURCE_FILES += components/libraries/log/src/nrf_log_default_backends.c
 SDK_SOURCE_FILES += components/libraries/log/src/nrf_log_backend_rtt.c
@@ -191,6 +192,7 @@ SDK_INC_PATHS += components/iot/common
 
 SDK_SOURCE_FILES += components/ble/common/ble_advdata.c
 SDK_SOURCE_FILES += components/softdevice/common/nrf_sdh_ble.c
+SDK_SOURCE_FILES += components/softdevice/common/nrf_sdh_soc.c
 SDK_SOURCE_FILES += components/ble/ble_radio_notification/ble_radio_notification.c
 SDK_SOURCE_FILES += components/softdevice/common/nrf_sdh.c
 SDK_SOURCE_FILES += components/libraries/experimental_section_vars/nrf_section_iter.c
@@ -209,7 +211,7 @@ ASM_SOURCE_FILES += $(NRF52_SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52.S
 
 #here is defined some legacy request, e.g. used by log library
 SDK_INC_PATHS += integration/nrfx/legacy
-SDK_SOURCE_FILES += integration/nrfx/legacy/nrf_drv_uart.c
+#SDK_SOURCE_FILES += integration/nrfx/legacy/nrf_drv_uart.c
 
 EXTERNALDIRS += $(addprefix $(NRF52_SDK_ROOT)/, $(SDK_INC_PATHS))
 
@@ -241,7 +243,7 @@ CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 CFLAGS += -fno-builtin --short-enums
 
 # keep every function in separate section. This will allow linker to dump unused functions
-LDFLAGS += -Xlinker -Map=$(LISTING_DIRECTORY)/$(OUTPUT_FILENAME).map
+LDFLAGS += -Xlinker -Map=contiki-$(TARGET).map
 LDFLAGS += -mthumb -mabi=aapcs -L $(LINKER_LIB_PATH) -T$(LINKER_SCRIPT)
 LDFLAGS += -mcpu=cortex-m4
 LDFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
@@ -296,7 +298,7 @@ nrf52832.a: $(OBJECTS)
 # Use custome rule beacuse use ld doesn't work and is suggested to use gcc also as linker
 CUSTOM_RULE_LINK=1
 
-%.elf: $(TARGET_STARTFILES) %.co $(PROJECT_OBJECTFILES) $(PROJECT_LIBRARIES) contiki-$(TARGET).a $(TARGET_LIBS)
+%.elf: $(TARGET_STARTFILES) %.co $(PROJECT_OBJECTFILES) $(PROJECT_LIBRARIES) contiki-$(TARGET).a $(OBJECTS)
 	$(TRACE_LD)
 	$(Q)$(CC) $(LDFLAGS) ${filter %o %.co %.a,$^} -lm -o $@
 
@@ -322,7 +324,7 @@ SOFTDEVICE_DEPS = %.s$(NRF52_SOFTDEVICE).hex
 
 %.s$(NRF52_SOFTDEVICE).hex:
 	@echo Merge $*.hex with softdevice
-	$(MERGEHEX) -m $*.hex $(NRF52_SOFTDEVICE_HEX) -o $@
+	$(Q) $(MERGEHEX) -m $*.hex $(NRF52_SOFTDEVICE_HEX) -o $@
 else #MERGEHEX
 $(warning mergehex is not found, it is needed to create a single file with app and softdevice)
 endif #MERGEHEX
