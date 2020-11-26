@@ -94,8 +94,8 @@
 static const nrfx_spi_t spi = NRFX_SPI_INSTANCE(SPI_INSTANCE);  /* SPI instance. */
 /*---------------------------------------------------------------------------*/
 /* Forward declarations */
-static void dw1000_spi_init_slow_rate(void);
-static void dw1000_spi_init_fast_rate(void);
+void dw1000_spi_set_slow_rate(void);
+void dw1000_spi_set_fast_rate(void);
 /*---------------------------------------------------------------------------*/
 static dw1000_isr_t dw1000_isr = NULL; // no ISR by default
 static volatile int dw1000_irqn_status;
@@ -142,21 +142,20 @@ dw1000_enable_interrupt(int previous_irqn_status)
   }
 }
 /*---------------------------------------------------------------------------*/
-static void
-dw1000_spi_init_slow_rate(void)
+void
+dw1000_spi_set_slow_rate(void)
 {
   nrfx_spi_config_t spi_config = NRFX_SPI_DEFAULT_CONFIG_2M;
+  nrfx_spi_uninit(&spi);
   APP_ERROR_CHECK(nrfx_spi_init(&spi, &spi_config, NULL, NULL));
-  nrf_delay_ms(2);
 }
 /*---------------------------------------------------------------------------*/
-static void
-dw1000_spi_init_fast_rate(void)
+void
+dw1000_spi_set_fast_rate(void)
 {
-  nrfx_spi_uninit(&spi);
   nrfx_spi_config_t spi_config = NRFX_SPI_DEFAULT_CONFIG_8M;
+  nrfx_spi_uninit(&spi);
   APP_ERROR_CHECK(nrfx_spi_init(&spi, &spi_config, NULL, NULL));
-  nrf_delay_ms(2);
 }
 /*---------------------------------------------------------------------------*/
 void
@@ -256,7 +255,8 @@ dw1000_arch_init()
   /* For initialisation, DW1000 clocks must be temporarily set to crystal speed.
    * After initialisation SPI rate can be increased for optimum performance.
    */
-  dw1000_spi_init_slow_rate();
+  nrfx_spi_config_t spi_config = NRFX_SPI_DEFAULT_CONFIG_2M;
+  APP_ERROR_CHECK(nrfx_spi_init(&spi, &spi_config, NULL, NULL));
   
   if (dwt_readdevid() != DWT_DEVICE_ID) {
     printf("Radio sleeping?\n");
@@ -275,7 +275,7 @@ dw1000_arch_init()
       // XXX handle this in a better way!
     }
   }
-  dw1000_spi_init_fast_rate();
+  dw1000_spi_set_fast_rate();
 
   /* Enable DW1000 IRQ Pin for external interrupt.
    * NOTE: The DW1000 IRQ Pin should be Pull Down to
