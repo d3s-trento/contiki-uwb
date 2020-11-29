@@ -31,6 +31,8 @@ void dw1000_spi_close(void);
 void dw1000_spi_read(uint16_t hdrlen, const uint8_t *hdrbuf, uint32_t len, uint8_t *buf);
 void dw1000_spi_write(uint16_t hdrlen, const uint8_t *hdrbuf, uint32_t len, const uint8_t *buf);
 void dw1000_set_spi_bit_rate(uint16_t brate);
+void dw1000_spi_set_slow_rate(void);
+void dw1000_spi_set_fast_rate(void);
 int8_t dw1000_disable_interrupt(void);
 void dw1000_enable_interrupt(int8_t irqn_status);
 /*---------------------------------------------------------------------------*/

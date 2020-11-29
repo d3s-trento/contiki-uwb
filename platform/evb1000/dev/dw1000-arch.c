@@ -208,6 +208,18 @@ dw1000_set_spi_bit_rate(uint16_t brate)
 }
 /*---------------------------------------------------------------------------*/
 void
+dw1000_spi_set_slow_rate(void)
+{
+  spix_change_speed(DW1000_SPI, DW1000_SPI_SLOW);
+}
+/*---------------------------------------------------------------------------*/
+void
+dw1000_spi_set_fast_rate(void)
+{
+  spix_change_speed(DW1000_SPI, DW1000_SPI_FAST);
+}
+/*---------------------------------------------------------------------------*/
+void
 dw1000_arch_init()
 {
   SPI_InitTypeDef spi1_conf;
