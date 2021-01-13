@@ -1,5 +1,5 @@
 #include <stdarg.h>
-#include "segger-rtt.h"
+#include "SEGGER_RTT.h"
 
 int SEGGER_RTT_vprintf(unsigned BufferIndex, const char * sFormat, va_list * pParamList);
 
