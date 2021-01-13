@@ -7,19 +7,10 @@ CONTIKI_SOURCEFILES += button-sensor.c leds-arch.c dwm1001-sensors.c
 
 ENABLE_SEGGER_RTT ?= 0
 PRINTF_OVER_RTT ?= 0
-
-ifeq ($(ENABLE_SEGGER_RTT),1)
-#Those settings is related to CPU sdk but they are here because Segger programer depends on
-# platform and not on CPU chip
-EXTERNALDIRS += $(NRF52_SDK_ROOT)/external/segger_rtt/
-SDK_SOURCE_FILES += external/segger_rtt/SEGGER_RTT.c
-SDK_SOURCE_FILES += external/segger_rtt/SEGGER_RTT_printf.c
-endif
+NRF_LOG_OVER_RTT ?= 0
 
 ifeq ($(PRINTF_OVER_RTT),1)
-ifeq ($(ENABLE_SEGGER_RTT),0)
-$(error "PRINTF_OVER_RTT require ENABLE_SEGGER_RTT")
-endif
+ENABLE_SEGGER_RTT=1
 BOARD_DIRS += rtt
 CONTIKI_SOURCEFILES += rtt-printf.c
 # else ifeq($(PRINTF_OVER_NRF_LOG),1)
@@ -28,4 +19,20 @@ CONTIKI_SOURCEFILES += rtt-printf.c
 PRINTF_OVER_UART=0
 else
 PRINtF_OVER_UART=1
+endif
+
+ifeq ($(NRF_LOG_OVER_RTT),1)
+ENABLE_SEGGER_RTT=1
+CFLAGS += -DNRF_LOG_BACKEND_RTT_ENABLED=1
+endif
+
+ifeq ($(ENABLE_SEGGER_RTT),1)
+#Those settings is related to CPU sdk but they are here because Segger programer depends on
+# platform and not on CPU chip
+CFLAGS += -DSEGGER_RTT_ENABLED=1
+EXTERNALDIRS += $(NRF52_SDK_ROOT)/external/segger_rtt/
+SDK_SOURCE_FILES += external/segger_rtt/SEGGER_RTT.c
+SDK_SOURCE_FILES += external/segger_rtt/SEGGER_RTT_printf.c
+else
+CFLAGS += -DSEGGER_RTT_ENABLED=0
 endif
