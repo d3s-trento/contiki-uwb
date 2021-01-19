@@ -80,6 +80,7 @@ typedef struct {
   int status;       /* 1=SUCCESS, 0=FAIL */
   double distance;
   double raw_distance;
+  double freq_offset;
 } ranging_data_t;
 
 #endif /* DW1000_RANGING_H */

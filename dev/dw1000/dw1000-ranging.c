@@ -204,13 +204,13 @@ typedef struct {
   double freq_offs_multiplier;
 } ranging_conf_t;
 
-/* 
+/*
 * tx: tx_ts
 *           ----------- DS0/SS0 ----------->
 * listen:  txdone + rx_dly_a
 * timeout: txdone + rx_dly_a + to_a         tx: rx_ts + a
 *           <---------- DS1/SS1 ------------
-*                                           listen:  txdone + rx_dly_b   
+*                                           listen:  txdone + rx_dly_b
 * tx: rx_ts + b                             timeout: txdone + rx_dly_b + to_b
 *           ------------- DS2 ------------->
 * timeout: txdone + to_c                    tx: asap
@@ -456,7 +456,7 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     err_status = 21;
     goto abort;
   }
-  
+
   // TODO: if HW frame filtering is disabled, add address check here
 
   uint8_t  pld_len = rx_frame.payload_len;
@@ -553,7 +553,7 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
       memcpy(tx_frame.src_addr, linkaddr_node_addr.u8, LINKADDR_SIZE);
       memcpy(tx_frame.dest_addr, rx_frame.src_addr, LINKADDR_SIZE);
       tx_hdr_len = frame802154_create(&tx_frame, rtx_buf);
-      
+
       /* Fill in the DS1 payload */
       rtx_buf[tx_hdr_len + PLD_TYPE_OFS] = MSG_TYPE_DS1;
 
@@ -750,12 +750,12 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     goto poll_the_process; // ranging done, poll the process
   }
 
-abort: 
+abort:
   /* In case we got anything unexpected or could not TX. Radio is OFF. */
   old_state = state;
   state = S_ABORT;
 poll_the_process:
-  /* Ranging is done, either successfully or not. Radio is OFF. 
+  /* Ranging is done, either successfully or not. Radio is OFF.
    * Polling the process to notify the application and re-enable the reception. */
   process_poll(&dw1000_rng_process);
 }
@@ -829,7 +829,7 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
 
   while(1) {
     PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
-    
+
     uint8_t irq_status = dw1000_disable_interrupt();
 
     PRINTF_RNG("dwr: process: my %d their %d, ost %d st %d ss %d\n", my_seqn, recv_seqn, old_state, state, err_status);
@@ -857,6 +857,7 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
 #else
       ranging_data.distance = not_corrected;
 #endif
+      ranging_data.freq_offset = clockOffsetRatio;
 
       //PRINTF_RNG("dwr: %d done %f, after bias %f\n", my_seqn, not_corrected, ranging_data.distance);
       ranging_data.status = 1;
@@ -885,7 +886,7 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
     if(process_to_poll != PROCESS_NONE) {
       process_post(process_to_poll, ranging_event, &ranging_data);
     }
-    
+
     dw1000_enable_interrupt(irq_status);
   }
 
