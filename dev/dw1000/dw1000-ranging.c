@@ -199,8 +199,6 @@ typedef struct {
   uint16_t to_b;
   uint16_t to_c;
 
-  uint32_t finish_delay; /* assumes millisecond clock tick! */
-
   double freq_offs_multiplier;
 } ranging_conf_t;
 
@@ -230,8 +228,6 @@ const static ranging_conf_t ranging_conf_6M8 = {
   .to_b = 650,
   .to_c = 650,
 
-  .finish_delay = 1, /* assumes millisecond clock tick! */
-
   .freq_offs_multiplier = FREQ_OFFSET_MULTIPLIER,
 };
 
@@ -246,8 +242,6 @@ const static ranging_conf_t ranging_conf_110K = {
   .rx_dly_b = 0,
   .to_b = 4500,
   .to_c = 3500, /* 3000 kind of works, too */
-
-  .finish_delay = 3, /* assumes millisecond clock tick! */
 
   .freq_offs_multiplier = FREQ_OFFSET_MULTIPLIER_110KB,
 };
