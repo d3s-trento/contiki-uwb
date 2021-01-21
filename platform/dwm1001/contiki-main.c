@@ -145,14 +145,14 @@ softdevice_init(void)
   err_code = nrf_sdh_enable_request();
   APP_ERROR_CHECK(err_code);
 
-#if NRFX_POWER_ENABLE == 1
+#if NRFX_POWER_ENABLED == 1
 #if NRFX_POWER_CONFIG_DEFAULT_DCDCEN == 1
   err_code = sd_power_dcdc_mode_set(NRF_POWER_DCDC_ENABLE);
 #else /* NRFX_POWER_CONFIG_DEFAULT_DCDCEN == 1 */
   err_code = sd_power_dcdc_mode_set(NRF_POWER_DCDC_DISABLE);
 #endif /* NRFX_POWER_CONFIG_DEFAULT_DCDCEN == 1 */
   APP_ERROR_CHECK(err_code);
-#endif /*NRFX_POWER_ENABLE == 1 */
+#endif /*NRFX_POWER_ENABLED == 1 */
 #endif /* SOFTDEVICE_PRESENT */
 }
 /*---------------------------------------------------------------------------*/
