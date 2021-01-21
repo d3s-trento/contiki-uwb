@@ -674,26 +674,24 @@ range_with(linkaddr_t *dst, dw1000_rng_type_t type)
 PROCESS_THREAD(dw1000_dbg_process, ev, data)
 {
   static struct etimer et;
-  static uint32_t r1;
-  static uint8_t r2;
   PROCESS_BEGIN();
   while(1) {
     etimer_set(&et, CLOCK_SECOND);
     PROCESS_WAIT_EVENT();
     if(ev == PROCESS_EVENT_POLL) {
-      r1 = radio_status;
+      uint32_t r1 = radio_status;
       printf("RX FAIL(%u) %02x %02x %02x %02x\n",
              dw_dbg_event, (uint8_t)(r1 >> 24), (uint8_t)(r1 >> 16),
              (uint8_t)(r1 >> 8), (uint8_t)r1);
+      dw_dbg_event = 0;
     }
-    if(etimer_expired(&et) && !dw1000_is_sleeping) {
-      r1 = dwt_read32bitoffsetreg(SYS_STATUS_ID, 0);
-      r2 = dwt_read8bitoffsetreg(SYS_STATUS_ID, 4);
+    /*if(etimer_expired(&et) && !dw1000_is_sleeping) {
+      uint32_t r1 = dwt_read32bitoffsetreg(SYS_STATUS_ID, 0);
+      uint8_t  r2 = dwt_read8bitoffsetreg(SYS_STATUS_ID, 4);
       printf("*** SYS_STATUS %02x %02x %02x %02x %02x ***\n",
              (uint8_t)(r1 >> 24), (uint8_t)(r1 >> 16), (uint8_t)(r1 >> 8),
              (uint8_t)(r1), r2);
-      dw_dbg_event = 0;
-    }
+    }*/
   }
   PROCESS_END();
 }
