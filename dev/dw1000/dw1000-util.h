@@ -1,6 +1,7 @@
 #ifndef DW1000_UTIL_H_
 #define DW1000_UTIL_H_
 #include "deca_device_api.h"
+#include "contiki-conf.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -37,8 +38,7 @@ uint32_t dw1000_estimate_tx_time(const dwt_config_t* dwt_config, uint16_t framel
 #define DW1000_CFO_WANTED (0) // desidered CFO is 0
 #endif
 
-void dw1000_set_ppm_per_trim(float ppm);
-void dw1000_set_jitter_guard(float ppm);
+void dw1000_set_cfo_jitter_guard(float ppm);
 
 /* Returns the clock frequency offset w.r.t. the sender in ppm for the given 
  * radio configuration, based on the carrier integrator. This function may be 

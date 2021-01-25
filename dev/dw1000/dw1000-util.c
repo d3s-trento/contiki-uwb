@@ -2,8 +2,7 @@
 #include "dw1000-util.h"
 #include <math.h>
 /*---------------------------------------------------------------------------*/
-static float ppm_per_trim = DW1000_CFO_PPM_PER_TRIM;
-static float jitter_guard = DW1000_CFO_JITTER_GUARD;
+static float cfo_jitter_guard = DW1000_CFO_JITTER_GUARD;
 /*---------------------------------------------------------------------------*/
 /**
  * Estimate the transmission time of a frame in nanoseconds
@@ -152,27 +151,23 @@ dw1000_get_ppm_offset(const dwt_config_t *dwt_config)
 }
 /*---------------------------------------------------------------------------*/
 void
-dw1000_set_ppm_per_trim(float ppm)
+dw1000_set_cfo_jitter_guard(float ppm)
 {
-    ppm_per_trim = ppm;
-}
-/*---------------------------------------------------------------------------*/
-void
-dw1000_set_jitter_guard(float ppm)
-{
-    jitter_guard = ppm;
+    cfo_jitter_guard = ppm;
 }
 /*---------------------------------------------------------------------------*/
 uint8_t
 dw1000_get_best_trim_code(float curr_offset_ppm, uint8_t curr_trim)
 {
-    if (curr_offset_ppm > ppm_per_trim/2+jitter_guard ||
-        curr_offset_ppm < -ppm_per_trim/2-jitter_guard
+    if (curr_offset_ppm > DW1000_CFO_PPM_PER_TRIM/2+cfo_jitter_guard ||
+        curr_offset_ppm < -DW1000_CFO_PPM_PER_TRIM/2-cfo_jitter_guard
         ) {
         // estimate in PPM
-        int8_t trim_adjust = (int8_t)round((float)(DW1000_CFO_WANTED + curr_offset_ppm)/(float)ppm_per_trim);
+        int8_t trim_adjust = (int8_t)round(
+          (float)(DW1000_CFO_WANTED + curr_offset_ppm)
+          / (float)DW1000_CFO_PPM_PER_TRIM);
         // printf("ppm %d guard %d trim %u adj %d\n",
-        //   (int)(curr_offset_ppm * 1000), (int)(jitter_guard * 1000),
+        //   (int)(curr_offset_ppm * 1000), (int)(cfo_jitter_guard * 1000),
         //   (unsigned int)curr_trim, (int)trim_adjust);
         curr_trim -= trim_adjust;
 
