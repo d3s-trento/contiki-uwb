@@ -2,7 +2,7 @@
 #include "dw1000-util.h"
 #include <math.h>
 /*---------------------------------------------------------------------------*/
-static float cfo_jitter_guard = DW1000_CFO_JITTER_GUARD;
+static double cfo_jitter_guard = DW1000_CFO_JITTER_GUARD;
 /*---------------------------------------------------------------------------*/
 /**
  * Estimate the transmission time of a frame in nanoseconds
@@ -104,68 +104,58 @@ dw1000_estimate_tx_time(const dwt_config_t* dwt_config, uint16_t framelength, bo
 
 }
 /*---------------------------------------------------------------------------*/
-float
-dw1000_get_ppm_offset(const dwt_config_t *dwt_config)
-{
-    float freq_offset_multiplier;
-    float hz_to_ppm_channel_mul;
 
+
+double dw1000_get_hz2ppm_multiplier(const dwt_config_t *dwt_config) {
+    double freq_offs;
+    double hz2ppm;
+    
     if (dwt_config->dataRate == DWT_BR_110K) {
-        freq_offset_multiplier = FREQ_OFFSET_MULTIPLIER_110KB;
+        freq_offs = FREQ_OFFSET_MULTIPLIER_110KB;
     } else {
-        freq_offset_multiplier = FREQ_OFFSET_MULTIPLIER;
+        freq_offs = FREQ_OFFSET_MULTIPLIER;
     }
-
-    // use the value corresponding to centr frequency for the
+    // use the value corresponding to center frequency for the
     // given channel (section 10.5 dw1000 user manual):
     // 1,2 and 5 have different frequencies
     // 4 has the same of channel 2
     // 7 has the same of channel 5
     switch (dwt_config->chan) {
-        case 1:
-            hz_to_ppm_channel_mul = HERTZ_TO_PPM_MULTIPLIER_CHAN_1;
-            break;
-        case 2:
-            hz_to_ppm_channel_mul = HERTZ_TO_PPM_MULTIPLIER_CHAN_2;
-            break;
-        case 3:
-            hz_to_ppm_channel_mul = HERTZ_TO_PPM_MULTIPLIER_CHAN_3;
-            break;
-        case 4:
-            hz_to_ppm_channel_mul = HERTZ_TO_PPM_MULTIPLIER_CHAN_2;
-            break;
-        case 5:
-            hz_to_ppm_channel_mul = HERTZ_TO_PPM_MULTIPLIER_CHAN_5;
-            break;
-        case 7:
-            hz_to_ppm_channel_mul = HERTZ_TO_PPM_MULTIPLIER_CHAN_5;
-            break;
-        default:
-            hz_to_ppm_channel_mul = HERTZ_TO_PPM_MULTIPLIER_CHAN_5;
+        case 1:  hz2ppm = HERTZ_TO_PPM_MULTIPLIER_CHAN_1; break;
+        case 2:  hz2ppm = HERTZ_TO_PPM_MULTIPLIER_CHAN_2; break;
+        case 3:  hz2ppm = HERTZ_TO_PPM_MULTIPLIER_CHAN_3; break;
+        case 4:  hz2ppm = HERTZ_TO_PPM_MULTIPLIER_CHAN_2; break;
+        case 5:  hz2ppm = HERTZ_TO_PPM_MULTIPLIER_CHAN_5; break;
+        case 7:  hz2ppm = HERTZ_TO_PPM_MULTIPLIER_CHAN_5; break;
+        default: hz2ppm = HERTZ_TO_PPM_MULTIPLIER_CHAN_5;
     }
+    return freq_offs*hz2ppm;
+}
 
+
+double
+dw1000_get_ppm_offset(const dwt_config_t *dwt_config)
+{
     int32_t ci = dwt_readcarrierintegrator();
-    float offset_hz = ci * freq_offset_multiplier;
-    float offset_ppm = offset_hz * hz_to_ppm_channel_mul;
-    return offset_ppm;
+    return ci * dw1000_get_hz2ppm_multiplier(dwt_config);
 }
 /*---------------------------------------------------------------------------*/
 void
-dw1000_set_cfo_jitter_guard(float ppm)
+dw1000_set_cfo_jitter_guard(double ppm)
 {
     cfo_jitter_guard = ppm;
 }
 /*---------------------------------------------------------------------------*/
 uint8_t
-dw1000_get_best_trim_code(float curr_offset_ppm, uint8_t curr_trim)
+dw1000_get_best_trim_code(double curr_offset_ppm, uint8_t curr_trim)
 {
     if (curr_offset_ppm > DW1000_CFO_PPM_PER_TRIM/2+cfo_jitter_guard ||
         curr_offset_ppm < -DW1000_CFO_PPM_PER_TRIM/2-cfo_jitter_guard
         ) {
         // estimate in PPM
         int8_t trim_adjust = (int8_t)round(
-          (float)(DW1000_CFO_WANTED + curr_offset_ppm)
-          / (float)DW1000_CFO_PPM_PER_TRIM);
+          (double)(DW1000_CFO_WANTED + curr_offset_ppm)
+          / (double)DW1000_CFO_PPM_PER_TRIM);
         // printf("ppm %d guard %d trim %u adj %d\n",
         //   (int)(curr_offset_ppm * 1000), (int)(cfo_jitter_guard * 1000),
         //   (unsigned int)curr_trim, (int)trim_adjust);

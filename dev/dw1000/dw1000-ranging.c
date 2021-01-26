@@ -48,6 +48,8 @@
 #include "deca_regs.h"
 #include "dw1000-ranging.h"
 #include "dw1000-config.h"
+#include "dw1000-shared-state.h"
+#include "dw1000-util.h"
 #include "dw1000-cir.h"
 #include "process.h"
 #include "deca_range_tables.h"
@@ -199,7 +201,6 @@ typedef struct {
   uint16_t to_b;
   uint16_t to_c;
 
-  double freq_offs_multiplier;
 } ranging_conf_t;
 
 /*
@@ -227,8 +228,6 @@ const static ranging_conf_t ranging_conf_6M8 = {
   .rx_dly_b = 100,    // timeout starts after this
   .to_b = 650,
   .to_c = 650,
-
-  .freq_offs_multiplier = FREQ_OFFSET_MULTIPLIER,
 };
 
 const static ranging_conf_t ranging_conf_110K = {
@@ -242,16 +241,22 @@ const static ranging_conf_t ranging_conf_110K = {
   .rx_dly_b = 0,
   .to_b = 4500,
   .to_c = 3500, /* 3000 kind of works, too */
-
-  .freq_offs_multiplier = FREQ_OFFSET_MULTIPLIER_110KB,
 };
 
-static uint16_t rx_ant_dly;
-static uint16_t tx_ant_dly;
-static int channel;
-static double hertz_to_ppm_multiplier;
-
 static ranging_conf_t ranging_conf;
+
+/* Update ranging delays based on current radio config */
+static inline void update_ranging_conf() {
+  switch(dw1000_cached_config.cfg.dataRate) {
+  case DWT_BR_6M8:
+    ranging_conf = ranging_conf_6M8;
+    break;
+  case DWT_BR_110K:
+    ranging_conf = ranging_conf_110K;
+    break;
+  }
+}
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 static inline uint64_t
@@ -308,37 +313,12 @@ PROCESS(dw1000_rng_dbg_process, "DW1000 rng dbg process");
 #endif
 /*---------------------------------------------------------------------------*/
 
-/* (Re)initialise the ranging module.
- *
- * Needs to be called before issuing or serving ranging requests and
- * after changing radio parameters. */
+
+
+/* Initialise the ranging module. */
 void
 dw1000_ranging_init()
 {
-  const dwt_config_t * cfg;
-  cfg = dw1000_get_current_cfg();
-  dw1000_get_current_ant_dly(&rx_ant_dly, &tx_ant_dly);
-  channel = cfg->chan;
-
-  switch(cfg->dataRate) {
-  case DWT_BR_6M8:
-    ranging_conf = ranging_conf_6M8;
-    break;
-
-  case DWT_BR_110K:
-    ranging_conf = ranging_conf_110K;
-    break;
-  }
-
-  switch (channel) {
-    case 1: hertz_to_ppm_multiplier = HERTZ_TO_PPM_MULTIPLIER_CHAN_1; break;
-    case 2:
-    case 4: hertz_to_ppm_multiplier = HERTZ_TO_PPM_MULTIPLIER_CHAN_2; break;
-    case 3: hertz_to_ppm_multiplier = HERTZ_TO_PPM_MULTIPLIER_CHAN_3; break;
-    case 5:
-    case 7: hertz_to_ppm_multiplier = HERTZ_TO_PPM_MULTIPLIER_CHAN_5; break;
-  }
-
   process_start(&dw1000_rng_process, NULL);
   state = S_WAIT_POLL;
   old_state = state;
@@ -370,6 +350,7 @@ dw1000_range_with(linkaddr_t *lladdr, dw1000_rng_type_t type)
   }
 
   dwt_forcetrxoff();
+  update_ranging_conf();
 
   ranging_with = *lladdr;
   ranging_data.status = 0;
@@ -418,13 +399,15 @@ enable_interrupts:
 }
 /*---------------------------------------------------------------------------*/
 /* Timestamps needed for SS computations */
-uint32_t ss_poll_tx_ts, ss_resp_rx_ts, ss_poll_rx_ts, ss_resp_tx_ts;
+static uint32_t ss_poll_tx_ts, ss_resp_rx_ts, ss_poll_rx_ts, ss_resp_tx_ts;
 /* Timestamps needed for DS computations */
-uint32_t ds_poll_tx_ts, ds_resp_rx_ts, ds_final_tx_ts;
-uint32_t ds_poll_rx_ts, ds_resp_tx_ts, ds_final_rx_ts;
+static uint32_t ds_poll_tx_ts, ds_resp_rx_ts, ds_final_tx_ts;
+static uint32_t ds_poll_rx_ts, ds_resp_tx_ts, ds_final_rx_ts;
 
 // clock frequency offset to compensate the distance bias in SS-TWR
-double clockOffsetRatio;
+static int32  carrierIntegrator;
+static double clockOffsetRatio;
+
 
 /*---------------------------------------------------------------------------*/
 /* Callback to process ranging good frame events
@@ -465,6 +448,8 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
       goto abort;
     }
 
+    update_ranging_conf();
+
     if(rx_type == MSG_TYPE_SS0) {  /* --- Single-sided poll --- */
 
       /* Timestamps of frames transmission/reception.
@@ -487,7 +472,8 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
       dwt_setdelayedtrxtime(resp_tx_time);
 
       /* Response TX timestamp is the transmission time we programmed plus the antenna delay. */
-      resp_tx_ts_64 = (((uint64_t)(resp_tx_time & 0xFFFFFFFEUL)) << 8) + tx_ant_dly;
+      resp_tx_ts_64 = (((uint64_t)(resp_tx_time & 0xFFFFFFFEUL)) << 8) + 
+                          dw1000_cached_config.tx_ant_dly;
 
       /* Fill in the response header */
       tx_frame.seq = rx_frame.seq;
@@ -585,8 +571,8 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     ss_poll_tx_ts = dwt_readtxtimestamplo32();
     ss_resp_rx_ts = dwt_readrxtimestamplo32();
 
-    /* Read carrier integrator value and calculate clock offset ratio. */
-    clockOffsetRatio = dwt_readcarrierintegrator() * (ranging_conf.freq_offs_multiplier * hertz_to_ppm_multiplier / 1.0e6);
+    /* Read and store carrier integrator value */
+    carrierIntegrator = dwt_readcarrierintegrator();
 
     /* Get timestamps embedded in response message. */
     msg_get_ts(&rtx_buf[rx_hdr_len + RESP_MSG_POLL_RX_TS_OFS], &ss_poll_rx_ts);
@@ -632,7 +618,8 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     dwt_setrxtimeout(ranging_conf.to_c);
 
     /* Final TX timestamp is the transmission time we programmed plus the TX antenna delay. */
-    final_tx_ts_64 = (((uint64_t)(final_tx_time & 0xFFFFFFFEUL)) << 8) + tx_ant_dly;
+    final_tx_ts_64 = (((uint64_t)(final_tx_time & 0xFFFFFFFEUL)) << 8) +
+                          dw1000_cached_config.tx_ant_dly;
 
     ds_poll_tx_ts = (uint32_t)poll_tx_ts_64;
     ds_resp_rx_ts = (uint32_t)resp_rx_ts_64;
@@ -777,7 +764,6 @@ dw1000_rng_tx_conf_cb(const dwt_cb_data_t *cb_data) {
     // Invoking the process to compute the distance and re-enable the radio.
     process_poll(&dw1000_rng_process);
   }
-
 }
 
 static double
@@ -788,7 +774,12 @@ ss_tof_calc()
   rtd_init = ss_resp_rx_ts - ss_poll_tx_ts;
   rtd_resp = ss_resp_tx_ts - ss_poll_rx_ts;
 
-  return ((rtd_init - rtd_resp * (1 - clockOffsetRatio)) / 2.0) * DWT_TIME_UNITS; // TODO with clock drift compensation
+  double hertz_to_ppm_multiplier = dw1000_get_hz2ppm_multiplier(
+      &dw1000_cached_config.cfg);
+  
+  clockOffsetRatio = carrierIntegrator * (hertz_to_ppm_multiplier / 1.0e6);
+
+  return ((rtd_init - rtd_resp * (1 - clockOffsetRatio)) / 2.0) * DWT_TIME_UNITS; // with clock drift compensation
   //return ((rtd_init - rtd_resp) / 2.0) * DWT_TIME_UNITS; // without the compensation
 }
 /*---------------------------------------------------------------------------*/
@@ -847,7 +838,10 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
       not_corrected = tof * SPEED_OF_LIGHT;
       ranging_data.raw_distance = not_corrected;
 #if DW1000_COMPENSATE_BIAS
-      ranging_data.distance = not_corrected - dwt_getrangebias(channel, not_corrected, DW1000_PRF);
+      ranging_data.distance = not_corrected - dwt_getrangebias(
+          dw1000_cached_config.cfg.chan, 
+          not_corrected, 
+          dw1000_cached_config.cfg.prf);
 #else
       ranging_data.distance = not_corrected;
 #endif

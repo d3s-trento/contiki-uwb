@@ -43,6 +43,7 @@
 #include "deca_param_types.h"
 #include "dw1000-arch.h"
 #include "dw1000-shared-state.h"
+#include "dw1000-config-struct.h"
 
 #define DEBUG 0
 #if DEBUG
@@ -52,12 +53,11 @@
 #define PRINTF(...) do {} while(0)
 #endif
 
-/* Buffered configuration */
-static dwt_config_t   current_cfg;
-static dwt_txconfig_t current_tx_cfg;
-static uint16_t current_tx_ant_dly;
-static uint16_t current_rx_ant_dly;
-static bool current_smart_power;
+/* Cached configuration of the radio */
+struct dw1000_all_config dw1000_cached_config;
+// just a local alias
+#define CUR_CFG dw1000_cached_config
+
 
 /* Recommended PG delay values */
 const uint8_t pgdly_tbl[] = {
@@ -108,8 +108,8 @@ dw1000_configure(dwt_config_t *cfg) {
   int8_t irq_status = dw1000_disable_interrupt();
 
   dwt_forcetrxoff();
-  current_cfg = *cfg;
-  dwt_configure(&current_cfg);
+  CUR_CFG.cfg = *cfg;
+  dwt_configure(&CUR_CFG.cfg);
   
   dw1000_enable_interrupt(irq_status);
 
@@ -141,13 +141,13 @@ dw1000_configure_ch(uint8_t chan, uint8_t txCode, uint8_t rxCode) {
 
   // Configure PLL2/RF PLL block CFG/TUNE (for a given channel);
   // these steps are avoided if switching between ch. 2 and 4, or 5 and 7
-  if(fs_pll_cfg[chan_idx[current_cfg.chan]] != fs_pll_cfg[chan_idx[chan]])
+  if(fs_pll_cfg[chan_idx[CUR_CFG.cfg.chan]] != fs_pll_cfg[chan_idx[chan]])
     dwt_write32bitoffsetreg(FS_CTRL_ID, FS_PLLCFG_OFFSET, fs_pll_cfg[chan_idx[chan]]);
-  if(fs_pll_tune[chan_idx[current_cfg.chan]] != fs_pll_tune[chan_idx[chan]])
+  if(fs_pll_tune[chan_idx[CUR_CFG.cfg.chan]] != fs_pll_tune[chan_idx[chan]])
     dwt_write8bitoffsetreg(FS_CTRL_ID, FS_PLLTUNE_OFFSET, fs_pll_tune[chan_idx[chan]]);
 
   // Configure RF RX blocks (for specified channel/bandwidth - wide or narrow);
-  uint8 current_bw = ((current_cfg.chan == 4) || (current_cfg.chan == 7)) ? 1 : 0;
+  uint8 current_bw = ((CUR_CFG.cfg.chan == 4) || (CUR_CFG.cfg.chan == 7)) ? 1 : 0;
   uint8 bw = ((chan == 4) || (chan == 7)) ? 1 : 0;
   if(current_bw != bw) {
     dwt_write8bitoffsetreg(RF_CONF_ID, RF_RXCTRLH_OFFSET, rx_config[bw]);
@@ -155,14 +155,14 @@ dw1000_configure_ch(uint8_t chan, uint8_t txCode, uint8_t rxCode) {
 
   // Configure RF TX blocks (for specified channel and PRF)
   // Configure RF TX control
-  if(current_cfg.chan != chan)
+  if(CUR_CFG.cfg.chan != chan)
     dwt_write32bitoffsetreg(RF_CONF_ID, RF_TXCTRL_OFFSET, tx_config[chan_idx[chan]]);
 
   // Setup of channel control register
   uint32 regval;
   regval =  (CHAN_CTRL_TX_CHAN_MASK & (chan << CHAN_CTRL_TX_CHAN_SHIFT)) | // Transmit Channel
             (CHAN_CTRL_RX_CHAN_MASK & (chan << CHAN_CTRL_RX_CHAN_SHIFT)) | // Receive Channel
-            (CHAN_CTRL_RXFPRF_MASK & ((uint32)current_cfg.prf << CHAN_CTRL_RXFPRF_SHIFT)) | // RX PRF
+            (CHAN_CTRL_RXFPRF_MASK & ((uint32)CUR_CFG.cfg.prf << CHAN_CTRL_RXFPRF_SHIFT)) | // RX PRF
             ((CHAN_CTRL_TNSSFD|CHAN_CTRL_RNSSFD) & ((uint32)nsSfd_result << CHAN_CTRL_TNSSFD_SHIFT)) | // nsSFD enable RX&TX
             (CHAN_CTRL_DWSFD & ((uint32)useDWnsSFD << CHAN_CTRL_DWSFD_SHIFT)) | // Use DW nsSFD
             (CHAN_CTRL_TX_PCOD_MASK & ((uint32)txCode << CHAN_CTRL_TX_PCOD_SHIFT)) | // TX Preamble Code
@@ -173,9 +173,9 @@ dw1000_configure_ch(uint8_t chan, uint8_t txCode, uint8_t rxCode) {
   dwt_write8bitoffsetreg(SYS_CTRL_ID, SYS_CTRL_OFFSET, SYS_CTRL_TXSTRT | SYS_CTRL_TRXOFF);
 
   // update current saved config
-  current_cfg.chan = chan;
-  current_cfg.txCode = txCode;
-  current_cfg.rxCode = rxCode;
+  CUR_CFG.cfg.chan = chan;
+  CUR_CFG.cfg.txCode = txCode;
+  CUR_CFG.cfg.rxCode = rxCode;
 
   dw1000_enable_interrupt(irq_status);
 
@@ -191,10 +191,10 @@ dw1000_configure_tx(const dwt_txconfig_t* tx_cfg, bool smart) {
   }
   int8_t irq_status = dw1000_disable_interrupt();
 
-  current_tx_cfg = *tx_cfg;
-  dwt_configuretxrf(&current_tx_cfg);
-  current_smart_power = smart;
-  dwt_setsmarttxpower(current_smart_power);
+  CUR_CFG.tx_cfg = *tx_cfg;
+  dwt_configuretxrf(&CUR_CFG.tx_cfg);
+  CUR_CFG.smart_power = smart;
+  dwt_setsmarttxpower(CUR_CFG.smart_power);
   
   dw1000_enable_interrupt(irq_status);
   return 1;
@@ -209,10 +209,10 @@ dw1000_configure_ant_dly(uint16_t rx_dly, uint16_t tx_dly) {
   }
   int8_t irq_status = dw1000_disable_interrupt();
 
-  current_rx_ant_dly = rx_dly;
-  current_tx_ant_dly = tx_dly;
-  dwt_setrxantennadelay(current_rx_ant_dly);
-  dwt_settxantennadelay(current_tx_ant_dly);
+  CUR_CFG.rx_ant_dly = rx_dly;
+  CUR_CFG.tx_ant_dly = tx_dly;
+  dwt_setrxantennadelay(CUR_CFG.rx_ant_dly);
+  dwt_settxantennadelay(CUR_CFG.tx_ant_dly);
   
   dw1000_enable_interrupt(irq_status);
   return 1;
@@ -328,7 +328,7 @@ bool
 dw1000_set_recommended_tx_cfg(bool smart) {
   dwt_txconfig_t tmp;
 
-  if (!dw1000_get_recommended_tx_cfg(&current_cfg, smart, &tmp)) {
+  if (!dw1000_get_recommended_tx_cfg(&CUR_CFG.cfg, smart, &tmp)) {
     return false;
   }
   
@@ -350,53 +350,53 @@ dw1000_set_recommended_tx_cfg(bool smart) {
 /* Get the current (cached) radio configuration */
 const dwt_config_t*
 dw1000_get_current_cfg() {
-  return &current_cfg;
+  return &CUR_CFG.cfg;
 }
 
 /* Get the current (cached) TX configuration */
 const dwt_txconfig_t*
 dw1000_get_current_tx_cfg() {
-  return &current_tx_cfg;
+  return &CUR_CFG.tx_cfg;
 }
 
 /* Get the current (cached) antenna delays */
 void
 dw1000_get_current_ant_dly(uint16_t* rx_dly, uint16_t* tx_dly) {
-  *rx_dly = current_rx_ant_dly;
-  *tx_dly = current_tx_ant_dly;
+  *rx_dly = CUR_CFG.rx_ant_dly;
+  *tx_dly = CUR_CFG.tx_ant_dly;
 }
 
 /* Restore antenna delay configuration after wake-up */
 bool
 dw1000_restore_ant_delay(void)
 {
-  return dw1000_configure_ant_dly(current_rx_ant_dly, current_tx_ant_dly);
+  return dw1000_configure_ant_dly(CUR_CFG.rx_ant_dly, CUR_CFG.tx_ant_dly);
 }
 
 /* Get the current (cached) status of the Smart TX power control feature */
 bool dw1000_is_smart_tx_enabled() {
-  return current_smart_power;
+  return CUR_CFG.smart_power;
 }
 
 /* Print the current configuration */
 void
 dw1000_print_cfg() {
   printf("DW1000 Radio Configuration: \n");
-  printf("  Channel: %u\n",        current_cfg.chan);
-  printf("  PRF: %u\n",            current_cfg.prf);
-  printf("  PLEN: %u\n",           current_cfg.txPreambLength);
-  printf("  PAC Size: %u\n",       current_cfg.rxPAC);
-  printf("  TX Pre Code: %u\n",    current_cfg.txCode);
-  printf("  RX Pre Code: %u\n",    current_cfg.rxCode);
-  printf("  Non-std SFD: %u\n",    current_cfg.nsSFD);
-  printf("  Data Rate: %u\n",      current_cfg.dataRate);
-  printf("  PHR Mode: %u\n",       current_cfg.phrMode);
-  printf("  SFD Timeout: %u\n",    current_cfg.sfdTO);
-  printf("  Smart TX power: %u\n", current_smart_power);
-  printf("  PG Delay: %x\n",       current_tx_cfg.PGdly);
-  printf("  TX Power: %lx\n",      current_tx_cfg.power);
-  printf("  RX ant delay: %u\n",   current_rx_ant_dly);
-  printf("  TX ant delay: %u\n",   current_tx_ant_dly);
+  printf("  Channel: %u\n",        CUR_CFG.cfg.chan);
+  printf("  PRF: %u\n",            CUR_CFG.cfg.prf);
+  printf("  PLEN: %u\n",           CUR_CFG.cfg.txPreambLength);
+  printf("  PAC Size: %u\n",       CUR_CFG.cfg.rxPAC);
+  printf("  TX Pre Code: %u\n",    CUR_CFG.cfg.txCode);
+  printf("  RX Pre Code: %u\n",    CUR_CFG.cfg.rxCode);
+  printf("  Non-std SFD: %u\n",    CUR_CFG.cfg.nsSFD);
+  printf("  Data Rate: %u\n",      CUR_CFG.cfg.dataRate);
+  printf("  PHR Mode: %u\n",       CUR_CFG.cfg.phrMode);
+  printf("  SFD Timeout: %u\n",    CUR_CFG.cfg.sfdTO);
+  printf("  Smart TX power: %u\n", CUR_CFG.smart_power);
+  printf("  PG Delay: %x\n",       CUR_CFG.tx_cfg.PGdly);
+  printf("  TX Power: %lx\n",      CUR_CFG.tx_cfg.power);
+  printf("  RX ant delay: %u\n",   CUR_CFG.rx_ant_dly);
+  printf("  TX ant delay: %u\n",   CUR_CFG.tx_ant_dly);
 }
 
 #if UWB_CONTIKI_PRINT_DEF

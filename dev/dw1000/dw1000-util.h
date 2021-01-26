@@ -38,7 +38,12 @@ uint32_t dw1000_estimate_tx_time(const dwt_config_t* dwt_config, uint16_t framel
 #define DW1000_CFO_WANTED (0) // desidered CFO is 0
 #endif
 
-void dw1000_set_cfo_jitter_guard(float ppm);
+void dw1000_set_cfo_jitter_guard(double ppm);
+
+/* Returns the multiplier to convert the carrier integrator value to PPM,
+ * for the given radio configuration (namely channel and datarate).
+ */
+double dw1000_get_hz2ppm_multiplier(const dwt_config_t *dwt_config);
 
 /* Returns the clock frequency offset w.r.t. the sender in ppm for the given 
  * radio configuration, based on the carrier integrator. This function may be 
@@ -46,14 +51,14 @@ void dw1000_set_cfo_jitter_guard(float ppm);
  * dwt_readcarrierintegrator() of the DecaWave API. 
  *
  */
-float dw1000_get_ppm_offset(const dwt_config_t *dwt_config);
+double dw1000_get_ppm_offset(const dwt_config_t *dwt_config);
 
 /* Returns the XTAL trim value that best compensates the frequency offset
  *
  * curr_offset_ppm: current frequency offset
  * curr_trim: current trim values
  */
-uint8_t dw1000_get_best_trim_code(float curr_offset_ppm, uint8_t curr_trim);
+uint8_t dw1000_get_best_trim_code(double curr_offset_ppm, uint8_t curr_trim);
 
 /*---------------------------------------------------------------------------*/
 
