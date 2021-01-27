@@ -48,26 +48,14 @@
 #include "dw1000-config.h"
 #include "core/net/linkaddr.h"
 /*--------------------------------------------------------------------------*/
-PROCESS(ranging_process, "Ranging process");
-AUTOSTART_PROCESSES(&ranging_process);
-/*--------------------------------------------------------------------------*/
 #define DEBUG 0
 #if DEBUG
 #define PRINTF(...) printf(__VA_ARGS__)
 #else
 #define PRINTF(...) do {} while(0)
 #endif
-/*--------------------------------------------------------------------------*/
-#define RANGING_STYLE DW1000_RNG_SS // single- or double-sided (DW1000_RNG_DS)
-#define RANGING_INTERVAL (CLOCK_SECOND) // period of multi-ranging
-#define RANGING_DELAY (CLOCK_SECOND / 200) // between each TWR in a series
-#if RANGING_STYLE == DW1000_RNG_SS
-#define RANGING_TIME (CLOCK_SECOND / 100) // time allocated for a single TWR
-#else
-#define RANGING_TIME (CLOCK_SECOND / 50)
-#endif
-#define TOTAL_RANGING_TIME (RANGING_TIME + RANGING_DELAY)
-/*--------------------------------------------------------------------------*/
+
+/*-- Configuration ----------------------------------------------------------*/
 linkaddr_t master_tag = {{0x13, 0x9a}}; // orchestrates other tags
 linkaddr_t other_tags[] = { // tags wait for the schedule from the master
   {{0x19, 0x15}},
@@ -86,11 +74,36 @@ linkaddr_t anchors[] = { // responders (a node can be both a tag and an anchor)
   {{0x10, 0x9b}},
   {{0x18, 0x33}},
 };
+#define RANGING_STYLE     DW1000_RNG_SS   // single- or double-sided (DW1000_RNG_DS)
+#define RANGING_INTERVAL (CLOCK_SECOND)   // period of multi-ranging
+
+
+/*--------------------------------------------------------------------------*/
+#define INIT_GUARD 1 // leave one tick between the command tx/rx and the first ranging slot
+#define RANGING_DELAY (CLOCK_SECOND / 200) // between each TWR in a series
+#if RANGING_STYLE == DW1000_RNG_SS
+#define RANGING_TIME (CLOCK_SECOND / 100)  // time allocated for a single TWR
+#else
+#define RANGING_TIME (CLOCK_SECOND / 50)
+#endif
+#define TOTAL_RANGING_TIME (RANGING_TIME + RANGING_DELAY)
+#define NUM_OTHER_TAGS (sizeof(other_tags) / sizeof(other_tags[0]))
+#define NUM_ANCHORS (sizeof(anchors) / sizeof(anchors[0]))
+
+#define TAG_SLOT_DURATION (TOTAL_RANGING_TIME*NUM_ANCHORS)
+#define TOTAL_ROUND_DURATION (TAG_SLOT_DURATION*(NUM_OTHER_TAGS+1) + INIT_GUARD)
+
+// sanity check that there is enough time for ranging
+_Static_assert (RANGING_INTERVAL > TOTAL_ROUND_DURATION + CLOCK_SECOND/100, 
+                "Not enough time for ranging");
+
+/*--------------------------------------------------------------------------*/
 #define ROLE_TAG_MASTER 1
 #define ROLE_TAG 2
 #define ROLE_ANCHOR 3
-#define NUM_OTHER_TAGS (sizeof(other_tags) / sizeof(other_tags[0]))
-#define NUM_ANCHORS (sizeof(anchors) / sizeof(anchors[0]))
+/*--------------------------------------------------------------------------*/
+PROCESS(ranging_process, "Ranging process");
+AUTOSTART_PROCESSES(&ranging_process);
 /*--------------------------------------------------------------------------*/
 static process_event_t master_control_event;
 static uint32_t seqn;
@@ -99,11 +112,12 @@ static uint8_t tag_slot;
 static void bc_recv(struct broadcast_conn *c, const linkaddr_t *from);
 static void bc_sent(struct broadcast_conn *c, int status, int num_tx);
 static const struct broadcast_callbacks broadcast_call = {bc_recv, bc_sent};
+static bool fill_ctrl_packet();
 static struct broadcast_conn broadcast;
 /*--------------------------------------------------------------------------*/
 PROCESS_THREAD(ranging_process, ev, data)
 {
-  static struct etimer et, et_rng;
+  static struct etimer et, et_slot, et_rng;
   static uint8_t role;
   static int i, status;
 
@@ -153,32 +167,27 @@ PROCESS_THREAD(ranging_process, ev, data)
       PROCESS_YIELD_UNTIL(etimer_expired(&et));
       etimer_set(&et, RANGING_INTERVAL);
       PRINTF("Sending control %lu\n", seqn);
-      packetbuf_clear();
-      uint8_t* payload = packetbuf_dataptr();
-      memcpy(&payload[0], &seqn, sizeof(seqn));
-      payload[4] = NUM_OTHER_TAGS + 1;
-      payload[5] = linkaddr_node_addr.u8[0];
-      payload[6] = linkaddr_node_addr.u8[1];
-      for(i=0; i<NUM_OTHER_TAGS; i++) {
-        payload[7+2*i] = other_tags[i].u8[0];
-        payload[8+2*i] = other_tags[i].u8[1];
+      bool res = fill_ctrl_packet();
+      if (res) {
+        broadcast_send(&broadcast);
       }
-      packetbuf_set_datalen(7+2*NUM_OTHER_TAGS);
-      broadcast_send(&broadcast);
+      // wait for the broadcast to complete
       PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
+      tag_slot = 0; // master always has slot 0
       seqn++;
     }
     else if(role == ROLE_TAG) {
       PROCESS_YIELD_UNTIL(ev == master_control_event);
-
-      /* Compute waiting time to let other tags do ranging */
-      clock_time_t tag_wait = tag_slot * TOTAL_RANGING_TIME * NUM_ANCHORS;
-      if(tag_wait != 0) {
-        etimer_set(&et, tag_wait);
-        PROCESS_WAIT_UNTIL(etimer_expired(&et));
-      }
+      // tag_slot was filled according to the received packet
     }
     else break;
+
+    /* Compute waiting time to let other tags do ranging */
+    clock_time_t tag_wait = INIT_GUARD + tag_slot * TAG_SLOT_DURATION;
+    if(tag_wait != 0) {
+      etimer_set(&et_slot, tag_wait);
+      PROCESS_WAIT_UNTIL(etimer_expired(&et_slot));
+    }
 
     /* Range with each anchor */
     for(i=0; i<NUM_ANCHORS; i++) {
@@ -216,30 +225,69 @@ PROCESS_THREAD(ranging_process, ev, data)
 
   PROCESS_END();
 }
+
+
+static bool 
+fill_ctrl_packet() {
+  packetbuf_clear();
+  uint8_t* payload = packetbuf_dataptr();
+  int required_len = 11 + sizeof(linkaddr_t)*NUM_OTHER_TAGS;
+  if (packetbuf_remaininglen() < required_len) {
+    printf("Error: too big command payload\n");
+    return false;
+  }
+ 
+  // max duration of tag's ranging session with all anchors in clock ticks
+  uint32_t max_duration = TAG_SLOT_DURATION;
+
+  memcpy(&payload[0], &seqn, sizeof(seqn));
+  memcpy(&payload[4], &max_duration, sizeof(max_duration));
+  payload[8] = NUM_OTHER_TAGS + 1;
+  payload[9] = linkaddr_node_addr.u8[0];
+  payload[10] = linkaddr_node_addr.u8[1];
+  for(int i=0; i<NUM_OTHER_TAGS; i++) {
+    memcpy(&payload[11+sizeof(linkaddr_t)*i], &other_tags[i], sizeof(linkaddr_t));
+  }
+  packetbuf_set_datalen(required_len);
+  return true;
+}
+
 /*--------------------------------------------------------------------------*/
 static void
 bc_recv(struct broadcast_conn *c, const linkaddr_t *from)
 {
+  bool found_myself = false;
+
   if(linkaddr_cmp(&master_tag, from)) {
     uint8_t* bc_data = packetbuf_dataptr();
     memcpy(&seqn, bc_data, sizeof(seqn));
-    uint8_t num_ordered_tags = bc_data[5];
+    uint32_t max_duration;
+    memcpy(&max_duration, &bc_data[4], sizeof(max_duration));
+
+    uint8_t num_ordered_tags = bc_data[8];
     linkaddr_t ordered_tags[num_ordered_tags];
-    memcpy(&ordered_tags, &bc_data[5], num_ordered_tags*sizeof(linkaddr_t));
-    PRINTF("Control received (tags: #%u", num_ordered_tags);
+    memcpy(&ordered_tags, &bc_data[9], num_ordered_tags*sizeof(linkaddr_t));
+    PRINTF("Control received (seqn: %lu, dur: %lu tags: #%u >", seqn, max_duration, num_ordered_tags);
     int i;
     for(i=0; i<num_ordered_tags; i++) {
       linkaddr_t* tag = &ordered_tags[i];
-      PRINTF(" %02x%02x ", tag->u8[0], tag->u8[1]);
+      PRINTF("%02x%02x ", tag->u8[0], tag->u8[1]);
       if(linkaddr_cmp(&linkaddr_node_addr, tag)) {
         tag_slot = i;
-        PRINTF("...)\nPrepare ranging [%lu] (slot: %u)\n",
-          seqn, tag_slot);
-        process_post(&ranging_process, master_control_event, NULL);
-        return;
+        found_myself = true;
       }
     }
     PRINTF(")\n");
+
+    if (TAG_SLOT_DURATION > max_duration) {
+      printf("Error: too short time allowed (firmware mismatch?)\n");
+      return;
+    }
+
+    if (found_myself) {
+      PRINTF("Prepare ranging [%lu] (slot: %u)\n", seqn, tag_slot);
+      process_post(&ranging_process, master_control_event, NULL);
+    }
   }
   else {
     printf("Unexpected broadcast.\n");
