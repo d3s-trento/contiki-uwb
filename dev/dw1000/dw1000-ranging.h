@@ -53,6 +53,12 @@
 #define DW1000_COMPENSATE_BIAS 1
 #endif
 
+#ifdef DW1000_CONF_EXTREME_RNG_TIMING
+#define DW1000_EXTREME_RNG_TIMING DW1000_CONF_EXTREME_RNG_TIMING
+#else
+#define DW1000_EXTREME_RNG_TIMING 0
+#endif
+
 /* (Re)initialise the ranging module.
  *
  * Needs to be called before issuing or serving ranging requests and

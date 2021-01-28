@@ -216,7 +216,22 @@ typedef struct {
 *           <------------ DS3 --------------
 */
 
-/* The following are tuned for 128us preamble */
+#if DW1000_EXTREME_RNG_TIMING
+/* The following are tuned for 128us preamble, EVB1000 */
+const static ranging_conf_t ranging_conf_6M8 = {
+/* SS and DS timeouts */
+  .a = 350,
+  .rx_dly_a = 100,    // timeout starts after this
+  .to_a = 350,
+
+/* DS timeouts */
+  .b = 400,
+  .rx_dly_b = 100,    // timeout starts after this
+  .to_b = 400,
+  .to_c = 350,
+};
+#else
+/* The following are tuned for 128us preamble, DWM1001 with BLE enabled */
 const static ranging_conf_t ranging_conf_6M8 = {
 /* SS and DS timeouts */
   .a = 650,
@@ -229,6 +244,7 @@ const static ranging_conf_t ranging_conf_6M8 = {
   .to_b = 650,
   .to_c = 650,
 };
+#endif
 
 const static ranging_conf_t ranging_conf_110K = {
 /* SS and DS timeouts */

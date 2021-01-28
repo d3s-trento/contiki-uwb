@@ -5,17 +5,20 @@
 //#define LINKADDR_CONF_SIZE 8
 //#define DWM1001_USE_BT_ADDR_FOR_UWB 1
 
+/* use the following to optimise ranging delays for EVB1000 */
+#define DW1000_CONF_EXTREME_RNG_TIMING 1
+
 #define APP_RADIO_CONF 1
 
 #if APP_RADIO_CONF == 1
-#define DW1000_CONF_CHANNEL        4
+#define DW1000_CONF_CHANNEL        5
 #define DW1000_CONF_PRF            DWT_PRF_64M
 #define DW1000_CONF_PLEN           DWT_PLEN_128
 #define DW1000_CONF_PAC            DWT_PAC8
 #define DW1000_CONF_SFD_MODE       0
 #define DW1000_CONF_DATA_RATE      DWT_BR_6M8
 #define DW1000_CONF_PHR_MODE       DWT_PHRMODE_STD
-#define DW1000_CONF_PREAMBLE_CODE  17
+#define DW1000_CONF_PREAMBLE_CODE  9
 #define DW1000_CONF_SFD_TIMEOUT    (129 + 8 - 8)
 
 #elif APP_RADIO_CONF == 2
