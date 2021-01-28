@@ -79,7 +79,7 @@ linkaddr_t anchors[] = { // responders (a node can be both a tag and an anchor)
 
 
 /*--------------------------------------------------------------------------*/
-#define INIT_GUARD 1 // leave one tick between the command tx/rx and the first ranging slot
+#define INIT_GUARD 2 // leave one-two ticks between the command tx/rx and the first ranging slot
 #define RANGING_DELAY (CLOCK_SECOND / 200) // between each TWR in a series
 #if RANGING_STYLE == DW1000_RNG_SS
 #define RANGING_TIME (CLOCK_SECOND / 100)  // time allocated for a single TWR
