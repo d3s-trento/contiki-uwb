@@ -1,6 +1,9 @@
 #ifndef PROJECT_CONF_H_
 #define PROJECT_CONF_H_
 
+/* use the following to optimise ranging delays for EVB1000 */
+//#define DW1000_CONF_EXTREME_RNG_TIMING 1
+
 #define APP_RADIO_CONF 3
 
 #if APP_RADIO_CONF == 1

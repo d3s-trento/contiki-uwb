@@ -6,7 +6,7 @@
 //#define DWM1001_USE_BT_ADDR_FOR_UWB 1
 
 /* use the following to optimise ranging delays for EVB1000 */
-#define DW1000_CONF_EXTREME_RNG_TIMING 1
+//#define DW1000_CONF_EXTREME_RNG_TIMING 1
 
 #define APP_RADIO_CONF 1
 
