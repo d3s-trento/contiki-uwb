@@ -214,6 +214,10 @@ typedef struct {
 *           ------------- DS2 ------------->
 * timeout: txdone + to_c                    tx: asap
 *           <------------ DS3 --------------
+*
+*
+* NB: Timing of the ranging exchange depends on the data rate, preamble length,
+* and packet sizes. Consult tools/ranging_timing.py for calculations.
 */
 
 #if DW1000_EXTREME_RNG_TIMING
