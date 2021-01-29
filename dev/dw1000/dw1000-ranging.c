@@ -232,7 +232,7 @@ const static ranging_conf_t ranging_conf_6M8 = {
   .b = 450,
   .rx_dly_b = 200,    // timeout starts after this
   .to_b = 300,
-  .to_c = 350,        // longer as there's no rx after tx delay
+  .to_c = 400,        // longer as there's no rx after tx delay
 };
 #else
 /* The following are tuned for 128us preamble, DWM1001 with BLE enabled, long addresses */
@@ -751,13 +751,8 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     memcpy(&rtx_buf[tx_hdr_len + DISTANCE_MSG_FINAL_RX_OFS], &ds_final_rx_ts, 4);
 
     dwt_writetxfctrl(tx_hdr_len + PLD_LEN_DS3 + DW1000_CRC_LEN, 0, 1); /* Zero offset in TX buffer, ranging. */
-    dwt_starttx(DWT_START_TX_IMMEDIATE); // not enabling reception, the process will do it later
-    /* Temporarily disable auto FCS. In case we are late filling the packet, the receiver understands 
-     * that the packet is corrupted (see DW1000 User Manual) */
-    dwt_write8bitoffsetreg(SYS_CTRL_ID, SYS_CTRL_OFFSET, SYS_CTRL_SFCST);
     dwt_writetxdata(tx_hdr_len + PLD_LEN_DS3 + DW1000_CRC_LEN, rtx_buf, 0); /* Zero offset in TX buffer. */
-    /* Cancel disabling auto-FCS, if we are in time, the radio will include FCS */
-    dwt_write8bitoffsetreg(SYS_CTRL_ID, SYS_CTRL_OFFSET, SYS_CTRL_CANSFCS);
+    dwt_starttx(DWT_START_TX_IMMEDIATE); // not enabling reception, the process will do it later
 
     PRINTF_INT("dwr: sent DS3.\n");
 
