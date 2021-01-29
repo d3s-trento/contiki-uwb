@@ -217,7 +217,7 @@ typedef struct {
 */
 
 #if DW1000_EXTREME_RNG_TIMING
-/* The following are tuned for 128us preamble, EVB1000 */
+/* The following are tuned for 128us preamble, EVB1000, long addresses */
 const static ranging_conf_t ranging_conf_6M8 = {
 /* SS and DS timeouts */
   .a = 350,
@@ -225,13 +225,13 @@ const static ranging_conf_t ranging_conf_6M8 = {
   .to_a = 300,
 
 /* DS timeouts */
-  .b = 400,
-  .rx_dly_b = 150,    // timeout starts after this
+  .b = 450,
+  .rx_dly_b = 200,    // timeout starts after this
   .to_b = 300,
   .to_c = 350,        // longer as there's no rx after tx delay
 };
 #else
-/* The following are tuned for 128us preamble, DWM1001 with BLE enabled */
+/* The following are tuned for 128us preamble, DWM1001 with BLE enabled, long addresses */
 const static ranging_conf_t ranging_conf_6M8 = {
 /* SS and DS timeouts */
   .a = 650,
@@ -393,7 +393,6 @@ dw1000_range_with(linkaddr_t *lladdr, dw1000_rng_type_t type)
   dwt_setrxtimeout(ranging_conf.to_a);
 
   /* Write frame data to DW1000 and prepare transmission. */
-  /* dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS); */
   dwt_writetxdata(hdr_len + PLD_LEN_POLL + DW1000_CRC_LEN, rtx_buf, 0); /* Zero offset in TX buffer. */
   dwt_writetxfctrl(hdr_len + PLD_LEN_POLL + DW1000_CRC_LEN, 0, 1); /* Zero offset in TX buffer, ranging. */
 
@@ -485,7 +484,22 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
 
       /* Compute final message transmission time. */
       resp_tx_time = (poll_rx_ts_64 + (ranging_conf.a * UUS_TO_DWT_TIME)) >> 8;
-      dwt_setdelayedtrxtime(resp_tx_time);
+
+      /* Request sending the delayed response */
+      dwt_setdelayedtrxtime(resp_tx_time); // TX delay
+      dwt_setrxaftertxdelay(0);            // enable RX right after TX
+      dwt_setrxtimeout(0);                 // RX without timeout
+      dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M); /* errata TX-1: force rx timeout */
+      int ret = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
+      if(ret != DWT_SUCCESS) {
+        err_status = 14;
+        PRINTF_RNG_FAILED("dwr: error in tx of SS1.\n");
+        goto abort;
+      }
+
+      /* Temporarily disable auto FCS. In case we are late filling the packet, the receiver understands 
+       * that the packet is corrupted (see DW1000 User Manual) */
+      dwt_write8bitoffsetreg(SYS_CTRL_ID, SYS_CTRL_OFFSET, SYS_CTRL_SFCST);
 
       /* Response TX timestamp is the transmission time we programmed plus the antenna delay. */
       resp_tx_ts_64 = (((uint64_t)(resp_tx_time & 0xFFFFFFFEUL)) << 8) + 
@@ -497,23 +511,20 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
       memcpy(tx_frame.dest_addr, rx_frame.src_addr, LINKADDR_SIZE);
       tx_hdr_len = frame802154_create(&tx_frame, rtx_buf);
 
+      /* Set up the PHY header */
+      dwt_writetxfctrl(tx_hdr_len + PLD_LEN_SS1 + DW1000_CRC_LEN, 0, 1); /* Zero offset in TX buffer, ranging. */
+
       /* Fill in the SS1 payload */
       rtx_buf[tx_hdr_len + PLD_TYPE_OFS] = MSG_TYPE_SS1;
       msg_set_ts(&rtx_buf[tx_hdr_len + RESP_MSG_POLL_RX_TS_OFS], poll_rx_ts_64);
       msg_set_ts(&rtx_buf[tx_hdr_len + RESP_MSG_RESP_TX_TS_OFS], resp_tx_ts_64);
 
-      /* Write and send the response message. */
-      dwt_writetxdata(tx_hdr_len + PLD_LEN_SS1 + DW1000_CRC_LEN, rtx_buf, 0); /* Zero offset in TX buffer. */
-      dwt_writetxfctrl(tx_hdr_len + PLD_LEN_SS1 + DW1000_CRC_LEN, 0, 1); /* Zero offset in TX buffer, ranging. */
-      dwt_setrxaftertxdelay(0);
-      dwt_setrxtimeout(0);
-      dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M); /* errata TX-1: force rx timeout */
-      int ret = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
-      if(ret != DWT_SUCCESS) {
-        err_status = 14;
-        PRINTF_RNG_FAILED("dwr: error in tx of SS1.\n");
-        goto abort;
-      }
+      /* Write the frame data */
+      dwt_writetxdata(tx_hdr_len + PLD_LEN_SS1 + DW1000_CRC_LEN, rtx_buf, 0);
+
+      /* Cancel disabling auto-FCS, if we are in time, the radio will include FCS */
+      dwt_write8bitoffsetreg(SYS_CTRL_ID, SYS_CTRL_OFFSET, SYS_CTRL_CANSFCS);
+      
       old_state = state;
       state = S_WAIT_SS1_DONE;
       return; // replied with SS1, now waiting for TX done event.
@@ -542,6 +553,19 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
       dwt_setrxaftertxdelay(ranging_conf.rx_dly_b);
       dwt_setrxtimeout(ranging_conf.to_b);
 
+      /* Request sending the response */
+      dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M); /* errata TX-1: force rx timeout */
+      int ret = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
+      if(ret != DWT_SUCCESS) {
+        err_status = 15;
+        PRINTF_RNG_FAILED("dwr: error in tx of DS1.\n");
+        goto abort;
+      }
+
+      /* Temporarily disable auto FCS. In case we are late filling the packet, the receiver understands 
+       * that the packet is corrupted (see DW1000 User Manual) */
+      dwt_write8bitoffsetreg(SYS_CTRL_ID, SYS_CTRL_OFFSET, SYS_CTRL_SFCST);
+
       memcpy(ranging_with.u8, rx_frame.src_addr, LINKADDR_SIZE);
 
       /* Fill in the response header */
@@ -550,19 +574,17 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
       memcpy(tx_frame.dest_addr, rx_frame.src_addr, LINKADDR_SIZE);
       tx_hdr_len = frame802154_create(&tx_frame, rtx_buf);
 
+      /* Set up the PHY header */
+      dwt_writetxfctrl(tx_hdr_len + PLD_LEN_DS1 + DW1000_CRC_LEN, 0, 1); /* Zero offset in TX buffer, ranging. */
+
       /* Fill in the DS1 payload */
       rtx_buf[tx_hdr_len + PLD_TYPE_OFS] = MSG_TYPE_DS1;
 
-      /* Write and send the response message. */
+      /* Write the frame data. */
       dwt_writetxdata(tx_hdr_len + PLD_LEN_DS1 + DW1000_CRC_LEN, rtx_buf, 0); /* Zero offset in TX buffer. */
-      dwt_writetxfctrl(tx_hdr_len + PLD_LEN_DS1 + DW1000_CRC_LEN, 0, 1); /* Zero offset in TX buffer, ranging. */
-      dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M); /* errata TX-1: force rx timeout */
-      int ret = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
-      if(ret != DWT_SUCCESS) {
-        err_status = 15;
-        PRINTF_RNG_FAILED("dwr: error in tx of DS1.\n");
-        goto abort;
-      }
+
+      /* Cancel disabling auto-FCS, if we are in time, the radio will include FCS */
+      dwt_write8bitoffsetreg(SYS_CTRL_ID, SYS_CTRL_OFFSET, SYS_CTRL_CANSFCS);
 
       old_state = state;
       state = S_WAIT_DS2;
@@ -630,8 +652,21 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     final_tx_time = (resp_rx_ts_64 + (ranging_conf.b * UUS_TO_DWT_TIME)) >> 8;
     dwt_setdelayedtrxtime(final_tx_time);
 
-    dwt_setrxaftertxdelay(0);
-    dwt_setrxtimeout(ranging_conf.to_c);
+    dwt_setrxaftertxdelay(0);             // Enable RX right after TX
+    dwt_setrxtimeout(ranging_conf.to_c);  // Set the RX timeout
+    dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M); /* errata TX-1: force rx timeout */
+    /* Request transmission of the response */
+    int ret = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
+
+    if(ret != DWT_SUCCESS) {
+      err_status = 45;
+      PRINTF_RNG_FAILED("dwr: error in tx of DS2.\n");
+      goto abort;
+    }
+
+    /* Temporarily disable auto FCS. In case we are late filling the packet, the receiver understands 
+     * that the packet is corrupted (see DW1000 User Manual) */
+    dwt_write8bitoffsetreg(SYS_CTRL_ID, SYS_CTRL_OFFSET, SYS_CTRL_SFCST);
 
     /* Final TX timestamp is the transmission time we programmed plus the TX antenna delay. */
     final_tx_ts_64 = (((uint64_t)(final_tx_time & 0xFFFFFFFEUL)) << 8) +
@@ -648,6 +683,9 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     memcpy(tx_frame.dest_addr, rx_frame.src_addr, LINKADDR_SIZE);
     tx_hdr_len = frame802154_create(&tx_frame, rtx_buf);
 
+    /* Set up the PHY header */
+    dwt_writetxfctrl(tx_hdr_len + PLD_LEN_DS2 + DW1000_CRC_LEN, 0, 1); /* Zero offset in TX buffer, ranging. */
+
     /* Fill in the DS2 payload */
     rtx_buf[tx_hdr_len + PLD_TYPE_OFS] = MSG_TYPE_DS2;
 
@@ -655,16 +693,11 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     msg_set_ts(&rtx_buf[tx_hdr_len + FINAL_MSG_RESP_RX_TS_OFS], ds_resp_rx_ts);
     msg_set_ts(&rtx_buf[tx_hdr_len + FINAL_MSG_FINAL_TX_TS_OFS], ds_final_tx_ts);
 
+    /* Write the frame data */
     dwt_writetxdata(tx_hdr_len + PLD_LEN_DS2 + DW1000_CRC_LEN, rtx_buf, 0); /* Zero offset in TX buffer. */
-    dwt_writetxfctrl(tx_hdr_len + PLD_LEN_DS2 + DW1000_CRC_LEN, 0, 1); /* Zero offset in TX buffer, ranging. */
-    dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, PMSC_CTRL0_TXCLKS_125M); /* errata TX-1: force rx timeout */
-    int ret = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
 
-    if(ret != DWT_SUCCESS) {
-      err_status = 45;
-      PRINTF_RNG_FAILED("dwr: error in tx of DS2.\n");
-      goto abort;
-    }
+    /* Cancel disabling auto-FCS, if we are in time, the radio will include FCS */
+    dwt_write8bitoffsetreg(SYS_CTRL_ID, SYS_CTRL_OFFSET, SYS_CTRL_CANSFCS);
 
     old_state = state;
     state = S_WAIT_DS3;
@@ -713,9 +746,14 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     memcpy(&rtx_buf[tx_hdr_len + DISTANCE_MSG_RESP_TX_OFS], &ds_resp_tx_ts, 4);
     memcpy(&rtx_buf[tx_hdr_len + DISTANCE_MSG_FINAL_RX_OFS], &ds_final_rx_ts, 4);
 
-    dwt_writetxdata(tx_hdr_len + PLD_LEN_DS3 + DW1000_CRC_LEN, rtx_buf, 0); /* Zero offset in TX buffer. */
     dwt_writetxfctrl(tx_hdr_len + PLD_LEN_DS3 + DW1000_CRC_LEN, 0, 1); /* Zero offset in TX buffer, ranging. */
     dwt_starttx(DWT_START_TX_IMMEDIATE); // not enabling reception, the process will do it later
+    /* Temporarily disable auto FCS. In case we are late filling the packet, the receiver understands 
+     * that the packet is corrupted (see DW1000 User Manual) */
+    dwt_write8bitoffsetreg(SYS_CTRL_ID, SYS_CTRL_OFFSET, SYS_CTRL_SFCST);
+    dwt_writetxdata(tx_hdr_len + PLD_LEN_DS3 + DW1000_CRC_LEN, rtx_buf, 0); /* Zero offset in TX buffer. */
+    /* Cancel disabling auto-FCS, if we are in time, the radio will include FCS */
+    dwt_write8bitoffsetreg(SYS_CTRL_ID, SYS_CTRL_OFFSET, SYS_CTRL_CANSFCS);
 
     PRINTF_INT("dwr: sent DS3.\n");
 
