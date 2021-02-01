@@ -54,7 +54,7 @@ typedef uint32_t dw1000_cir_sample_t;
 #define DW1000_CIR_FIRST_RAY (-1)
 
 /*---------------------------------------------------------------------------*/
-uint16_t dw1000_read_cir_samples_from_radio(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* samples);
+uint16_t dw1000_read_cir(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* samples);
 uint16_t dw1000_print_cir_from_radio(bool human_readable);
 uint16_t dw1000_print_cir_samples_from_radio(int16_t s1, uint16_t n_samples, bool human_readable);
 /*---------------------------------------------------------------------------*/

@@ -72,7 +72,7 @@
  * NB: the samples buffer must be big enough to contain n_samples+1 records. The CIR data starts
  *     at index 1 of the samples buffer.
  */
-uint16_t dw1000_read_cir_samples_from_radio(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* samples) {
+uint16_t dw1000_read_cir(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* samples) {
   if (s1 == DW1000_CIR_FIRST_RAY) {
     s1 = dwt_read16bitoffsetreg(LDE_IF_ID, LDE_PPINDX_OFFSET);
   }
