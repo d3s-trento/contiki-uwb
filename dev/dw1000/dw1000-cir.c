@@ -44,6 +44,7 @@
 #include "contiki.h"
 #include "deca_regs.h"
 #include "deca_device_api.h"
+#include "watchdog.h"
 /*---------------------------------------------------------------------------*/
 #include <stdio.h>
 /*---------------------------------------------------------------------------*/
@@ -52,7 +53,7 @@
 #include "logging.h"
 /*---------------------------------------------------------------------------*/
 
-#define CIR_PRINT_STEP 128
+#define CIR_READ_STEP 128
 
 /*---------------------------------------------------------------------------*/
 
@@ -91,14 +92,28 @@ uint16_t dw1000_read_cir(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* sa
     n_samples = max_samples - s1;
   }
 
-  printf("CIR[%u:%u] ", s1, n_samples);
-
   uint16_t start_byte_idx = s1 * DW1000_CIR_SAMPLE_SIZE;
   uint16_t len_bytes      = n_samples * DW1000_CIR_SAMPLE_SIZE;
   
-  // we start reading into the buffer one byte before the second 4-byte word
-  // because of the way dwt_readaccdata() works (it always skips the first byte of the buffer).
-  dwt_readaccdata(((uint8_t*)samples) + 3, len_bytes, start_byte_idx);
+  uint16_t read_bytes = 0;
+  uint16_t read_idx  = start_byte_idx;
+  uint8_t* write_pos = (uint8_t*)&samples[1]; // we begin from index 1
+
+  while (read_bytes < len_bytes) {
+    uint16_t chunk_size = len_bytes - read_bytes;
+    if (chunk_size > CIR_READ_STEP) {
+      chunk_size = CIR_READ_STEP;
+    }
+
+    // we need to save one byte from the previous chunk because dwt_readaccdata() always
+    // writes zero to the first byte of the current chunk
+    uint8_t save_byte = *(write_pos-1);
+    dwt_readaccdata(write_pos-1, chunk_size + 1, read_idx);
+    *(write_pos-1) = save_byte;
+    read_bytes += chunk_size;
+    read_idx += chunk_size;
+    write_pos += chunk_size;
+  }
 
   samples[0] = s1;
 
@@ -118,7 +133,7 @@ uint16_t dw1000_read_cir(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* sa
  * Returns the actual number of samples printed.
  */
 uint16_t dw1000_print_cir_samples_from_radio(int16_t s1, uint16_t n_samples, bool human_readable) {
-  uint8_t buf[CIR_PRINT_STEP + 1];
+  uint8_t buf[CIR_READ_STEP + 1];
 
   if (s1 == DW1000_CIR_FIRST_RAY) {
     s1 = dwt_read16bitoffsetreg(LDE_IF_ID, LDE_PPINDX_OFFSET);
@@ -144,16 +159,17 @@ uint16_t dw1000_print_cir_samples_from_radio(int16_t s1, uint16_t n_samples, boo
   uint16_t len_bytes      = n_samples * DW1000_CIR_SAMPLE_SIZE;
 
   uint16_t read_bytes = 0;
-  uint16_t idx = start_byte_idx;
+  uint16_t read_idx = start_byte_idx;
 
   while (read_bytes < len_bytes) {
+    watchdog_periodic();
     uint16_t chunk_size = len_bytes - read_bytes;
-    if (chunk_size > CIR_PRINT_STEP) {
-      chunk_size = CIR_PRINT_STEP;
+    if (chunk_size > CIR_READ_STEP) {
+      chunk_size = CIR_READ_STEP;
     }
-    dwt_readaccdata(buf, chunk_size + 1, idx);
+    dwt_readaccdata(buf, chunk_size + 1, read_idx);
     read_bytes += chunk_size;
-    idx += chunk_size;
+    read_idx += chunk_size;
 
     if (human_readable) {
       for(int k = 1; k < chunk_size + 1; k = k + 4) {
@@ -189,3 +205,26 @@ uint16_t dw1000_print_cir_from_radio(bool human_readable) {
   return dw1000_print_cir_samples_from_radio(0, DW1000_CIR_MAX_LEN, human_readable);
 }
 
+/* Print CIR buffer in hex */
+void dw1000_print_cir_hex(dw1000_cir_sample_t* cir, uint16_t size) {
+  for (int i=0; i<size * 4; i++) {
+    printf("%02x", ((uint8_t*)cir)[i]);
+  }
+  printf("\n");
+}
+
+/* Print CIR buffer in human-readable form (a+bj) */
+void dw1000_print_cir(dw1000_cir_sample_t* cir, uint16_t size) {
+  uint8_t* buf = (uint8_t*)cir;
+  for (int i=0; i<size * 4; i++) {
+    int16_t a = (((uint16_t)buf[i + 1]) << 8) | buf[i];
+    int16_t b = (((uint16_t)buf[i + 3]) << 8) | buf[i + 2];
+    if(b >= 0) {
+      printf("%d+%dj,", a, b);
+    } else {
+      printf("%d%dj,", a, b);
+    }
+    watchdog_periodic();
+  }
+  printf("\n");
+}

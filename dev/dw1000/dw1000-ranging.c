@@ -110,7 +110,9 @@ struct process *req_process;
 static ranging_data_t ranging_data;
 static int err_status;
 static dw1000_rng_type_t rng_type;
-static bool print_cir_requested;
+static dw1000_cir_sample_t* cir_buffer;
+static int16_t cir_s1;
+static uint16_t cir_n_samples;
 
 typedef enum {
   S_WAIT_POLL,        /* 0 */
@@ -908,8 +910,12 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
     }
 
 
-    if (state == S_RANGING_DONE && print_cir_requested) {
-      dw1000_print_cir_samples_from_radio(0, DW1000_CIR_MAX_LEN, false);
+    if (state == S_RANGING_DONE && cir_buffer) {
+      ranging_data.cir_samples_acquired = dw1000_read_cir(cir_s1, cir_n_samples, cir_buffer);
+      cir_buffer = NULL;
+    }
+    else {
+      ranging_data.cir_samples_acquired = 0;
     }
 
     if (state != S_RESET) {
@@ -968,8 +974,10 @@ dw1000_range_reset()
   }
 }
 
-void dw1000_ranging_enable_cir_print(bool enable){
-  print_cir_requested = enable;
+void dw1000_ranging_acquire_cir(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* samples) {
+  cir_buffer = samples;
+  cir_n_samples = n_samples;
+  cir_s1 = s1;
 }
 /*---------------------------------------------------------------------------*/
 #endif /* DW1000_RANGING_ENABLED */

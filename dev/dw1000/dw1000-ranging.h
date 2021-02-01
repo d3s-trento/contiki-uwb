@@ -39,6 +39,7 @@
 
 #include "dw1000.h"
 #include "dw1000-arch.h"
+#include "dw1000-cir.h"
 #include "core/net/linkaddr.h"
 #include "contiki-conf.h"
 
@@ -78,12 +79,13 @@ dw1000_rng_tx_conf_cb(const dwt_cb_data_t *cb_data);
 bool dw1000_range_with(linkaddr_t *lladdr, dw1000_rng_type_t type);
 bool dw1000_is_ranging();
 void dw1000_range_reset();
-void dw1000_ranging_enable_cir_print(bool enable);
+void dw1000_ranging_acquire_cir(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* samples);
 
 extern process_event_t ranging_event;
 
 typedef struct {
   int status;       /* 1=SUCCESS, 0=FAIL */
+  uint16_t cir_samples_acquired;
   double distance;
   double raw_distance;
   double freq_offset;
