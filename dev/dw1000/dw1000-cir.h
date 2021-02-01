@@ -38,6 +38,7 @@
  *    Timofei Istomin <tim.ist@gmail.com>
  */
 
+#include <stdbool.h>
 #include "contiki.h"
 #include "deca_regs.h"
 

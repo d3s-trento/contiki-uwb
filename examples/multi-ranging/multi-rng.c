@@ -45,6 +45,7 @@
 #include "dw1000-ranging.h"
 #include "dw1000-util.h"
 #include "dw1000-diag.h"
+#include "dw1000-cir.h"
 #include "dw1000-config.h"
 #include "core/net/linkaddr.h"
 /*--------------------------------------------------------------------------*/
@@ -75,7 +76,11 @@ linkaddr_t anchors[] = { // responders (a node can be both a tag and an anchor)
   {{0x18, 0x33}},
 };
 #define RANGING_STYLE     DW1000_RNG_SS   // single- or double-sided (DW1000_RNG_DS)
-#define RANGING_INTERVAL (CLOCK_SECOND)   // period of multi-ranging
+#define RANGING_INTERVAL (CLOCK_SECOND*5)   // period of multi-ranging
+
+#define ACQUIRE_CIR 0           // 1 = enable CIR acquisition
+#define CIR_START_FROM_PEAK 1   // 0 = print from beginning, 1 = print starting from the first ray peak
+#define CIR_MAX_SAMPLES DW1000_CIR_MAX_LEN // number of CIR samples to acquire
 
 
 /*--------------------------------------------------------------------------*/
@@ -102,6 +107,12 @@ _Static_assert (RANGING_INTERVAL > TOTAL_ROUND_DURATION + CLOCK_SECOND/100,
 #define ROLE_TAG 2
 #define ROLE_ANCHOR 3
 /*--------------------------------------------------------------------------*/
+
+#if ACQUIRE_CIR
+dw1000_cir_sample_t cir_buf[CIR_MAX_SAMPLES+1]; // +1 is required!
+#endif
+
+
 PROCESS(ranging_process, "Ranging process");
 AUTOSTART_PROCESSES(&ranging_process);
 /*--------------------------------------------------------------------------*/
@@ -191,12 +202,18 @@ PROCESS_THREAD(ranging_process, ev, data)
 
     /* Range with each anchor */
     for(i=0; i<NUM_ANCHORS; i++) {
-      linkaddr_t dst = anchors[i];
+      static linkaddr_t dst;
+      dst = anchors[i];
       if(linkaddr_cmp(&linkaddr_node_addr, &dst)) continue;
       printf("RNG [%lu/%lums] %02x%02x->%02x%02x: ",
         seqn, (clock_time() * 1000UL / CLOCK_SECOND),
         linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
         dst.u8[0], dst.u8[1]);
+#if ACQUIRE_CIR
+      dw1000_ranging_acquire_cir(CIR_START_FROM_PEAK ? DW1000_CIR_FIRST_RAY : 0,
+                                 CIR_MAX_SAMPLES,
+                                 cir_buf);
+#endif
       status = range_with(&dst, RANGING_STYLE);
       if(!status) {
         printf("REQ FAIL\n");
@@ -211,6 +228,15 @@ PROCESS_THREAD(ranging_process, ev, data)
             (int)(100*d->raw_distance), (int)(100*d->distance),
             (int)(1000*diag.fp_pwr), (int)(1000*diag.rx_pwr),
             (int)(10e8*d->freq_offset));
+#if ACQUIRE_CIR
+          uint16_t cir_start = cir_buf[0];
+          printf("CIR [%lu] %02x%02x->%02x%02x [%d:%d] ", 
+              seqn,
+              linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
+              dst.u8[0], dst.u8[1],
+              cir_start, d->cir_samples_acquired);
+          dw1000_print_cir_hex(cir_buf+1, d->cir_samples_acquired);
+#endif
         }
         else {
           printf("FAIL\n");
