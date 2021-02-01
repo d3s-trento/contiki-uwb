@@ -909,7 +909,7 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
 
 
     if (state == S_RANGING_DONE && print_cir_requested) {
-      print_cir();
+      dw1000_print_cir_samples_from_radio(0, DW1000_CIR_MAX_LEN, false);
     }
 
     if (state != S_RESET) {

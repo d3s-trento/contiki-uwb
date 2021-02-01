@@ -31,10 +31,11 @@
 
 /*
  * \file
- *    CIR Printing Functions
+ *    CIR Reading and Printing Functions
  *
  * \author
  *    Pablo Corbalan <p.corbalanpelegrin@unitn.it>
+ *    Timofei Istomin <tim.ist@gmail.com>
  */
 
 
@@ -47,102 +48,144 @@
 #include <stdio.h>
 /*---------------------------------------------------------------------------*/
 
-/* Number of samples in the accumulator register depending on PRF */
-/* Each sample is formed by a 16-bit real + 16-bit imaginary number */
-#define ACC_LEN_PRF16 (992*4)
-#define ACC_LEN_PRF64 (1016*4)
-
-
-#define ACC_READ_STEP (128)
-
-/*---------------------------------------------------------------------------*/
-static uint8_t acc[ACC_READ_STEP + 1] = {0};
+#define LOG_LEVEL LOG_ERR
+#include "logging.h"
 /*---------------------------------------------------------------------------*/
 
-void
-print_cir(void)
-{
-  uint16_t chunk_len = 0;
-  uint16_t acc_len_bytes = (dw1000_get_current_cfg()->prf == DWT_PRF_64M) ? 
-                           ACC_LEN_PRF64 : 
-                           ACC_LEN_PRF16;
+#define CIR_PRINT_STEP 128
 
-  printf("Acc Data [%d]: ", acc_len_bytes);
-  for(uint16_t j = 0; j < acc_len_bytes; j = j + ACC_READ_STEP) {
-    /* Select the number of bytes to read from the accummulator */
-    chunk_len = ACC_READ_STEP;
-    if (j + ACC_READ_STEP > acc_len_bytes) {
-      chunk_len = acc_len_bytes - j;
-    }
-    dwt_readaccdata(acc, chunk_len + 1, j);
+/*---------------------------------------------------------------------------*/
 
-    for(uint16_t k = 1; k < chunk_len + 1; k++) {
-      printf("%02x", acc[k]);
-    }
+/* Read max n_samples samples from the CIR accumulator, starting at index s1 or at the
+ * index of the first ray. Call after packet reception and before re-enabling listening.
+ *
+ * Params
+ *  - s1 [in]         starting index in the CIR accumulator, or DW1000_CIR_FIRST_RAY 
+ *                    to start reading at the first ray index, as detected by the radio
+ *  - n_samples [in]  max number of samples to read
+ *  - samples [out]   buffer to read the CIR data into. MUST be big enough to contain 
+ *                    n_samples+1 records. The first record (samples[0]) will 
+ *                    contain the accumulator index the reading started from.
+ *
+ * Returns the actual number of samples read.
+ *
+ * NB: the samples buffer must be big enough to contain n_samples+1 records. The CIR data starts
+ *     at index 1 of the samples buffer.
+ */
+uint16_t dw1000_read_cir_samples_from_radio(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* samples) {
+  if (s1 == DW1000_CIR_FIRST_RAY) {
+    s1 = dwt_read16bitoffsetreg(LDE_IF_ID, LDE_PPINDX_OFFSET);
   }
-  printf("\n");
-}
-/*---------------------------------------------------------------------------*/
-void
-print_cir_samples(uint16_t s1, uint16_t len)
-{
-  uint16_t chunk_len = 0;
+
+  uint16_t max_samples = (dw1000_get_current_cfg()->prf == DWT_PRF_64M) ? 
+                           DW1000_CIR_LEN_PRF64 : 
+                           DW1000_CIR_LEN_PRF16;
+
+  if (s1 >= max_samples) {
+    ERR("Invalid index");
+    return 0;
+  }
+
+  // adjusting the length to read w.r.t. the accumulator tail size
+  if (s1 + n_samples >= max_samples) {
+    n_samples = max_samples - s1;
+  }
+
+  printf("CIR[%u:%u] ", s1, n_samples);
+
+  uint16_t start_byte_idx = s1 * DW1000_CIR_SAMPLE_SIZE;
+  uint16_t len_bytes      = n_samples * DW1000_CIR_SAMPLE_SIZE;
   
-  uint16_t acc_len_bytes = (dw1000_get_current_cfg()->prf == DWT_PRF_64M) ? 
-                           ACC_LEN_PRF64 : 
-                           ACC_LEN_PRF16;
+  // we start reading into the buffer one byte before the second 4-byte word
+  // because of the way dwt_readaccdata() works (it always skips the first byte of the buffer).
+  dwt_readaccdata(((uint8_t*)samples) + 3, len_bytes, start_byte_idx);
 
-  uint16_t nbytes = (len < ACC_READ_STEP) ? len : ACC_READ_STEP;
-  uint16_t max_bytes = (s1 + len < acc_len_bytes) ? (s1 + len) : acc_len_bytes;
+  samples[0] = s1;
 
-  printf("Acc Data: ");
-  for(uint16_t j = s1; j < max_bytes; j = j + nbytes) {
-    /* Select the number of bytes to read from the accummulator */
-    chunk_len = nbytes;
-    if (j + nbytes > max_bytes) {
-      chunk_len = max_bytes - j;
-    }
-    dwt_readaccdata(acc, chunk_len + 1, j);
-
-    for(uint16_t k = 1; k < chunk_len + 1; k++) {
-      printf("%02x", acc[k]);
-    }
-  }
-  printf("\n");
+  return n_samples;
 }
-/*---------------------------------------------------------------------------*/
-void
-print_readable_cir(void)
-{
-  uint16_t chunk_len = 0;
 
-  uint16_t acc_len_bytes = (dw1000_get_current_cfg()->prf == DWT_PRF_64M) ? 
-                           ACC_LEN_PRF64 : 
-                           ACC_LEN_PRF16;
 
-  int16_t a = 0; /* Real part */
-  int16_t b = 0; /* Imaginary part */
+/* Print max n_samples samples from the CIR accumulator, starting at index s1 or at the
+ * index of the first ray. Call after packet reception and before re-enabling listening.
+ *
+ * Params
+ *  - s1 [in]              starting index in the CIR accumulator, or DW1000_CIR_FIRST_RAY 
+ *                         to start reading at the first ray index, as detected by the radio
+ *  - n_samples [in]       max number of samples to read
+ *  - human_readable [in]  print in human-readable form (a+bj) instead of plain hex
+ *
+ * Returns the actual number of samples printed.
+ */
+uint16_t dw1000_print_cir_samples_from_radio(int16_t s1, uint16_t n_samples, bool human_readable) {
+  uint8_t buf[CIR_PRINT_STEP + 1];
 
-  printf("Acc Data [%d]: ", acc_len_bytes);
-  for(int j = 0; j < acc_len_bytes; j = j + ACC_READ_STEP) {
-    /* Select the number of bytes to read from the accummulator */
-    chunk_len = ACC_READ_STEP;
-    if (j + ACC_READ_STEP > acc_len_bytes) {
-      chunk_len = acc_len_bytes - j;
+  if (s1 == DW1000_CIR_FIRST_RAY) {
+    s1 = dwt_read16bitoffsetreg(LDE_IF_ID, LDE_PPINDX_OFFSET);
+  }
+
+  uint16_t max_samples = (dw1000_get_current_cfg()->prf == DWT_PRF_64M) ? 
+                           DW1000_CIR_LEN_PRF64 : 
+                           DW1000_CIR_LEN_PRF16;
+
+  if (s1 >= max_samples) {
+    ERR("Invalid index");
+    return 0;
+  }
+
+  // adjusting the length to read w.r.t. the accumulator tail size
+  if (s1 + n_samples >= max_samples) {
+    n_samples = max_samples - s1;
+  }
+
+  printf("CIR[%u:%u] ", s1, n_samples);
+
+  uint16_t start_byte_idx = s1 * DW1000_CIR_SAMPLE_SIZE;
+  uint16_t len_bytes      = n_samples * DW1000_CIR_SAMPLE_SIZE;
+
+  uint16_t read_bytes = 0;
+  uint16_t idx = start_byte_idx;
+
+  while (read_bytes < len_bytes) {
+    uint16_t chunk_size = len_bytes - read_bytes;
+    if (chunk_size > CIR_PRINT_STEP) {
+      chunk_size = CIR_PRINT_STEP;
     }
-    dwt_readaccdata(acc, chunk_len + 1, j);
+    dwt_readaccdata(buf, chunk_size + 1, idx);
+    read_bytes += chunk_size;
+    idx += chunk_size;
 
-    /* Print the bytes read as complex numbers */
-    for(int k = 1; k < chunk_len + 1; k = k + 4) {
-      a = (int16_t) (((acc[k + 1] & 0x00FF) << 8) | (acc[k] & 0x00FF));
-      b = (int16_t) (((acc[k + 3] & 0x00FF) << 8) | (acc[k + 2] & 0x00FF));
-      if(b >= 0) {
-        printf("%d+%dj,", a, b);
-      } else {
-        printf("%d%dj,", a, b);
+    if (human_readable) {
+      for(int k = 1; k < chunk_size + 1; k = k + 4) {
+        int16_t a = (((uint16_t)buf[k + 1]) << 8) | buf[k];
+        int16_t b = (((uint16_t)buf[k + 3]) << 8) | buf[k + 2];
+        if(b >= 0) {
+          printf("%d+%dj,", a, b);
+        } else {
+          printf("%d%dj,", a, b);
+        }
+      }
+    }
+    else {
+      for(uint16_t k = 1; k < chunk_size + 1; k++) {
+        printf("%02x", buf[k]);
       }
     }
   }
+
   printf("\n");
+  return n_samples;
 }
-/*---------------------------------------------------------------------------*/
+
+/* Print whole CIR. Call after packet reception and before re-enabling listening.
+ *
+ * Params
+ *  - human_readable [in]   print in human-readable form (a+bj) instead of plain hex
+ *
+ * Returns the actual number of samples printed.
+ */
+uint16_t dw1000_print_cir_from_radio(bool human_readable) {
+  // print all from the beginning
+  return dw1000_print_cir_samples_from_radio(0, DW1000_CIR_MAX_LEN, human_readable);
+}
+

@@ -31,16 +31,30 @@
 
 /*
  * \file
- *    CIR Printing Functions
+ *    CIR Reading and Printing Functions
  *
  * \author
  *    Pablo Corbalan <p.corbalanpelegrin@unitn.it>
+ *    Timofei Istomin <tim.ist@gmail.com>
  */
 
 #include "contiki.h"
 #include "deca_regs.h"
+
+/* Number of 4-byte samples in the accumulator register depending on PRF
+ * Each sample is formed by a 16-bit real + 16-bit imaginary number */
+#define DW1000_CIR_LEN_PRF16 992
+#define DW1000_CIR_LEN_PRF64 1016
+
+typedef uint32_t dw1000_cir_sample_t;
+#define DW1000_CIR_SAMPLE_SIZE (sizeof(dw1000_cir_sample_t))
+
+#define DW1000_CIR_MAX_LEN DW1000_CIR_LEN_PRF64
+
+#define DW1000_CIR_FIRST_RAY (-1)
+
 /*---------------------------------------------------------------------------*/
-void print_cir(void);
-void print_cir_samples(uint16_t s1, uint16_t len);
-void print_readable_cir(void);
+uint16_t dw1000_read_cir_samples_from_radio(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* samples);
+uint16_t dw1000_print_cir_from_radio(bool human_readable);
+uint16_t dw1000_print_cir_samples_from_radio(int16_t s1, uint16_t n_samples, bool human_readable);
 /*---------------------------------------------------------------------------*/
