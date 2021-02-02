@@ -58,7 +58,7 @@
 
 /*-- Configuration ----------------------------------------------------------*/
 linkaddr_t master_tag = {{0x13, 0x9a}}; // orchestrates other tags
-linkaddr_t other_tags[] = { // tags wait for the schedule from the master
+linkaddr_t other_tags[] = { // tags, wait for the schedule from the master (may be empty)
   {{0x19, 0x15}},
   {{0x11, 0xa3}},
   {{0x11, 0x0c}},
@@ -76,7 +76,7 @@ linkaddr_t anchors[] = { // responders (a node can be both a tag and an anchor)
   {{0x18, 0x33}},
 };
 #define RANGING_STYLE     DW1000_RNG_SS   // single- or double-sided (DW1000_RNG_DS)
-#define RANGING_INTERVAL (CLOCK_SECOND*5)   // period of multi-ranging
+#define RANGING_INTERVAL (CLOCK_SECOND*1)   // period of multi-ranging
 
 #define ACQUIRE_CIR 0           // 1 = enable CIR acquisition
 #define CIR_START_FROM_PEAK 1   // 0 = print from beginning, 1 = print starting from the first ray peak
@@ -177,13 +177,15 @@ PROCESS_THREAD(ranging_process, ev, data)
     if(role == ROLE_TAG_MASTER) {
       PROCESS_YIELD_UNTIL(etimer_expired(&et));
       etimer_set(&et, RANGING_INTERVAL);
-      PRINTF("Sending control %lu\n", seqn);
-      bool res = fill_ctrl_packet();
-      if (res) {
-        broadcast_send(&broadcast);
+      if (NUM_OTHER_TAGS > 0) { // only send the command if there are other tags
+        PRINTF("Sending control %lu\n", seqn);
+        bool res = fill_ctrl_packet();
+        if (res) {
+          broadcast_send(&broadcast);
+        }
+        // wait for the broadcast to complete
+        PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
       }
-      // wait for the broadcast to complete
-      PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
       tag_slot = 0; // master always has slot 0
       seqn++;
     }
