@@ -1,3 +1,4 @@
+#define HW_ACKS 0
 
 #if HW_ACKS==1
 #ifndef DW1000_CONF_AUTOACK

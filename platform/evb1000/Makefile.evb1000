@@ -26,7 +26,6 @@ include $(CONTIKI_CPU)/Makefile.stm32f105
 MODULES += core/net
 MODULES += core/net/mac
 MODULES += core/net/llsec core/net/llsec/noncoresec
-MODULES += core/net/mac/contikimac
 
 # Specific platform clean configuration
 CLEAN += *.evb1000

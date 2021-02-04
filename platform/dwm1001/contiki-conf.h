@@ -75,11 +75,8 @@ inlcude file to have last_reset_reason variable
 #define NETSTACK_CONF_RADIO dw1000_driver
 #endif
 
-#define HW_ACKS 0
 /*---------------------------------------------------------------------------*/
-//#if NETSTACK_CONF_RADIO == dw1000_driver
 #include "uwb_stack.h"
-//#endif
 /*---------------------------------------------------------------------------*/
 /**
  * \name Generic Configuration directives

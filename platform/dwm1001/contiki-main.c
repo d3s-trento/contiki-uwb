@@ -30,7 +30,7 @@
  */
 /*---------------------------------------------------------------------------*/
 /**
- * \addtogroup nrf52dk nRF52 Development Kit
+ * \addtogroup dwm1001 DWM1001 Module
  * @{
  */
 #include <stdio.h>
@@ -326,18 +326,6 @@ main(void)
 	 );
 #endif //NRF_SHOW_RESETREASON
 
-#if NETSTACK_RADIO == dw1000_driver
-#if NETSTACK_NETWORK == rime_driver
-  PRINTF("Network stack: Rime over UWB\n");
-#elif NETSTACK_NETWORK == sicslowpan_driver
-  PRINTF("Network stack: IPv6 over UWB\n");
-#else
-#error "NETSTACK on UWB but NETWORK layer is not set"
-#endif /* NETSTACK_NETWORK valuese*/
-#else /*NETSTACK_RADIO == dw1000_driver*/
-#error "NETSTACK_RADIO isn't UWB"
-#endif /*NETSTACK_RADIO == dw1000_driver*/
-
   process_start(&etimer_process, NULL);
   ctimer_init();
 
@@ -350,7 +338,6 @@ main(void)
   ble_stack_init();
 #endif /* SOFTDEVICE_PRESENT */
 
-#if NETSTACK_RADIO == dw1000_driver
   netstack_init(); /* Init the full UWB network stack */
 
   configure_addresses(); /* Set the link layer addresses and the PAN ID */
@@ -371,15 +358,6 @@ main(void)
       break;
     }
   }
-
-
-#else  /*  NETSTACK_CONF_RADIO == dw1000_driver */
-#error "NETSTACK is not on UWB"
-  /* NETSTACK is not over DW1000, it should be initializd in nay case*/
-  dw1000_arch_init(); /* Only initialize the radio hardware, not the network stack */
-  dw1000_reset_cfg(); /* and set the default configuration */
-
-#endif /*  NETSTACK_CONF_RADIO == dw1000_driver */
 
   process_start(&sensors_process, NULL);
   autostart_start(autostart_processes);
