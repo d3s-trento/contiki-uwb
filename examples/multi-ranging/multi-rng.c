@@ -232,7 +232,7 @@ PROCESS_THREAD(ranging_process, ev, data)
             (int)(10e8*d->freq_offset));
 #if ACQUIRE_CIR
           uint16_t cir_fp = cir_buf[0] & 0xFFFF;
-          uint16_t cir_start = cir_bug[0] >> 16;
+          uint16_t cir_start = cir_buf[0] >> 16;
           printf("CIR [%lu] %02x%02x->%02x%02x [%d:%d:%d] ", 
               seqn,
               linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
