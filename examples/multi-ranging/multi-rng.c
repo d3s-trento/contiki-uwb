@@ -231,12 +231,13 @@ PROCESS_THREAD(ranging_process, ev, data)
             (int)(1000*diag.fp_pwr), (int)(1000*diag.rx_pwr),
             (int)(10e8*d->freq_offset));
 #if ACQUIRE_CIR
-          uint16_t cir_start = cir_buf[0];
-          printf("CIR [%lu] %02x%02x->%02x%02x [%d:%d] ", 
+          uint16_t cir_fp = cir_buf[0] & 0xFFFF;
+          uint16_t cir_start = cir_bug[0] >> 16;
+          printf("CIR [%lu] %02x%02x->%02x%02x [%d:%d:%d] ", 
               seqn,
               linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
               dst.u8[0], dst.u8[1],
-              cir_start, d->cir_samples_acquired);
+              cir_start, cir_fp, d->cir_samples_acquired);
           dw1000_print_cir_hex(cir_buf+1, d->cir_samples_acquired);
 #endif
         }
