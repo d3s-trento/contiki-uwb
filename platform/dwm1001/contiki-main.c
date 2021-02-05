@@ -190,34 +190,10 @@ configure_addresses(void)
   /* Populate linkaddr_node_addr (big-endian) */
   memcpy(&linkaddr_node_addr, &ext_addr[8 - LINKADDR_SIZE], LINKADDR_SIZE);
 
-#if NETSTACK_RADIO == dw1000_driver
-
   NETSTACK_RADIO.set_value(RADIO_PARAM_PAN_ID, IEEE802154_PANID);
   NETSTACK_RADIO.set_object(RADIO_PARAM_64BIT_ADDR, ext_addr, 8);
   NETSTACK_RADIO.set_value(RADIO_PARAM_16BIT_ADDR,
 			   (ext_addr[6]) << 8 | (ext_addr[7])); // converting from big-endian format
-
-
-#else /* NETSTACK_RADIO == dw1000_driver */
-#error NESTACK RADIO is not UWB
-
-  /* Set up the IEEE 802.15.4 PANID, short and long address
-   * to be able to enable HW frame filtering
-   * NOTE:
-   * We don't use the NETSTACK_RADIO functions as we may be using
-   * the BLE stack
-   */
-  dwt_setpanid(IEEE802154_PANID & 0xFFFF);
-  dwt_setaddress16((ext_addr[6]) << 8 | (ext_addr[7])); // converting from big-endian format
-  uint8_t little_endian[8];
-  int i;
-
-  for(i = 0; i < 8; i++) {
-    little_endian[i] = ((uint8_t *)ext_addr)[7 - i];
-  }
-  dwt_seteui(little_endian);
-#endif /* NETSTACK_RADIO == dw1000_driver */
-
 }
 /*---------------------------------------------------------------------------*/
 /**@brief Function for initializing the nrf log module.
