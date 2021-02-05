@@ -11,9 +11,9 @@
 #define LOG_NONE 1          // no printing
 #define LOG_ERR  2          // critical errors (cannot proceed)
 #define LOG_WARN 3          // warinings (proceed but may fail)
-#define LOG_DBG  4          // debug messages
-#define LOG_INFO 5          // less important info
-#define LOG_ALL LOG_INFO    // print it all
+#define LOG_INFO 4          // less important info
+#define LOG_DBG  5          // detailed tracing for debugging
+#define LOG_ALL LOG_DBG     // print it all
 
 #ifndef LOG_PREFIX
 #define LOG_PREFIX __FILE__ // file name by default
@@ -28,11 +28,15 @@
 #define LOG_LEVEL LOG_WARN  // warnings by default
 #endif
 
+#ifndef LOG_PRINTF
+#define LOG_PRINTF(...) printf(__VA_ARGS__)
+#endif
+
 extern uint16_t logging_context;
 
 #include <stdio.h>
 
-#define __LOG_PRINT(format, level, ...) do {printf("[" LOG_PREFIX " %u]" level format "\n", logging_context __VA_OPT__(,) __VA_ARGS__);} while(0)
+#define __LOG_PRINT(format, level, ...) do {LOG_PRINTF("[" LOG_PREFIX " %u]" level format "\n", logging_context __VA_OPT__(,) __VA_ARGS__);} while(0)
 
 
 #if LOG_LEVEL >= LOG_ERR
@@ -52,6 +56,12 @@ extern uint16_t logging_context;
 #define WARNIF(...) do {} while(0)
 #endif
 
+#if LOG_LEVEL >= LOG_INFO
+#define INFO(format, ...) __LOG_PRINT(format, "" __VA_OPT__(,) __VA_ARGS__)
+#else
+#define INFO(...) do {} while(0)
+#endif
+
 #if LOG_LEVEL >= LOG_DBG
 #define DBG(format, ...) __LOG_PRINT(format, "DBG:" __VA_OPT__(,) __VA_ARGS__)
 #define DBGF() __LOG_PRINT("%s:%d", "DBG:", __func__, __LINE__ )
@@ -59,6 +69,7 @@ extern uint16_t logging_context;
 #define DBG(...) do {} while(0)
 #define DBGF(...) do {} while(0)
 #endif
-#endif //LOGGING_H
 
 #define PRINT(format, ...) __LOG_PRINT(format, "" __VA_OPT__(,) __VA_ARGS__)
+
+#endif //LOGGING_H
