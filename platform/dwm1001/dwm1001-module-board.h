@@ -19,18 +19,15 @@
 
 /*---------------------------------------------------------------------------*/
 /* DW1000 Architecture-dependent pins */
-#define DW1000_RST    24
-#define DW1000_IRQ_EXTI 19
-#define SPI_CS_PIN   17
-#define SPI_INSTANCE  1 /* SPI instance index */
+#define DW1000_RST_PIN        24
+#define DW1000_IRQ_EXTI       19
 
 /*---------------------------------------------------------------------------*/
-/* SPIM1 connected to DW1000 */
-#define SPI1_SCK_PIN   16  /* DWM1001 SPIM1 sck connected to DW1000 */
-#define SPI1_MOSI_PIN  20  /* DWM1001 SPIM1 mosi connected to DW1000 */
-#define SPI1_MISO_PIN  18  /* DWM1001 SPIM1 miso connected to DW1000 */
-#define SPI1_IRQ_PRIORITY 6 // APP_IRQ_PRIORITY_LOW /* */
-// #define SPI1_SS_PIN    XX  /*  Not used with DMW1001 */
+#define DW1000_SPIM_INSTANCE  0 /* SPIM instance index */
+#define DW1000_SPI_CS_PIN    17
+#define DW1000_SPI_CLK_PIN   16  /* DWM1001 SPIM1 sck connected to DW1000 */
+#define DW1000_SPI_MOSI_PIN  20  /* DWM1001 SPIM1 mosi connected to DW1000 */
+#define DW1000_SPI_MISO_PIN  18  /* DWM1001 SPIM1 miso connected to DW1000 */
 
 /* Low frequency clock source to be used by the SoftDevice */
 #define NRF_CLOCK_LFCLKSRC      { .source = NRF_CLOCK_LF_SRC_XTAL, \

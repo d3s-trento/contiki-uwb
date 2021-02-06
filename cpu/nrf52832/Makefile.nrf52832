@@ -140,6 +140,7 @@ SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_timer.c
 SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_wdt.c
 SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_uart.c
 SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_spi.c
+SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_spim.c
 SDK_SOURCE_FILES += modules/nrfx/drivers/src/prs/nrfx_prs.c
 SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_uarte.c
 SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_rng.c
