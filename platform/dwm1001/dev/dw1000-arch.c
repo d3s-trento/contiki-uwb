@@ -189,17 +189,29 @@ dw1000_spi_read(uint16_t  headerLength,
       .p_rx_buffer = NULL,
       .rx_length = 0,
     };
-  nrfx_spim_xfer_desc_t const xfer_data_desc =
+  nrfx_spim_xfer_desc_t xfer_data_desc =
     {
       .p_tx_buffer = NULL,
       .tx_length = 0,
-      .p_rx_buffer = readBuffer,
-      .rx_length = readLength,
+      .p_rx_buffer = NULL, // fill later
+      .rx_length = 0,      // fill later
     };
+
+  uint32_t bytes_read = 0;
+  uint32_t bytes_to_read = readLength;
 
   nrf_gpio_pin_clear(DW1000_SPI_CS_PIN);
   APP_ERROR_CHECK(nrfx_spim_xfer(&spim, &xfer_hdr_desc, 0));
-  APP_ERROR_CHECK(nrfx_spim_xfer(&spim, &xfer_data_desc, 0));
+
+  while (bytes_to_read) {
+    xfer_data_desc.p_rx_buffer = readBuffer + bytes_read;
+    xfer_data_desc.rx_length = bytes_to_read > 255 ? 255 : bytes_to_read; // DMA can handle max 255 bytes at a time
+
+    APP_ERROR_CHECK(nrfx_spim_xfer(&spim, &xfer_data_desc, 0));
+    bytes_read += xfer_data_desc.rx_length;
+    bytes_to_read -= xfer_data_desc.rx_length;
+  }
+
   nrf_gpio_pin_set(DW1000_SPI_CS_PIN);
 
   return 0;
@@ -228,6 +240,7 @@ dw1000_spi_write(uint16_t       headerLength,
 
   nrf_gpio_pin_clear(DW1000_SPI_CS_PIN);
   APP_ERROR_CHECK(nrfx_spim_xfer(&spim, &xfer_hdr_desc, 0));
+  // TODO XXX implement writing of more than 255 bytes (see the read function above)
   APP_ERROR_CHECK(nrfx_spim_xfer(&spim, &xfer_data_desc, 0));
   nrf_gpio_pin_set(DW1000_SPI_CS_PIN);
 

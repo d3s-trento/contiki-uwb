@@ -53,7 +53,8 @@
 #include "logging.h"
 /*---------------------------------------------------------------------------*/
 
-#define CIR_READ_STEP 128
+#define SPI_READ_LIMIT 0 // on some platforms SPI cannot read all CIR at once. Zero means no limit.
+#define CIR_PRINT_STEP 128 // printing in small portions to avoid creating huge buffers
 
 /*---------------------------------------------------------------------------*/
 
@@ -103,14 +104,15 @@ uint16_t dw1000_read_cir(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* sa
   uint16_t start_byte_idx = s1 * DW1000_CIR_SAMPLE_SIZE;
   uint16_t len_bytes      = n_samples * DW1000_CIR_SAMPLE_SIZE;
   
-  uint16_t read_bytes = 0;
   uint16_t read_idx  = start_byte_idx;
   uint8_t* write_pos = (uint8_t*)&samples[1]; // we begin from index 1
 
+#if (SPI_READ_LIMIT > 0)
+  uint16_t read_bytes = 0;
   while (read_bytes < len_bytes) {
     uint16_t chunk_size = len_bytes - read_bytes;
-    if (chunk_size > CIR_READ_STEP) {
-      chunk_size = CIR_READ_STEP;
+    if (chunk_size > SPI_READ_LIMIT) {
+      chunk_size = SPI_READ_LIMIT;
     }
 
     // we need to save one byte from the previous chunk because dwt_readaccdata() always
@@ -122,7 +124,9 @@ uint16_t dw1000_read_cir(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* sa
     read_idx += chunk_size;
     write_pos += chunk_size;
   }
-
+#else
+  dwt_readaccdata(write_pos-1, len_bytes + 1, read_idx);
+#endif
   samples[0] = fpi | ((uint32_t)s1 << 16);
 
   return n_samples;
@@ -141,7 +145,7 @@ uint16_t dw1000_read_cir(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* sa
  * Returns the actual number of samples printed.
  */
 uint16_t dw1000_print_cir_samples_from_radio(int16_t s1, uint16_t n_samples, bool human_readable) {
-  uint8_t buf[CIR_READ_STEP + 1];
+  uint8_t buf[CIR_PRINT_STEP + 1];
 
   if (s1 == DW1000_CIR_FIRST_RAY) {
     s1 = dwt_read16bitoffsetreg(LDE_IF_ID, LDE_PPINDX_OFFSET);
@@ -172,8 +176,8 @@ uint16_t dw1000_print_cir_samples_from_radio(int16_t s1, uint16_t n_samples, boo
   while (read_bytes < len_bytes) {
     watchdog_periodic();
     uint16_t chunk_size = len_bytes - read_bytes;
-    if (chunk_size > CIR_READ_STEP) {
-      chunk_size = CIR_READ_STEP;
+    if (chunk_size > CIR_PRINT_STEP) {
+      chunk_size = CIR_PRINT_STEP;
     }
     dwt_readaccdata(buf, chunk_size + 1, read_idx);
     read_bytes += chunk_size;
