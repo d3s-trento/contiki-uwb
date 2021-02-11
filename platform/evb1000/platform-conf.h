@@ -40,6 +40,7 @@
 #ifndef PLATFORM_CONF_H_
 #define PLATFORM_CONF_H_
 
+// 72 MHz is max for STM32F105
 #define MCK 72000000
 #define EVB1000_LCD_SUPPORT 1
 
