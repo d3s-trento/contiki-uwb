@@ -44,7 +44,6 @@
 #include "dw1000.h"
 #include "dw1000-ranging.h"
 #include "dw1000-util.h"
-#include "dw1000-diag.h"
 #include "dw1000-cir.h"
 #include "dw1000-config.h"
 #include "core/net/linkaddr.h"
@@ -79,8 +78,9 @@ linkaddr_t anchors[] = { // responders (a node can be both a tag and an anchor)
 #define RANGING_INTERVAL (CLOCK_SECOND*1)   // period of multi-ranging
 
 #define ACQUIRE_CIR 0           // 1 = enable CIR acquisition
-#define CIR_START_FROM_PEAK 1   // 0 = print from beginning, 1 = print starting from the first ray peak
+#define CIR_START_FROM_PEAK 0   // 0 = print from beginning, 1 = print starting from the first ray peak
 #define CIR_MAX_SAMPLES DW1000_CIR_MAX_LEN // number of CIR samples to acquire
+#define PRINT_RXDIAG 0          // 1 = enable printing RX diagnostics
 
 
 /*--------------------------------------------------------------------------*/
@@ -112,6 +112,22 @@ _Static_assert (RANGING_INTERVAL > TOTAL_ROUND_DURATION + CLOCK_SECOND/100,
 dw1000_cir_sample_t cir_buf[CIR_MAX_SAMPLES+1]; // +1 is required!
 #endif
 
+#if PRINT_RXDIAG
+void
+print_rxdiag(const dwt_rxdiag_t *d, const dw1000_rxpwr_t *p) {
+  printf("fpa:%u,%u,%u cir_pwr(raw):%d(%u) pac(nonsat):%u(%u) max_noise:%u std_noise:%u\n",
+    d->firstPathAmp1,
+    d->firstPathAmp2,
+    d->firstPathAmp3,
+    (int)p->cir_pwr,
+    d->maxGrowthCIR,
+    d->rxPreamCount,
+    d->pacNonsat,
+    d->maxNoise,
+    d->stdNoise
+  );
+}
+#endif
 
 PROCESS(ranging_process, "Ranging process");
 AUTOSTART_PROCESSES(&ranging_process);
@@ -212,9 +228,12 @@ PROCESS_THREAD(ranging_process, ev, data)
         linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
         dst.u8[0], dst.u8[1]);
 #if ACQUIRE_CIR
-      dw1000_ranging_acquire_cir(CIR_START_FROM_PEAK ? DW1000_CIR_FIRST_RAY : 0,
+      dw1000_ranging_acquire_diagnostics(
+                                 CIR_START_FROM_PEAK ? DW1000_CIR_FIRST_RAY : 0,
                                  CIR_MAX_SAMPLES,
                                  cir_buf);
+#else // only request diagnostics
+      dw1000_ranging_acquire_diagnostics(0, 0, NULL);
 #endif
       status = range_with(&dst, RANGING_STYLE);
       if(!status) {
@@ -224,21 +243,31 @@ PROCESS_THREAD(ranging_process, ev, data)
         PROCESS_YIELD_UNTIL(ev == ranging_event);
         if(((ranging_data_t *)data)->status) {
           ranging_data_t *d = data;
-          dw1000_diagnostics_t diag;
-          dw1000_diagnostics(&diag, dw1000_get_current_cfg());
+          dw1000_rxpwr_t rxpwr;
+          dw1000_rxpwr(&rxpwr, &d->rxdiag, dw1000_get_current_cfg());
           printf("SUCCESS %d bias %d fppwr %d rxpwr %d cifo %d\n",
             (int)(100*d->raw_distance), (int)(100*d->distance),
-            (int)(1000*diag.fp_pwr), (int)(1000*diag.rx_pwr),
+            (int)(1000*rxpwr.fp_pwr), (int)(1000*rxpwr.rx_pwr),
             (int)(10e8*d->freq_offset));
 #if ACQUIRE_CIR
-          uint16_t cir_fp = cir_buf[0] & 0xFFFF;
-          uint16_t cir_start = cir_buf[0] >> 16;
-          printf("CIR [%lu] %02x%02x->%02x%02x [%d:%d:%d] ", 
+          uint16_t cir_start = cir_buf[0];
+          uint16_t cir_fp_int = d->rxdiag.firstPath >> 6;
+          uint16_t cir_fp_frac = d->rxdiag.firstPath & 0x3f;
+          // fp (first path) is printed as the integer part and the 1/64 fractional part
+          // "fp a#b" means (a + b/64)
+          printf("CIR [%lu] %02x%02x->%02x%02x %d#%d [%d:%d] ", 
               seqn,
               linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
               dst.u8[0], dst.u8[1],
-              cir_start, cir_fp, d->cir_samples_acquired);
+              cir_fp_int, cir_fp_frac, cir_start, d->cir_samples_acquired);
           dw1000_print_cir_hex(cir_buf+1, d->cir_samples_acquired);
+#endif
+#if PRINT_RXDIAG
+          printf("DIAG [%lu] %02x%02x->%02x%02x ", 
+          seqn,
+          linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
+          dst.u8[0], dst.u8[1]);
+          print_rxdiag(&d->rxdiag, &rxpwr);
 #endif
         }
         else {
