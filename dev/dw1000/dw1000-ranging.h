@@ -40,7 +40,6 @@
 #include "dw1000.h"
 #include "dw1000-arch.h"
 #include "dw1000-cir.h"
-#include "dw1000-diag.h"
 #include "core/net/linkaddr.h"
 #include "contiki-conf.h"
 
