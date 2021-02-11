@@ -62,31 +62,20 @@
  * index of the first ray. Call after packet reception and before re-enabling listening.
  *
  * Params
- *  - s1 [in]         starting index in the CIR accumulator, or DW1000_CIR_FIRST_RAY 
- *                    to start reading at the first ray index, as detected by the radio
+ *  - s1 [in]         sample index in the CIR accumulator to start reading from 
  *  - n_samples [in]  max number of samples to read
  *  - samples [out]   buffer to read the CIR data into. MUST be big enough to contain 
  *                    n_samples+1 records. The first record (samples[0]) will 
- *                    contain the start and the first path indexes (see below).
+ *                    contain the start index (see below).
  *
  * Returns the actual number of samples read.
  *
- * The samples[0] will contain 
- *                    1) the first-path signal arrival index, as computed by the radio
- *                    in the least-significant two octets of the value.
- *                    2) the starting index of the acquired CIR in the most-significant
- *                    two octets of the value.
+ * samples[0] will contain the starting index of the acquired CIR.
  *
  * NB: the samples buffer must be big enough to contain n_samples+1 records. The CIR data starts
  *     at index 1 of the samples buffer.
  */
 uint16_t dw1000_read_cir(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* samples) {
-
-  uint16_t fpi = dwt_read16bitoffsetreg(LDE_IF_ID, LDE_PPINDX_OFFSET);
-  if (s1 == DW1000_CIR_FIRST_RAY) {
-    s1 = fpi;
-  }
-
   uint16_t max_samples = (dw1000_get_current_cfg()->prf == DWT_PRF_64M) ? 
                            DW1000_CIR_LEN_PRF64 : 
                            DW1000_CIR_LEN_PRF16;
@@ -127,7 +116,7 @@ uint16_t dw1000_read_cir(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* sa
 #else
   dwt_readaccdata(write_pos-1, len_bytes + 1, read_idx);
 #endif
-  samples[0] = fpi | ((uint32_t)s1 << 16);
+  samples[0] = s1;
 
   return n_samples;
 }
@@ -137,8 +126,7 @@ uint16_t dw1000_read_cir(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* sa
  * index of the first ray. Call after packet reception and before re-enabling listening.
  *
  * Params
- *  - s1 [in]              starting index in the CIR accumulator, or DW1000_CIR_FIRST_RAY 
- *                         to start reading at the first ray index, as detected by the radio
+ *  - s1 [in]              sample index in the CIR accumulator to start reading from
  *  - n_samples [in]       max number of samples to read
  *  - human_readable [in]  print in human-readable form (a+bj) instead of plain hex
  *
@@ -146,11 +134,6 @@ uint16_t dw1000_read_cir(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* sa
  */
 uint16_t dw1000_print_cir_samples_from_radio(int16_t s1, uint16_t n_samples, bool human_readable) {
   uint8_t buf[CIR_PRINT_STEP + 1];
-
-  if (s1 == DW1000_CIR_FIRST_RAY) {
-    s1 = dwt_read16bitoffsetreg(LDE_IF_ID, LDE_PPINDX_OFFSET);
-  }
-
   uint16_t max_samples = (dw1000_get_current_cfg()->prf == DWT_PRF_64M) ? 
                            DW1000_CIR_LEN_PRF64 : 
                            DW1000_CIR_LEN_PRF16;

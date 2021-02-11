@@ -111,6 +111,7 @@ static ranging_data_t ranging_data;
 static int err_status;
 static dw1000_rng_type_t rng_type;
 static dw1000_cir_sample_t* cir_buffer;
+static bool acquire_diagnostics;
 static int16_t cir_s1;
 static uint16_t cir_n_samples;
 
@@ -909,19 +910,19 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
       ranging_data.status = 0; // no distance
     }
 
+    ranging_data.cir_samples_acquired = 0;
+    if (state == S_RANGING_DONE && acquire_diagnostics) {
+      dwt_readdiagnostics(&ranging_data.rxdiag);
 
-    if (state == S_RANGING_DONE && cir_buffer) {
-      ranging_data.cir_samples_acquired = dw1000_read_cir(cir_s1, cir_n_samples, cir_buffer);
+      if (cir_s1 == DW1000_CIR_FIRST_RAY) {
+        cir_s1 = ranging_data.rxdiag.firstPath >> 6;
+      }
+      
+      if (cir_buffer) {
+        ranging_data.cir_samples_acquired = dw1000_read_cir(cir_s1, cir_n_samples, cir_buffer);
+      }
       cir_buffer = NULL;
-    }
-    else {
-      ranging_data.cir_samples_acquired = 0;
-    }
-
-    if (state != S_RESET) {
-      // if no reset was requested, re-enable reception
-      dwt_setrxtimeout(0);
-      dwt_rxenable(DWT_START_RX_IMMEDIATE);
+      acquire_diagnostics = false;
     }
 
     struct process *process_to_poll = req_process;
@@ -929,12 +930,21 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
     old_state = state;
     state = S_WAIT_POLL;
 
-
-    if(process_to_poll != PROCESS_NONE) {
-      process_post(process_to_poll, ranging_event, &ranging_data);
+    if (state != S_RESET) {
+      // if no reset was requested, re-enable reception
+      dwt_setrxtimeout(0);
+      dwt_rxenable(DWT_START_RX_IMMEDIATE);
     }
 
     dw1000_enable_interrupt(irq_status);
+
+    if(process_to_poll != PROCESS_NONE) {
+      // calling back the requesting process right now (synch)
+      // otherwise another process might corrupt the ranging_data
+      // if activated before the requesting process
+      process_post_synch(process_to_poll, ranging_event, &ranging_data);
+    }
+
   }
 
   PROCESS_END();
@@ -974,7 +984,8 @@ dw1000_range_reset()
   }
 }
 
-void dw1000_ranging_acquire_cir(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* samples) {
+void dw1000_ranging_acquire_diagnostics(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* samples) {
+  acquire_diagnostics = true;
   cir_buffer = samples;
   cir_n_samples = n_samples;
   cir_s1 = s1;

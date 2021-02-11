@@ -272,6 +272,7 @@ typedef struct
     uint16      maxGrowthCIR ;      // Channel Impulse Response max growth CIR
     uint16      rxPreamCount ;      // Count of preamble symbols accumulated
     uint16      firstPath ;         // First path index (10.6 bits fixed point integer)
+    uint16      pacNonsat ;        // Non-saturated Preamble Accumulator Count (PAC)
 }dwt_rxdiag_t ;
 
 
