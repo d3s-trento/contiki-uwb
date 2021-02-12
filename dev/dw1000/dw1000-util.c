@@ -230,7 +230,7 @@ bool dw1000_rxpwr(dw1000_rxpwr_t *d, const dwt_rxdiag_t* rxdiag, const dwt_confi
   }
 
   /* Compute the CIR power level, corrected by PAC value */
-  d->cir_pwr = (double)(((uint32_t)rxdiag->maxGrowthCIR) << 17) / d->pac_correction;
+  d->cir_pwr = (double)rxdiag->maxGrowthCIR * ((uint32_t)1 << 17) / d->pac_correction;
 
   /* Compute RX power and First-Path RX power */
   d->fp_raw = (double)(POW2(rxdiag->firstPathAmp1) + POW2(rxdiag->firstPathAmp2) + POW2(rxdiag->firstPathAmp3)) / d->pac_correction;
