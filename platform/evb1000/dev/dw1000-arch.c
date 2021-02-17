@@ -22,8 +22,8 @@
 #include "lcd.h"
 /*---------------------------------------------------------------------------*/
 /* Declaration of static functions */
-static void dw1000_select(void);
-static void dw1000_deselect(void);
+static inline void dw1000_select(void);
+static inline void dw1000_deselect(void);
 /*---------------------------------------------------------------------------*/
 /* Set the DW1000 ISR to NULL by default */
 static dw1000_isr_t dw1000_isr = NULL;
@@ -44,47 +44,16 @@ EXTI9_5_IRQHandler(void)
   ENERGEST_OFF(ENERGEST_TYPE_IRQ);
 }
 /*---------------------------------------------------------------------------*/
-static inline int8_t
-dw1000_get_exti_int_status(uint32_t exti_line)
-{
-  /* Check the parameters */
-  //assert_param(IS_GET_EXTI_LINE(exti_line));
-
-  return (int8_t)(EXTI->IMR & exti_line);
-}
-/*---------------------------------------------------------------------------*/
-int8_t
-dw1000_disable_interrupt(void)
-{
-
-  int8_t irqn_status;
-
-  irqn_status = dw1000_get_exti_int_status(DW1000_IRQ_EXTI);
-  
-  if(irqn_status != 0) {
-    NVIC_DisableIRQ(DW1000_IRQ_EXTI_IRQN);
-  }
-  return irqn_status;
-}
-/*---------------------------------------------------------------------------*/
-void
-dw1000_enable_interrupt(int8_t irqn_status)
-{
-  if(irqn_status != 0) {
-    NVIC_EnableIRQ(DW1000_IRQ_EXTI_IRQN);
-  }
-}
-/*---------------------------------------------------------------------------*/
-static void
+static inline void
 dw1000_select(void)
 {
-  GPIO_ResetBits(DW1000_CS_PORT, DW1000_CS_PIN);
+  DW1000_CS_PORT->BRR = DW1000_CS_PIN; //GPIO_ResetBits(DW1000_CS_PORT, DW1000_CS_PIN);
 }
 /*---------------------------------------------------------------------------*/
-static void
+static inline void
 dw1000_deselect(void)
 {
-  GPIO_SetBits(DW1000_CS_PORT, DW1000_CS_PIN);
+  DW1000_CS_PORT->BSRR = DW1000_CS_PIN; //GPIO_SetBits(DW1000_CS_PORT, DW1000_CS_PIN);
 }
 /*---------------------------------------------------------------------------*/
 void
@@ -92,37 +61,14 @@ dw1000_set_isr(dw1000_isr_t new_dw1000_isr)
 {
   int8_t irqn_status;
 
-  irqn_status = dw1000_get_exti_int_status(DW1000_IRQ_EXTI);
-
-  /* Disable DW1000 EXT Interrupt */
-  if(irqn_status) {
-    dw1000_disable_interrupt();
-  }
-  /* Set ISR Handler */
+  irqn_status = dw1000_disable_interrupt();
   dw1000_isr = new_dw1000_isr;
-
-  /* Re-enable DW1000 EXT Interrupt state */
-  if(irqn_status) {
-    dw1000_enable_interrupt(irqn_status);
-  }
-}
-/*---------------------------------------------------------------------------*/
-void
-dw1000_spi_open(void)
-{
-
-}
-/*---------------------------------------------------------------------------*/
-void
-dw1000_spi_close(void)
-{
-
+  dw1000_enable_interrupt(irqn_status);
 }
 /*---------------------------------------------------------------------------*/
 void
 dw1000_spi_read(uint16_t hdrlen, const uint8_t *hdrbuf, uint32_t len, uint8_t *buf)
 {
-  uint32_t i;
   int8_t irqn_status;
 
   /* Disable DW1000 EXT Interrupt */
@@ -131,24 +77,29 @@ dw1000_spi_read(uint16_t hdrlen, const uint8_t *hdrbuf, uint32_t len, uint8_t *b
   /* Clear SPI1 Chip Select */
   dw1000_select();
 
-  /* Write Header */
-  for(i = 0; i < hdrlen; i++) {
-    /* Send data over SPI */
-    SPI_I2S_SendData(SPI1, hdrbuf[i]);
-    /* Wait for the RX Buffer to be filled */
-    while(SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_RXNE) == RESET);
-    /* Clear Flags */
-    SPI_I2S_ReceiveData(SPI1);
+  {
+    /* Write Header */
+    const uint8_t *end = hdrbuf + hdrlen;
+    while(hdrbuf != end) {
+      SPI1->DR = *(hdrbuf++); //SPI_I2S_SendData(SPI1, hdrbuf[i]);
+      /* Wait for the RX Buffer to be filled */
+      while(!(SPI1->SR & SPI_I2S_FLAG_RXNE)); //while(SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_RXNE) == RESET);
+      /* Clear Flags */
+      SPI1->DR; //SPI_I2S_ReceiveData(SPI1);
+      // TODO the above is intended to be a read operation, make sure it is not optimised away!
+    }
   }
-
-  /* Read body */
-  for(i = 0; i < len; i++) {
-    /* Send dummy data over SPI */
-    SPI_I2S_SendData(SPI1, 0xFF);
-    /* Wait for the RX Buffer to be filled */
-    while(SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_RXNE) == RESET);
-    /* Receive data */
-    buf[i] = SPI_I2S_ReceiveData(SPI1);
+  {
+    /* Read body */
+    const uint8_t *end = buf + len;
+    while(buf != end) {
+      /* Send dummy data */
+      SPI1->DR = 0xFF; //SPI_I2S_SendData(SPI1, 0xFF);
+      /* Wait for the RX Buffer to be filled */
+      while(!(SPI1->SR & SPI_I2S_FLAG_RXNE)); //while(SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_RXNE) == RESET);
+      /* Receive data */
+      *(buf++) = SPI1->DR; //buf[i] = SPI_I2S_ReceiveData(SPI1);
+    }
   }
 
   /* Set SPI1 Chip Select */
@@ -170,28 +121,31 @@ dw1000_spi_write(uint16_t hdrlen, const uint8_t *hdrbuf, uint32_t len, const uin
   /* Clear SPI1 Chip Select */
   dw1000_select();
 
-  /* Write Header */
-  for(i = 0; i < hdrlen; i++) {
-    /* Send data over SPI */
-    SPI_I2S_SendData(SPI1, hdrbuf[i]);
-
-    /* Wait for the RX Buffer to be filled */
-    while(SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_RXNE) == RESET);
-
-    /* Clear Flags */
-    SPI_I2S_ReceiveData(SPI1);
+  {
+    /* Write Header */
+    const uint8_t *end = hdrbuf + hdrlen;
+    /* Write Header */
+    while(hdrbuf != end) {
+      SPI1->DR = *(hdrbuf++); //SPI_I2S_SendData(SPI1, hdrbuf[i]);
+      /* Wait for the RX Buffer to be filled */
+      while(!(SPI1->SR & SPI_I2S_FLAG_RXNE)); //while(SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_RXNE) == RESET);
+      /* Clear Flags */
+      SPI1->DR; //SPI_I2S_ReceiveData(SPI1);
+      // TODO the above is intended to be a read operation, make sure it is not optimised away!
+    }
   }
 
-  /* Write body */
-  for(i = 0; i < len; i++) {
-    /* Send data over SPI */
-    SPI_I2S_SendData(SPI1, buf[i]);
-
-    /* Wait for the RX Buffer to be filled */
-    while(SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_RXNE) == RESET);
-
-    /* Clear Flags */
-    SPI_I2S_ReceiveData(SPI1);
+  {
+    /* Write body */
+    const uint8_t *end = buf + len;
+    while (buf != end) {
+      SPI1->DR = (*buf++); //SPI_I2S_SendData(SPI1, buf[i]);
+      /* Wait for the RX Buffer to be filled */
+      while(!(SPI1->SR & SPI_I2S_FLAG_RXNE)); //while(SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_RXNE) == RESET);
+      /* Clear Flags */
+      SPI1->DR; //SPI_I2S_ReceiveData(SPI1);
+      // TODO the above is intended to be a read operation, make sure it is not optimised away!
+    }
   }
 
   /* Set SPI1 Chip Select */

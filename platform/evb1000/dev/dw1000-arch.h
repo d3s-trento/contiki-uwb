@@ -33,8 +33,6 @@ void dw1000_spi_write(uint16_t hdrlen, const uint8_t *hdrbuf, uint32_t len, cons
 void dw1000_set_spi_bit_rate(uint16_t brate);
 void dw1000_spi_set_slow_rate(void);
 void dw1000_spi_set_fast_rate(void);
-int8_t dw1000_disable_interrupt(void);
-void dw1000_enable_interrupt(int8_t irqn_status);
 /*---------------------------------------------------------------------------*/
 /* Platform-specific bindings for the DW1000 driver */
 #define writetospi(cnt, header, length, buffer) dw1000_spi_write(cnt, header, length, buffer)
@@ -42,5 +40,23 @@ void dw1000_enable_interrupt(int8_t irqn_status);
 #define decamutexon() dw1000_disable_interrupt()
 #define decamutexoff(stat) dw1000_enable_interrupt(stat)
 #define deca_sleep(t) clock_wait(t) // XXX assumes 1ms tick !!!
+/*---------------------------------------------------------------------------*/
+static inline int8_t
+dw1000_disable_interrupt(void)
+{
+  if(! (EXTI->IMR & DW1000_IRQ_EXTI)) {
+    NVIC_DisableIRQ(DW1000_IRQ_EXTI_IRQN);
+    return 0;
+  }
+  return 1;
+}
+/*---------------------------------------------------------------------------*/
+static inline void
+dw1000_enable_interrupt(int8_t irqn_status)
+{
+  if(irqn_status != 0) {
+    NVIC_EnableIRQ(DW1000_IRQ_EXTI_IRQN);
+  }
+}
 /*---------------------------------------------------------------------------*/
 #endif /* DW1000_ARCH_H_ */
