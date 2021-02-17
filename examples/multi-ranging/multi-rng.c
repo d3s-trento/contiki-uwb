@@ -75,23 +75,27 @@ linkaddr_t anchors[] = { // responders (a node can be both a tag and an anchor)
   {{0x18, 0x33}},
 };
 #define RANGING_STYLE     DW1000_RNG_SS   // single- or double-sided (DW1000_RNG_DS)
-#define RANGING_INTERVAL (CLOCK_SECOND*1)   // period of multi-ranging
+#define RANGING_INTERVAL (CLOCK_SECOND*2)   // period of multi-ranging
 
-#define ACQUIRE_CIR 0           // 1 = enable CIR acquisition
+#define ACQUIRE_CIR 1           // 1 = enable CIR acquisition
 #define CIR_START_FROM_PEAK 0   // 0 = print from beginning, 1 = print starting from the first ray peak
 #define CIR_MAX_SAMPLES DW1000_CIR_MAX_LEN // number of CIR samples to acquire
-#define PRINT_RXDIAG 0          // 1 = enable printing RX diagnostics
-
+#define PRINT_RXDIAG 1          // 1 = enable printing RX diagnostics
 
 /*--------------------------------------------------------------------------*/
-#define INIT_GUARD 2 // leave one-two ticks between the command tx/rx and the first ranging slot
-#define RANGING_DELAY (CLOCK_SECOND / 200) // between each TWR in a series
-#if RANGING_STYLE == DW1000_RNG_SS
-#define RANGING_TIME (CLOCK_SECOND / 100)  // time allocated for a single TWR
+#if ACQUIRE_CIR
+#define MAX_PRINTING_DELAY (CLOCK_SECOND / 44)    // time needed to print a full CIR (upper bound)
 #else
-#define RANGING_TIME (CLOCK_SECOND / 50)
+#define MAX_PRINTING_DELAY (CLOCK_SECOND / 1000)  // time needed to print ranging results and diagnostics (upper bound)
 #endif
-#define TOTAL_RANGING_TIME (RANGING_TIME + RANGING_DELAY)
+/*--------------------------------------------------------------------------*/
+#define INIT_GUARD 2 // leave one-two ticks between the command tx/rx and the first ranging slot
+#if RANGING_STYLE == DW1000_RNG_SS
+#define RANGING_TIME (CLOCK_SECOND / 1000)  // time allocated for a single TWR
+#else
+#define RANGING_TIME (CLOCK_SECOND / 500)
+#endif
+#define TOTAL_RANGING_TIME (RANGING_TIME + MAX_PRINTING_DELAY)
 #define NUM_OTHER_TAGS (sizeof(other_tags) / sizeof(other_tags[0]))
 #define NUM_ANCHORS (sizeof(anchors) / sizeof(anchors[0]))
 
@@ -144,7 +148,7 @@ static struct broadcast_conn broadcast;
 /*--------------------------------------------------------------------------*/
 PROCESS_THREAD(ranging_process, ev, data)
 {
-  static struct etimer et, et_slot, et_rng;
+  static struct etimer et, et_slot;
   static uint8_t role;
   static int i, status;
 
@@ -218,6 +222,9 @@ PROCESS_THREAD(ranging_process, ev, data)
       PROCESS_WAIT_UNTIL(etimer_expired(&et_slot));
     }
 
+    static clock_time_t slot_start;
+    slot_start = clock_time();
+
     /* Range with each anchor */
     for(i=0; i<NUM_ANCHORS; i++) {
       static linkaddr_t dst;
@@ -274,10 +281,10 @@ PROCESS_THREAD(ranging_process, ev, data)
           printf("FAIL\n");
         }
       }
-      if(RANGING_DELAY > 0) {
-        etimer_set(&et_rng, RANGING_DELAY);
-        PROCESS_WAIT_UNTIL(etimer_expired(&et_rng));
-      }
+    }
+
+    if (clock_time() - slot_start > TAG_SLOT_DURATION) {
+      printf("Error: tag slot duration exceeded, adjust the timing to avoid collisions!\n");
     }
   }
 
