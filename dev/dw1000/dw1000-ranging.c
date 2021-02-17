@@ -336,6 +336,10 @@ PROCESS(dw1000_rng_dbg_process, "DW1000 rng dbg process");
 #endif
 /*---------------------------------------------------------------------------*/
 
+#define PROFILE_RANGING 0
+#if PROFILE_RANGING
+  rtimer_clock_t r_start, r_done, r_proc, r_calc, r_cir;
+#endif
 
 
 /* Initialise the ranging module. */
@@ -352,6 +356,9 @@ dw1000_range_with(linkaddr_t *lladdr, dw1000_rng_type_t type)
 {
   int8_t irq_status;
   bool ret;
+#if PROFILE_RANGING
+  r_start = RTIMER_NOW();
+#endif
   frame802154_t frame = default_header;
   if(type != DW1000_RNG_SS && type != DW1000_RNG_DS) {
     return false;
@@ -792,6 +799,9 @@ abort:
   old_state = state;
   state = S_ABORT;
 poll_the_process:
+#if PROFILE_RANGING
+  r_done = RTIMER_NOW();
+#endif
   /* Ranging is done, either successfully or not. Radio is OFF.
    * Polling the process to notify the application and re-enable the reception. */
   process_poll(&dw1000_rng_process);
@@ -871,6 +881,9 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
   while(1) {
     PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
 
+#if PROFILE_RANGING
+  r_proc = RTIMER_NOW();
+#endif
     uint8_t irq_status = dw1000_disable_interrupt();
 
     PRINTF_RNG("dwr: process: my %d their %d, ost %d st %d ss %d\n", my_seqn, recv_seqn, old_state, state, err_status);
@@ -910,12 +923,16 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
       ranging_data.status = 0; // no distance
     }
 
+#if PROFILE_RANGING
+  r_calc = RTIMER_NOW();
+#endif
+
     ranging_data.cir_samples_acquired = 0;
     if (state == S_RANGING_DONE && acquire_diagnostics) {
       dwt_readdiagnostics(&ranging_data.rxdiag);
 
       if (cir_s1 == DW1000_CIR_FIRST_RAY) {
-        cir_s1 = ranging_data.rxdiag.firstPath >> 6;
+        cir_s1 = ranging_data.rxdiag.firstPath >> 6; // take the integer part of the index
       }
       
       if (cir_buffer) {
@@ -925,6 +942,9 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
       acquire_diagnostics = false;
     }
 
+#if PROFILE_RANGING
+  r_cir = RTIMER_NOW();
+#endif
     struct process *process_to_poll = req_process;
     req_process = PROCESS_NONE;
     old_state = state;
@@ -937,6 +957,11 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
     }
 
     dw1000_enable_interrupt(irq_status);
+
+#if PROFILE_RANGING
+    printf("rng t %lu %lu %lu %lu %lu\n", r_start, r_done, r_proc, r_calc, r_cir);
+    printf("rng d %ld %ld %ld %ld\n", r_done - r_start, r_proc - r_done, r_calc - r_proc, r_cir - r_calc);
+#endif
 
     if(process_to_poll != PROCESS_NONE) {
       // calling back the requesting process right now (synch)
