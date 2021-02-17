@@ -77,10 +77,10 @@ linkaddr_t anchors[] = { // responders (a node can be both a tag and an anchor)
 #define RANGING_STYLE     DW1000_RNG_SS   // single- or double-sided (DW1000_RNG_DS)
 #define RANGING_INTERVAL (CLOCK_SECOND*2)   // period of multi-ranging
 
-#define ACQUIRE_CIR 1           // 1 = enable CIR acquisition
+#define ACQUIRE_CIR 0           // 1 = enable CIR acquisition
 #define CIR_START_FROM_PEAK 0   // 0 = print from beginning, 1 = print starting from the first ray peak
 #define CIR_MAX_SAMPLES DW1000_CIR_MAX_LEN // number of CIR samples to acquire
-#define PRINT_RXDIAG 1          // 1 = enable printing RX diagnostics
+#define PRINT_RXDIAG 0          // 1 = enable printing RX diagnostics
 
 /*--------------------------------------------------------------------------*/
 #if ACQUIRE_CIR
