@@ -36,10 +36,13 @@ The constant `RANGING_INTERVAL` sets the total round interval. It is checked at 
 all the rangings fit inside that interval.
 
 The constants `ACQUIRE_CIR`, `CIR_START_FROM_PEAK` and `CIR_MAX_SAMPLES` control the CIR acquisition.
-Note that CIR printing might be long, so the time allocated for a single ranging might need to be adjusted.
+Note that CIR printing might be long, so the time allocated for a single ranging increases significantly.
+The pre-defined value of `MAX_PRINTING_DELAY` is set large enough to print the full CIR. If only part is printed, that value may be adjusted (reduced).
+
+The constant `PRINT_RXDIAG` enables/disables printing the RX diagnostics for the last ranging packet received.
 
 ## Important note
 Make sure that all tags share the same configuration (same firmware). Anchor nodes need to be reflashed
-only if the radio configuration changes, but may keep the firmware if the set of tags changes.
+only if the radio configuration changes, but may keep the firmware if only the set of tags changes.
 
-
+Pay attention to error messages in the logs. If those appear, multiple rangings might overlap and fail or provide incorrect results.
