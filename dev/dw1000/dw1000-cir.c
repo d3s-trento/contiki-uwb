@@ -202,8 +202,24 @@ uint16_t dw1000_print_cir_from_radio(bool human_readable) {
 
 /* Print CIR buffer in hex */
 void dw1000_print_cir_hex(dw1000_cir_sample_t* cir, uint16_t size) {
-  for (int i=0; i<size * 4; i++) {
-    printf("%02x", ((uint8_t*)cir)[i]);
+  static const char t[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+                                   'a', 'b', 'c', 'd', 'e', 'f' };
+  char buf[9];
+  for (int i=0; i<size; i++) {
+    uint8_t *p = (uint8_t*)(cir+i);
+    buf[0] = t[*p >> 4];
+    buf[1] = t[*p & 0xf];
+    p++;
+    buf[2] = t[*p >> 4];
+    buf[3] = t[*p & 0xf];
+    p++;
+    buf[4] = t[*p >> 4];
+    buf[5] = t[*p & 0xf];
+    p++;
+    buf[6] = t[*p >> 4];
+    buf[7] = t[*p & 0xf];
+    buf[8] = 0;
+    printf(buf);
   }
   printf("\n");
 }
