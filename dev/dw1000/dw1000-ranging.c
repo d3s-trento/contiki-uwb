@@ -281,50 +281,36 @@ static inline void update_ranging_conf() {
 }
 
 /*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
 static inline uint64_t
 get_rx_timestamp_u64(void)
 {
-  uint8_t ts_tab[5];
   uint64_t ts = 0;
-  int i;
-  dwt_readrxtimestamp(ts_tab);
-  for(i = 4; i >= 0; i--) {
-    ts <<= 8;
-    ts |= ts_tab[i];
-  }
+  dwt_readrxtimestamp((uint8_t*)&ts);
   return ts;
 }
 /*---------------------------------------------------------------------------*/
 static inline uint64_t
 get_tx_timestamp_u64(void)
 {
-  uint8_t ts_tab[5];
   uint64_t ts = 0;
-  int i;
-  dwt_readtxtimestamp(ts_tab);
-  for(i = 4; i >= 0; i--) {
-    ts <<= 8;
-    ts |= ts_tab[i];
-  }
+  dwt_readtxtimestamp((uint8_t*)&ts);
   return ts;
 }
 /*---------------------------------------------------------------------------*/
 static inline void
-msg_get_ts(uint8_t *ts_field, uint32_t *ts)
+msg_get_u32(uint8_t *ts_field, uint32_t *ts)
 {
-  int i;
   *ts = 0;
-  for(i = 0; i < 4; i++) {
-    *ts |= ts_field[i] << (i * 8);
+  for(int i = 3; i >= 0; i--) {
+    *ts <<= 8;
+    *ts |= ts_field[i];
   }
 }
 /*---------------------------------------------------------------------------*/
 static inline void
-msg_set_ts(uint8_t *ts_field, uint64_t ts)
+msg_set_u32(uint8_t *ts_field, uint32_t ts)
 {
-  int i;
-  for(i = 0; i < 4; i++) {
+  for(int i = 0; i < 4; i++) {
     ts_field[i] = (uint8_t)ts;
     ts >>= 8;
   }
@@ -530,8 +516,8 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
 
       /* Fill in the SS1 payload */
       rtx_buf[tx_hdr_len + PLD_TYPE_OFS] = MSG_TYPE_SS1;
-      msg_set_ts(&rtx_buf[tx_hdr_len + RESP_MSG_POLL_RX_TS_OFS], poll_rx_ts_64);
-      msg_set_ts(&rtx_buf[tx_hdr_len + RESP_MSG_RESP_TX_TS_OFS], resp_tx_ts_64);
+      msg_set_u32(&rtx_buf[tx_hdr_len + RESP_MSG_POLL_RX_TS_OFS], (uint32_t)poll_rx_ts_64); // we send 4 least-significant bytes
+      msg_set_u32(&rtx_buf[tx_hdr_len + RESP_MSG_RESP_TX_TS_OFS], (uint32_t)resp_tx_ts_64); // of the 40-bit precise timestamps
 
       /* Write the frame data */
       dwt_writetxdata(tx_hdr_len + PLD_LEN_SS1 + DW1000_CRC_LEN, rtx_buf, 0);
@@ -627,8 +613,8 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     carrierIntegrator = dwt_readcarrierintegrator();
 
     /* Get timestamps embedded in response message. */
-    msg_get_ts(&rtx_buf[rx_hdr_len + RESP_MSG_POLL_RX_TS_OFS], &ss_poll_rx_ts);
-    msg_get_ts(&rtx_buf[rx_hdr_len + RESP_MSG_RESP_TX_TS_OFS], &ss_resp_tx_ts);
+    msg_get_u32(&rtx_buf[rx_hdr_len + RESP_MSG_POLL_RX_TS_OFS], &ss_poll_rx_ts);
+    msg_get_u32(&rtx_buf[rx_hdr_len + RESP_MSG_RESP_TX_TS_OFS], &ss_resp_tx_ts);
 
     old_state = state;
     state = S_RANGING_DONE;
@@ -686,8 +672,8 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     final_tx_ts_64 = (((uint64_t)(final_tx_time & 0xFFFFFFFEUL)) << 8) +
                           dw1000_cached_config.tx_ant_dly;
 
-    ds_poll_tx_ts = (uint32_t)poll_tx_ts_64;
-    ds_resp_rx_ts = (uint32_t)resp_rx_ts_64;
+    ds_poll_tx_ts  = (uint32_t)poll_tx_ts_64;    // we send 4 least-significant bytes   
+    ds_resp_rx_ts  = (uint32_t)resp_rx_ts_64;    // of the 40-bit precise timestamps
     ds_final_tx_ts = (uint32_t)final_tx_ts_64;
 
     /* Fill in the response header */
@@ -703,9 +689,9 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     /* Fill in the DS2 payload */
     rtx_buf[tx_hdr_len + PLD_TYPE_OFS] = MSG_TYPE_DS2;
 
-    msg_set_ts(&rtx_buf[tx_hdr_len + FINAL_MSG_POLL_TX_TS_OFS], ds_poll_tx_ts);
-    msg_set_ts(&rtx_buf[tx_hdr_len + FINAL_MSG_RESP_RX_TS_OFS], ds_resp_rx_ts);
-    msg_set_ts(&rtx_buf[tx_hdr_len + FINAL_MSG_FINAL_TX_TS_OFS], ds_final_tx_ts);
+    msg_set_u32(&rtx_buf[tx_hdr_len + FINAL_MSG_POLL_TX_TS_OFS],  ds_poll_tx_ts);
+    msg_set_u32(&rtx_buf[tx_hdr_len + FINAL_MSG_RESP_RX_TS_OFS],  ds_resp_rx_ts);
+    msg_set_u32(&rtx_buf[tx_hdr_len + FINAL_MSG_FINAL_TX_TS_OFS], ds_final_tx_ts);
 
     /* Write the frame data */
     dwt_writetxdata(tx_hdr_len + PLD_LEN_DS2 + DW1000_CRC_LEN, rtx_buf, 0); /* Zero offset in TX buffer. */
@@ -738,13 +724,13 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
 
     /* ds_poll_rx_ts was stored on the previous step */
     /* Retrieve response transmission and final reception timestamps. */
-    ds_resp_tx_ts = (uint32_t)get_tx_timestamp_u64();
+    ds_resp_tx_ts =  (uint32_t)get_tx_timestamp_u64();
     ds_final_rx_ts = (uint32_t)get_rx_timestamp_u64();
 
     /* Get timestamps embedded in the final message. */
-    msg_get_ts(&rtx_buf[rx_hdr_len + FINAL_MSG_POLL_TX_TS_OFS], &ds_poll_tx_ts);
-    msg_get_ts(&rtx_buf[rx_hdr_len + FINAL_MSG_RESP_RX_TS_OFS], &ds_resp_rx_ts);
-    msg_get_ts(&rtx_buf[rx_hdr_len + FINAL_MSG_FINAL_TX_TS_OFS], &ds_final_tx_ts);
+    msg_get_u32(&rtx_buf[rx_hdr_len + FINAL_MSG_POLL_TX_TS_OFS],  &ds_poll_tx_ts);
+    msg_get_u32(&rtx_buf[rx_hdr_len + FINAL_MSG_RESP_RX_TS_OFS],  &ds_resp_rx_ts);
+    msg_get_u32(&rtx_buf[rx_hdr_len + FINAL_MSG_FINAL_TX_TS_OFS], &ds_final_tx_ts);
 
     /* Fill in the response header */
     // TODO: can we reuse it from the previous time (DS0) ?
@@ -756,8 +742,8 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     /* Fill in the DS3 payload */
     rtx_buf[tx_hdr_len + PLD_TYPE_OFS] = MSG_TYPE_DS3;
 
-    memcpy(&rtx_buf[tx_hdr_len + DISTANCE_MSG_POLL_RX_OFS], &ds_poll_rx_ts, 4);
-    memcpy(&rtx_buf[tx_hdr_len + DISTANCE_MSG_RESP_TX_OFS], &ds_resp_tx_ts, 4);
+    memcpy(&rtx_buf[tx_hdr_len + DISTANCE_MSG_POLL_RX_OFS],  &ds_poll_rx_ts,  4);
+    memcpy(&rtx_buf[tx_hdr_len + DISTANCE_MSG_RESP_TX_OFS],  &ds_resp_tx_ts,  4);
     memcpy(&rtx_buf[tx_hdr_len + DISTANCE_MSG_FINAL_RX_OFS], &ds_final_rx_ts, 4);
 
     dwt_writetxfctrl(tx_hdr_len + PLD_LEN_DS3 + DW1000_CRC_LEN, 0, 1); /* Zero offset in TX buffer, ranging. */
@@ -785,9 +771,9 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
 
     PRINTF_INT("dwr: got DS3.\n");
 
-    msg_get_ts(&rtx_buf[rx_hdr_len + DISTANCE_MSG_POLL_RX_OFS], &ds_poll_rx_ts);
-    msg_get_ts(&rtx_buf[rx_hdr_len + DISTANCE_MSG_RESP_TX_OFS], &ds_resp_tx_ts);
-    msg_get_ts(&rtx_buf[rx_hdr_len + DISTANCE_MSG_FINAL_RX_OFS], &ds_final_rx_ts);
+    msg_get_u32(&rtx_buf[rx_hdr_len + DISTANCE_MSG_POLL_RX_OFS],  &ds_poll_rx_ts);
+    msg_get_u32(&rtx_buf[rx_hdr_len + DISTANCE_MSG_RESP_TX_OFS],  &ds_resp_tx_ts);
+    msg_get_u32(&rtx_buf[rx_hdr_len + DISTANCE_MSG_FINAL_RX_OFS], &ds_final_rx_ts);
 
     old_state = state;
     state = S_RANGING_DONE;
