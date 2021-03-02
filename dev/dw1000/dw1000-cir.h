@@ -38,6 +38,9 @@
  *    Timofei Istomin <tim.ist@gmail.com>
  */
 
+#ifndef DW1000_CIR_H
+#define DW1000_CIR_H
+
 #include <stdbool.h>
 #include "contiki.h"
 #include "deca_regs.h"
@@ -60,3 +63,5 @@ uint16_t dw1000_print_cir_samples_from_radio(int16_t s1, uint16_t n_samples, boo
 /*---------------------------------------------------------------------------*/
 void dw1000_print_cir_hex(dw1000_cir_sample_t* cir, uint16_t n_samples);
 void dw1000_print_cir(dw1000_cir_sample_t* cir, uint16_t n_samples);
+
+#endif // DW1000_CIR_H
