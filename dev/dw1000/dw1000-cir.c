@@ -58,8 +58,8 @@
 
 /*---------------------------------------------------------------------------*/
 
-/* Read max n_samples samples from the CIR accumulator, starting at index s1 or at the
- * index of the first ray. Call after packet reception and before re-enabling listening.
+/* Read max n_samples samples from the CIR accumulator, starting at index s1.
+ * Call after packet reception and before re-enabling listening.
  *
  * Params
  *  - s1 [in]         sample index in the CIR accumulator to start reading from 
@@ -123,7 +123,7 @@ uint16_t dw1000_read_cir(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* sa
 
 
 /* Print max n_samples samples from the CIR accumulator, starting at index s1 or at the
- * index of the first ray. Call after packet reception and before re-enabling listening.
+ * Call after packet reception and before re-enabling listening.
  *
  * Params
  *  - s1 [in]              sample index in the CIR accumulator to start reading from

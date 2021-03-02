@@ -917,7 +917,7 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
     if (state == S_RANGING_DONE && acquire_diagnostics) {
       dwt_readdiagnostics(&ranging_data.rxdiag);
 
-      if (cir_s1 == DW1000_CIR_FIRST_RAY) {
+      if (cir_s1 == DW1000_GET_CIR_FROM_FP) {
         cir_s1 = ranging_data.rxdiag.firstPath >> 6; // take the integer part of the index
       }
       

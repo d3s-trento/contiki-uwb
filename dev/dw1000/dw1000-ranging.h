@@ -60,25 +60,25 @@
 #define DW1000_EXTREME_RNG_TIMING 0
 #endif
 
-/* (Re)initialise the ranging module.
+
+/* A flag indicating that the CIR reading should start from the
+ * first path index, as identified by the radio */
+#define DW1000_GET_CIR_FROM_FP (-1)
+
+/* Call this function before every ranging request to enable acquiring RX diagnostics
+ * and/or CIR of the last received message.
  *
- * Needs to be called before issuing or serving ranging requests and
- * after changing radio parameters. */
-void dw1000_ranging_init();
-
-/*---------------------------------------------------------------------------*/
-/* Callback to process ranging good frame events */
-void
-dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data);
-
-/* Callback to process tx confirmation events */
-void
-dw1000_rng_tx_conf_cb(const dwt_cb_data_t *cb_data);
-/*---------------------------------------------------------------------------*/
-
-bool dw1000_range_with(linkaddr_t *lladdr, dw1000_rng_type_t type);
-bool dw1000_is_ranging();
-void dw1000_range_reset();
+ * Params:
+ *  - cir_s1     CIR sample index to start reading the CIR from or DW1000_GET_CIR_FROM_FP to
+ *               indicate that the CIR should be read from the first path index.
+ *  - n_samples  Number of CIR samples to read to the buffer
+ *  - samples    CIR samples buffer. Must be of length at least (n_samples + 1).
+ *               If NULL, then CIR will not be read.
+ *
+ * After the ranging is done with a successful status, the diagnostics will be available
+ * in the associated ranging_data_t structure and the CIR will be read in the specified 
+ * buffer (if any).
+ */
 void dw1000_ranging_acquire_diagnostics(int16_t cir_s1, uint16_t n_samples, dw1000_cir_sample_t* samples);
 
 extern process_event_t ranging_event;
@@ -91,5 +91,27 @@ typedef struct {
   double freq_offset;
   dwt_rxdiag_t rxdiag;
 } ranging_data_t;
+
+/*---------------------------------------------------------------------------*/
+/* Private functions for driver-level use only                               */
+/*---------------------------------------------------------------------------*/
+
+/* (Re)initialise the ranging module.
+ *
+ * Needs to be called before issuing or serving ranging requests and
+ * after changing radio parameters. */
+void dw1000_ranging_init();
+
+/* Callback to process ranging good frame events */
+void
+dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data);
+
+/* Callback to process tx confirmation events */
+void
+dw1000_rng_tx_conf_cb(const dwt_cb_data_t *cb_data);
+
+bool dw1000_range_with(linkaddr_t *lladdr, dw1000_rng_type_t type);
+bool dw1000_is_ranging();
+void dw1000_range_reset();
 
 #endif /* DW1000_RANGING_H */

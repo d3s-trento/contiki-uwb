@@ -236,7 +236,7 @@ PROCESS_THREAD(ranging_process, ev, data)
         dst.u8[0], dst.u8[1]);
 #if ACQUIRE_CIR
       dw1000_ranging_acquire_diagnostics(
-                                 CIR_START_FROM_PEAK ? DW1000_CIR_FIRST_RAY : 0,
+                                 CIR_START_FROM_PEAK ? DW1000_GET_CIR_FROM_FP : 0,
                                  CIR_MAX_SAMPLES,
                                  cir_buf);
 #else // only request diagnostics

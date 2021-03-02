@@ -51,10 +51,7 @@
  * Each sample is formed by a 16-bit real + 16-bit imaginary number */
 typedef uint32_t dw1000_cir_sample_t;
 #define DW1000_CIR_SAMPLE_SIZE (sizeof(dw1000_cir_sample_t))
-
-/* A flag indicating that the CIR reading should start from the
- * first ray index, as identified by the radio */
-#define DW1000_CIR_FIRST_RAY (-1)
+_Static_assert (DW1000_CIR_SAMPLE_SIZE == 4, "Wrong CIR sample size");
 
 /*---------------------------------------------------------------------------*/
 uint16_t dw1000_read_cir(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* samples);
