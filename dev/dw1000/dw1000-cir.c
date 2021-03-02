@@ -122,7 +122,7 @@ uint16_t dw1000_read_cir(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* sa
 }
 
 
-/* Print max n_samples samples from the CIR accumulator, starting at index s1 or at the
+/* Print max n_samples samples from the CIR accumulator, starting at index s1.
  * Call after packet reception and before re-enabling listening.
  *
  * Params
