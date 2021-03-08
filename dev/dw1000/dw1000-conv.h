@@ -44,7 +44,7 @@
  * 1 uus = 512 / 499.2 µs and 1 µs = 499.2 * 128 dtu */
 #define UUS_TO_DWT_TIME 65536LL
 
-/* UWB microsecond (uus) to device time unit for the 32-bits timestamp */
+/* UWB microsecond (uus) to device time unit for the 32-bits timestamp (~4ns) */
 #define UUS_TO_DWT_TIME_32 256
 
 /* UWB microsecond (uus) to µs conversion */
@@ -58,4 +58,11 @@
 
 /* UWB tick value in ns (64 bit timestamps) */
 #define DWT_TICK_TO_NS_64 0.0156500400641 // (2^0 * 512 / 499.2) / UUS_TO_DWT_TIME * 1000
+
+/* Preamble symbol duration to ~4-ns 32-bits time */
+#define PRE_SYM_PRF16_TO_DWT_TIME_32 248
+
+/* Preamble symbol duration to ~4-ns 32-bits time */
+#define PRE_SYM_PRF64_TO_DWT_TIME_32 254
+
 #endif /* DW1000_CONV_H */
