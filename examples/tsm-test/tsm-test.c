@@ -52,6 +52,9 @@
 #define SLOT_DURATION (3000*UUS_TO_DWT_TIME_32)           // ~ 1 ms
 #define TIMEOUT (SLOT_DURATION - 1000*UUS_TO_DWT_TIME_32) // slot timeout
 
+// Upper boundary for random TX jitter
+// (if there is no jitter, it is likely that always the same device is heard)
+// Make sure to disable or increase the preamble timeout if you use TX jitter
 #define MAX_JITTER (6)
 #define JITTER_STEP (20*UUS_TO_DWT_TIME_32)
 
@@ -138,6 +141,7 @@ PROCESS_THREAD(tsm_nd_test, ev, data)
 
   deployment_set_node_id_ieee_addr();
   tsm_init();
+  tsm_set_default_preambleto(0); // disable preamble timeout
 
   if (node_id == INITIATOR_ID) {
     tsm_start(SLOT_DURATION, TIMEOUT, (tsm_slot_cb)initiator_thread);
