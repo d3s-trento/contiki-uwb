@@ -588,27 +588,15 @@ static inline void
 tsm_log_print() {
 
   struct tsm_log *s;
-  bool first_slot_found = false;
 
   printf("[" LOG_PREFIX " %lu]Slots: ", logging_context);
   for (int i=0; i<next_tsm_log; i++) {
     s = tsm_slot_logs + i;
     // print slot operation status
-
-    if ((!first_slot_found) &&
-        (s->status == TREX_TX_DONE ||
-         s->status == TREX_RX_SUCCESS)) {
-        printf("_%d", s->slot_idx);
-        first_slot_found = true;
-    }
-    else if (s->status == TSM_LOG_STATUS_RX_WITH_SYNCH) {
-        // mark the slot idx received after scanning
-        printf("_%d", s->slot_idx);
-        s->idx_diff = 0; // reset it to avoid printing the "m" modifier later
-
-        // if this was the first rx ok slot,
-        // then stop searching
-        first_slot_found = true;
+    if (s->action == TSM_ACTION_SCAN) {
+      // mark scanning and the first received slot idx
+      printf("_%d", -s->idx_diff);
+      s->idx_diff = 0; // reset it to avoid printing the "m" modifier later
     }
     switch (s->status) {
       case TREX_TX_DONE:
