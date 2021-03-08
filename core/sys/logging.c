@@ -1,4 +1,4 @@
 #include "logging.h"
 
-uint16_t logging_context;
+uint32_t logging_context;
 

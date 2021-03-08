@@ -590,7 +590,7 @@ tsm_log_print() {
   struct tsm_log *s;
   bool first_slot_found = false;
 
-  printf("[" LOG_PREFIX " %u]Slots: ", logging_context);
+  printf("[" LOG_PREFIX " %lu]Slots: ", logging_context);
   for (int i=0; i<next_tsm_log; i++) {
     s = tsm_slot_logs + i;
     // print slot operation status

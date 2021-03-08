@@ -19,6 +19,10 @@
 #define LOG_PREFIX __FILE__ // file name by default
 #endif
 
+#ifndef LOG_PRINT_CONTEXT
+#define LOG_PRINT_CONTEXT 0 // by default don't print the logging_context
+#endif
+
 
 #if defined(LOG_LEVEL) && (LOG_LEVEL < LOG_NONE || LOG_LEVEL > LOG_ALL)
 #error Log level set incorrectly: LOG_LEVEL
@@ -29,14 +33,17 @@
 #endif
 
 #ifndef LOG_PRINTF
+#include <stdio.h>
 #define LOG_PRINTF(...) printf(__VA_ARGS__)
 #endif
 
-extern uint16_t logging_context;
+extern uint32_t logging_context;
 
-#include <stdio.h>
-
-#define __LOG_PRINT(format, level, ...) do {LOG_PRINTF("[" LOG_PREFIX " %u]" level format "\n", logging_context __VA_OPT__(,) __VA_ARGS__);} while(0)
+#if LOG_PRINT_CONTEXT
+#define __LOG_PRINT(format, level, ...) do {LOG_PRINTF("[" LOG_PREFIX " %lx]" level format "\n", logging_context __VA_OPT__(,) __VA_ARGS__);} while(0)
+#else
+#define __LOG_PRINT(format, level, ...) do {LOG_PRINTF("[" LOG_PREFIX "]" level format "\n" __VA_OPT__(,) __VA_ARGS__);} while(0)
+#endif
 
 
 #if LOG_LEVEL >= LOG_ERR
