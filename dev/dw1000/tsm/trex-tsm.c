@@ -457,43 +457,54 @@ static void driver_slot_callback(const trexd_slot_t* slot) {
 }
 
 /**
- * Compute preamble timeout expressed in PACs.
+ * Convert preamble timeout from ~4ns units to the number of PACs.
  * A value of 0 disables the timeout.
  *
- * TODO: Request to move this method to dw1000-utility
+ * As expected by dwt_setpreambledetecttimeout(), returns the number of
+ * PACs minus one, or zero to disable the timeout.
  */
-static inline uint16_t tsm_preambleto_to_pacs(const uint32_t timeout_4ns)
+static inline uint16_t tsm_preambleto_to_pacs(const dwt_config_t* config, const uint32_t timeout_4ns)
 {
   if (timeout_4ns == 0) {
       return 0;
   }
-  const dwt_config_t* config = dw1000_get_current_cfg();
-  uint32_t pac_ns = 0;
-  uint32_t symbol_duration = 1018;  // 1017,63 ns, assuming prf of 64MHz
+  uint32_t symbol_duration_4ns;
+  uint32_t pac_4ns;
   if (config->prf == DWT_PRF_16M) {
-      symbol_duration = 994;        // 993.59 ns, assuming prf of 16MHz
+      symbol_duration_4ns = PRE_SYM_PRF16_TO_DWT_TIME_32;
   }
   else if (config->prf == DWT_PRF_64M) {
-      // already set
+      symbol_duration_4ns = PRE_SYM_PRF64_TO_DWT_TIME_32;
+  }
+  else {
+      ERR("Invalid PRF");
+      return 0;
   }
 
   switch (config->rxPAC) {
-      case DWT_PAC8  : pac_ns = symbol_duration *  8;  break;
-      case DWT_PAC16 : pac_ns = symbol_duration * 16;  break;
-      case DWT_PAC32 : pac_ns = symbol_duration * 32;  break;
-      case DWT_PAC64 : pac_ns = symbol_duration * 64;  break;
-      default: ERR("Invalid PAC size found.");
+      case DWT_PAC8  : pac_4ns = symbol_duration_4ns *  8;  break;
+      case DWT_PAC16 : pac_4ns = symbol_duration_4ns * 16;  break;
+      case DWT_PAC32 : pac_4ns = symbol_duration_4ns * 32;  break;
+      case DWT_PAC64 : pac_4ns = symbol_duration_4ns * 64;  break;
+      default: 
+        ERR("Invalid PAC size."); 
+        return 0;
   }
-  // the function automatically adds 1 PAC more to the given value
-  uint16_t npacs = ((timeout_4ns * DWT_TICK_TO_NS_32) / pac_ns);
+  // calculate the number of required PACs minus 1, since
+  // dwt_setpreambledetecttimeout() automatically adds 1 to the given value
+  uint16_t npacs = (timeout_4ns-1) / pac_4ns;
+
+  if (npacs == 0) npacs = 1; // 0 has a special meaning, so we have to use 1
 
   return npacs;
 }
 
+
 void tsm_set_default_preambleto(const uint32_t preambleto)
 {
+  const dwt_config_t* radio_config = dw1000_get_current_cfg();
   context.default_preambleto = preambleto;
-  context.default_preambleto_pacs = tsm_preambleto_to_pacs(context.default_preambleto);
+  context.default_preambleto_pacs = tsm_preambleto_to_pacs(radio_config, context.default_preambleto);
 }
 
 uint32_t tsm_get_default_preambleto()
@@ -524,33 +535,32 @@ int tsm_start(uint32_t slot_duration, uint32_t rx_timeout, tsm_slot_cb callback)
 }
 
 
-
 void tsm_init() {
   trexd_init();
 
-  uint32_t symbol_duration_ns = 0;
-  uint32_t preamble_duration_ns = 0;
+  uint32_t symbol_duration_4ns = 0;
+  uint32_t preamble_duration_4ns = 0;
   const dwt_config_t* radio_config = dw1000_get_current_cfg();
   if (radio_config->prf == DWT_PRF_16M) {
-    symbol_duration_ns = 994;       // 993.59 ns, assuming prf of 64MHz
+      symbol_duration_4ns = PRE_SYM_PRF16_TO_DWT_TIME_32;
   }
   else if (radio_config->prf == DWT_PRF_64M) {
-      symbol_duration_ns = 1018;      // 1017,63 ns, assuming prf of 64MHz
+      symbol_duration_4ns = PRE_SYM_PRF64_TO_DWT_TIME_32;
   }
   switch (radio_config->txPreambLength){
-    case DWT_PLEN_4096: preamble_duration_ns = symbol_duration_ns * 4096; break;
-    case DWT_PLEN_2048: preamble_duration_ns = symbol_duration_ns * 2048; break;
-    case DWT_PLEN_1536: preamble_duration_ns = symbol_duration_ns * 1536; break;
-    case DWT_PLEN_1024: preamble_duration_ns = symbol_duration_ns * 1024; break;
-    case DWT_PLEN_512 : preamble_duration_ns = symbol_duration_ns *  512; break;
-    case DWT_PLEN_256 : preamble_duration_ns = symbol_duration_ns *  256; break;
-    case DWT_PLEN_128 : preamble_duration_ns = symbol_duration_ns *  128; break;
-    case DWT_PLEN_64  : preamble_duration_ns = symbol_duration_ns *   64; break;
-    default           : preamble_duration_ns = symbol_duration_ns *   64;
+    case DWT_PLEN_4096: preamble_duration_4ns = symbol_duration_4ns * 4096; break;
+    case DWT_PLEN_2048: preamble_duration_4ns = symbol_duration_4ns * 2048; break;
+    case DWT_PLEN_1536: preamble_duration_4ns = symbol_duration_4ns * 1536; break;
+    case DWT_PLEN_1024: preamble_duration_4ns = symbol_duration_4ns * 1024; break;
+    case DWT_PLEN_512 : preamble_duration_4ns = symbol_duration_4ns *  512; break;
+    case DWT_PLEN_256 : preamble_duration_4ns = symbol_duration_4ns *  256; break;
+    case DWT_PLEN_128 : preamble_duration_4ns = symbol_duration_4ns *  128; break;
+    case DWT_PLEN_64  : preamble_duration_4ns = symbol_duration_4ns *   64; break;
+    default           : preamble_duration_4ns = symbol_duration_4ns *   64;
   }
   // listen for half the preamble length (+ the initial guard time)
-  context.default_preambleto = (preamble_duration_ns / DWT_TICK_TO_NS_32) / 2 + TSM_DEFAULT_RXGUARD;
-  context.default_preambleto_pacs = tsm_preambleto_to_pacs(context.default_preambleto);
+  context.default_preambleto = preamble_duration_4ns / 2 + TSM_DEFAULT_RXGUARD;
+  context.default_preambleto_pacs = tsm_preambleto_to_pacs(radio_config, context.default_preambleto);
 }
 
 
