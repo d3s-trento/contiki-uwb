@@ -176,40 +176,56 @@ dw1000_spi_close(void)
 {
 }
 /*---------------------------------------------------------------------------*/
+// maximum header+body length to join in a single SPI transfer 
+#define BUF_JOIN_THR 50
 int
 dw1000_spi_read(uint16_t  headerLength,
                 const uint8_t   *headerBuffer,
                 uint32_t  readLength,
                 uint8_t   *readBuffer)
 {
-  nrfx_spim_xfer_desc_t const xfer_hdr_desc =
+  nrf_gpio_pin_clear(DW1000_SPI_CS_PIN);
+  if (headerLength + readLength <= BUF_JOIN_THR) {  // combine header and body for short xfers
+    uint8_t buf[headerLength + readLength];
+    nrfx_spim_xfer_desc_t const xfer_desc =
     {
       .p_tx_buffer = headerBuffer,
       .tx_length = headerLength,
-      .p_rx_buffer = NULL,
-      .rx_length = 0,
+      .p_rx_buffer = buf,
+      .rx_length = headerLength + readLength,
     };
-  nrfx_spim_xfer_desc_t xfer_data_desc =
-    {
-      .p_tx_buffer = NULL,
-      .tx_length = 0,
-      .p_rx_buffer = NULL, // fill later
-      .rx_length = 0,      // fill later
-    };
+    APP_ERROR_CHECK(nrfx_spim_xfer(&spim, &xfer_desc, 0));
+    for (int i=0; i<readLength; i++) readBuffer[i] = buf[headerLength+i];
+  }
+  else { // split header and body transfers
+    nrfx_spim_xfer_desc_t const xfer_hdr_desc =
+      {
+        .p_tx_buffer = headerBuffer,
+        .tx_length = headerLength,
+        .p_rx_buffer = NULL,
+        .rx_length = 0,
+      };
+    nrfx_spim_xfer_desc_t xfer_data_desc =
+      {
+        .p_tx_buffer = NULL,
+        .tx_length = 0,
+        .p_rx_buffer = NULL, // fill later
+        .rx_length = 0,      // fill later
+      };
 
-  uint32_t bytes_read = 0;
-  uint32_t bytes_to_read = readLength;
+    uint32_t bytes_read = 0;
+    uint32_t bytes_to_read = readLength;
 
-  nrf_gpio_pin_clear(DW1000_SPI_CS_PIN);
-  APP_ERROR_CHECK(nrfx_spim_xfer(&spim, &xfer_hdr_desc, 0));
+    APP_ERROR_CHECK(nrfx_spim_xfer(&spim, &xfer_hdr_desc, 0));
 
-  while (bytes_to_read) {
-    xfer_data_desc.p_rx_buffer = readBuffer + bytes_read;
-    xfer_data_desc.rx_length = bytes_to_read > 255 ? 255 : bytes_to_read; // DMA can handle max 255 bytes at a time
+    while (bytes_to_read) {
+      xfer_data_desc.p_rx_buffer = readBuffer + bytes_read;
+      xfer_data_desc.rx_length = bytes_to_read > 255 ? 255 : bytes_to_read; // DMA can handle max 255 bytes at a time
 
-    APP_ERROR_CHECK(nrfx_spim_xfer(&spim, &xfer_data_desc, 0));
-    bytes_read += xfer_data_desc.rx_length;
-    bytes_to_read -= xfer_data_desc.rx_length;
+      APP_ERROR_CHECK(nrfx_spim_xfer(&spim, &xfer_data_desc, 0));
+      bytes_read += xfer_data_desc.rx_length;
+      bytes_to_read -= xfer_data_desc.rx_length;
+    }
   }
 
   nrf_gpio_pin_set(DW1000_SPI_CS_PIN);
@@ -217,33 +233,67 @@ dw1000_spi_read(uint16_t  headerLength,
   return 0;
 }
 /*---------------------------------------------------------------------------*/
+
 int
 dw1000_spi_write(uint16_t       headerLength,
                  const uint8_t  *headerBuffer,
                  uint32_t       bodyLength,
                  const uint8_t  *bodyBuffer)
 {
-  nrfx_spim_xfer_desc_t const xfer_hdr_desc =
+  nrf_gpio_pin_clear(DW1000_SPI_CS_PIN);
+
+  if (!bodyLength) { // no body, send only the header
+    nrfx_spim_xfer_desc_t const xfer_hdr_desc =
     {
       .p_tx_buffer = headerBuffer,
       .tx_length = headerLength,
       .p_rx_buffer = NULL,
       .rx_length = 0,
     };
-  nrfx_spim_xfer_desc_t const xfer_data_desc =
-    {
-      .p_tx_buffer = bodyBuffer,
-      .tx_length = bodyLength,
-      .p_rx_buffer = NULL,
-      .rx_length = 0,
-    };
+    APP_ERROR_CHECK(nrfx_spim_xfer(&spim, &xfer_hdr_desc, 0));
+  }
+  else {
+    if (headerLength + bodyLength <= BUF_JOIN_THR) {   // combine header and body for short xfers
+      uint8_t buf[headerLength + bodyLength];
+      
+      for (int i=0; i<headerLength; i++) buf[i] = headerBuffer[i];
+      for (int i=0; i<bodyLength; i++) buf[headerLength+i] = bodyBuffer[i];
 
-  nrf_gpio_pin_clear(DW1000_SPI_CS_PIN);
-  APP_ERROR_CHECK(nrfx_spim_xfer(&spim, &xfer_hdr_desc, 0));
-  // TODO XXX implement writing of more than 255 bytes (see the read function above)
-  APP_ERROR_CHECK(nrfx_spim_xfer(&spim, &xfer_data_desc, 0));
+      nrfx_spim_xfer_desc_t const xfer_desc =
+      {
+        .p_tx_buffer = buf,
+        .tx_length = headerLength + bodyLength,
+        .p_rx_buffer = NULL,
+        .rx_length = 0,
+      };
+      APP_ERROR_CHECK(nrfx_spim_xfer(&spim, &xfer_desc, 0));
+    }
+    else { // split header and body transfers
+      {
+        nrfx_spim_xfer_desc_t const xfer_desc =
+        {
+          .p_tx_buffer = headerBuffer,
+          .tx_length = headerLength,
+          .p_rx_buffer = NULL,
+          .rx_length = 0,
+        };
+        APP_ERROR_CHECK(nrfx_spim_xfer(&spim, &xfer_desc, 0));
+      }
+      {
+        nrfx_spim_xfer_desc_t const xfer_desc =
+        {
+          .p_tx_buffer = bodyBuffer,
+          .tx_length = bodyLength,
+          .p_rx_buffer = NULL,
+          .rx_length = 0,
+        };
+        APP_ERROR_CHECK(nrfx_spim_xfer(&spim, &xfer_desc, 0));
+      }
+    }
+  }
   nrf_gpio_pin_set(DW1000_SPI_CS_PIN);
 
+  // TODO XXX implement writing of more than 255 bytes (see the read function above)
   return 0;
 }
 /*---------------------------------------------------------------------------*/
