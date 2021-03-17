@@ -43,7 +43,7 @@
 
 
 #if LINKADDR_SIZE == 2
-linkaddr_t dst = {{0x5a, 0x34}};
+linkaddr_t dst = {{0x88, 0xa9}};
 #elif LINKADDR_SIZE == 8
 linkaddr_t dst = {{0x01, 0x3a, 0x61, 0x02, 0xc4, 0x40, 0x5a, 0x34}};
 #endif
@@ -94,8 +94,10 @@ PROCESS_THREAD(example_unicast_process, ev, data)
       etimer_set(&et, CLOCK_SECOND);
     
       PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-
-      packetbuf_copyfrom("Hello", 5);
+      
+      //char msg[] = "123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123";
+      char msg[] = "Hello";
+      packetbuf_copyfrom(msg, sizeof(msg));
       unicast_send(&uc, &dst);
     }
   }
