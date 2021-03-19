@@ -16,9 +16,10 @@ CONTIKI_SOURCEFILES += rtt-printf.c
 # else ifeq($(PRINTF_OVER_NRF_LOG),1)
 # $(info "printf over NRF_LOG")
 # CONTIKI_SOURCEFILES += nrf_log_printf.c
+CFLAGS += -DPRINTF_OVER_RTT
 PRINTF_OVER_UART=0
 else
-PRINtF_OVER_UART=1
+PRINTF_OVER_UART=1
 endif
 
 ifeq ($(NRF_LOG_OVER_RTT),1)

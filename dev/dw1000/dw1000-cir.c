@@ -46,6 +46,9 @@
 #include "deca_device_api.h"
 #include "watchdog.h"
 /*---------------------------------------------------------------------------*/
+#if PRINTF_OVER_RTT
+#include "SEGGER_RTT.h"
+#endif
 #include <stdio.h>
 /*---------------------------------------------------------------------------*/
 
@@ -219,9 +222,25 @@ void dw1000_print_cir_hex(dw1000_cir_sample_t* cir, uint16_t n_samples) {
     buf[6] = t[*p >> 4];
     buf[7] = t[*p & 0xf];
     buf[8] = 0; // terminating zero
+#if PRINTF_OVER_RTT
+    int res, bytes_written;
+    bytes_written = 0;
+    do {
+      res = SEGGER_RTT_Write(0, buf + bytes_written, 8 - bytes_written);
+      bytes_written += res;
+    } while (bytes_written < 8 && res >= 0);
+    if (res < 0) {
+      break;
+    }
+#else
     printf(buf);
+#endif
   }
+#if PRINTF_OVER_RTT
+  SEGGER_RTT_Write(0, "\n", 1);
+#else
   printf("\n");
+#endif
 }
 
 /* Print CIR buffer in human-readable form (a+bj) */
