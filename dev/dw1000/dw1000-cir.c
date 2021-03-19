@@ -131,11 +131,10 @@ uint16_t dw1000_read_cir(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* sa
  * Params
  *  - s1 [in]              sample index in the CIR accumulator to start reading from
  *  - n_samples [in]       max number of samples to read
- *  - human_readable [in]  print in human-readable form (a+bj) instead of plain hex
  *
  * Returns the actual number of samples printed.
  */
-uint16_t dw1000_print_cir_samples_from_radio(int16_t s1, uint16_t n_samples, bool human_readable) {
+uint16_t dw1000_print_cir_samples_from_radio(int16_t s1, uint16_t n_samples) {
   uint8_t buf[CIR_PRINT_STEP + 1];
   uint16_t max_samples = (dw1000_get_current_cfg()->prf == DWT_PRF_64M) ? 
                            DW1000_CIR_LEN_PRF64 : 
@@ -169,21 +168,9 @@ uint16_t dw1000_print_cir_samples_from_radio(int16_t s1, uint16_t n_samples, boo
     read_bytes += chunk_size;
     read_idx += chunk_size;
 
-    if (human_readable) {
-      for(int k = 1; k < chunk_size + 1; k = k + 4) {
-        int16_t a = (((uint16_t)buf[k + 1]) << 8) | buf[k];
-        int16_t b = (((uint16_t)buf[k + 3]) << 8) | buf[k + 2];
-        if(b >= 0) {
-          printf("%d+%dj,", a, b);
-        } else {
-          printf("%d%dj,", a, b);
-        }
-      }
-    }
-    else {
-      for(uint16_t k = 1; k < chunk_size + 1; k++) {
-        printf("%02x", buf[k]);
-      }
+    // TODO: call the dw1000_print_cir_hex instead
+    for(uint16_t k = 1; k < chunk_size + 1; k++) {
+      printf("%02x", buf[k]);
     }
   }
 
@@ -193,14 +180,11 @@ uint16_t dw1000_print_cir_samples_from_radio(int16_t s1, uint16_t n_samples, boo
 
 /* Print whole CIR. Call after packet reception and before re-enabling listening.
  *
- * Params
- *  - human_readable [in]   print in human-readable form (a+bj) instead of plain hex
- *
  * Returns the actual number of samples printed.
  */
-uint16_t dw1000_print_cir_from_radio(bool human_readable) {
+uint16_t dw1000_print_cir_from_radio() {
   // print all from the beginning
-  return dw1000_print_cir_samples_from_radio(0, DW1000_CIR_MAX_LEN, human_readable);
+  return dw1000_print_cir_samples_from_radio(0, DW1000_CIR_MAX_LEN);
 }
 
 /* Print CIR buffer in hex */
@@ -241,20 +225,4 @@ void dw1000_print_cir_hex(dw1000_cir_sample_t* cir, uint16_t n_samples) {
 #else
   printf("\n");
 #endif
-}
-
-/* Print CIR buffer in human-readable form (a+bj) */
-void dw1000_print_cir(dw1000_cir_sample_t* cir, uint16_t n_samples) {
-  uint8_t* buf = (uint8_t*)cir;
-  for (int i=0; i<n_samples * 4; i++) {
-    int16_t a = (((uint16_t)buf[i + 1]) << 8) | buf[i];
-    int16_t b = (((uint16_t)buf[i + 3]) << 8) | buf[i + 2];
-    if(b >= 0) {
-      printf("%d+%dj,", a, b);
-    } else {
-      printf("%d%dj,", a, b);
-    }
-    watchdog_periodic();
-  }
-  printf("\n");
 }
