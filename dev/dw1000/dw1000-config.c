@@ -98,7 +98,7 @@ const uint32_t tx_power_tbl[2][6][2] = {
  * If returns false, the radio configuration is undefined.
  */
 bool
-dw1000_configure(dwt_config_t *cfg) {
+dw1000_configure(const dwt_config_t *cfg) {
   
   if (dw1000_is_sleeping) {
     PRINTF("Err: Radio configure requested while sleeping\n");

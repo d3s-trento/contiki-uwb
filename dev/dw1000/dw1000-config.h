@@ -118,7 +118,7 @@
  * If returns false, the radio configuration is undefined.
  */
 bool
-dw1000_configure(dwt_config_t *cfg);
+dw1000_configure(const dwt_config_t *cfg);
 
 /* Change the channel and TX/RX preamble codes */
 bool
