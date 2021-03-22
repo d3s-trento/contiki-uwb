@@ -69,8 +69,6 @@ CONTIKI_CPU_DIRS += lib/STM32_USB_OTG_Driver/src/
 #CONTIKI_CPU_DIRS += lib/oldlib/STM32_USB_OTG_Driver/inc/
 #CONTIKI_CPU_DIRS += lib/oldlib/STM32_USB_OTG_Driver/src/
 
-CONTIKI_CPU_DIRS += usb/
-
 # Not included USB classes
 # CONTIKI_CPU_DIRS += lib/STM32_USB_Device_Library/Class/audio/inc/
 # CONTIKI_CPU_DIRS += lib/STM32_USB_Device_Library/Class/audio/src/
