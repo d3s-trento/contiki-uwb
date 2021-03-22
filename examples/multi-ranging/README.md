@@ -32,8 +32,8 @@ Double-Sided Two-Way Ranging (DS-TWR), defined by the `RANGING_STYLE` constant.
 SS-TWR is recommended, it provides very similar accuracy but uses only 2 messages instead of 4,
 therefore it is faster and less affected by packet loss.
 
-The constant `RANGING_INTERVAL` sets the total round interval. It is checked at compile time that
-all the rangings fit inside that interval.
+The constant `ROUND_PERIOD` sets the total ranging round period. It is checked at compile time that
+all the rangings fit inside that time.
 
 The constants `ACQUIRE_CIR`, `CIR_START_FROM_PEAK` and `CIR_MAX_SAMPLES` control the CIR acquisition.
 Note that CIR printing might be long, so the time allocated for a single ranging increases significantly.
