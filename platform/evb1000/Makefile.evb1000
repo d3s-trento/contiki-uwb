@@ -1,7 +1,7 @@
 # EVB1000 platform makefile
 
 
-CONTIKI_TARGET_DIRS = . dev
+CONTIKI_TARGET_DIRS = . dev usb
 CONTIKI_TARGET_DIRS += evb-newlib
 
 CONTIKI_TARGET_SOURCEFILES += contiki-main.c
@@ -17,6 +17,10 @@ CONTIKI_TARGET_SOURCEFILES += dw1000-arch.c
 CONTIKIDIRS += $(UWB_CONTIKI)/dev/dw1000 $(UWB_CONTIKI)/dev/dw1000/decadriver
 CONTIKI_TARGET_SOURCEFILES += deca_device.c deca_params_init.c deca_range_tables.c
 CONTIKI_TARGET_SOURCEFILES += dw1000.c dw1000-ranging.c dw1000-config.c dw1000-util.c dw1000-cir.c dw1000-statetime.c
+
+# USB
+CONTIKI_TARGET_SOURCEFILES += deca_usb.c deca_usb_bsp_evk1000.c usbd_desc.c usbd_usr.c
+
 CONTIKI_SOURCEFILES += $(CONTIKI_TARGET_SOURCEFILES)
 
 ### Define the CPU directory

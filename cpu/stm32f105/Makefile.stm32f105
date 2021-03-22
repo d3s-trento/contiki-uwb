@@ -95,20 +95,12 @@ CONTIKI_CPU_SOURCEFILES += stm32f10x_iwdg.c stm32f10x_sdio.c stm32f10x_wwdg.c
 CONTIKI_CPU_SOURCEFILES += stm32f10x_can.c stm32f10x_dbgmcu.c stm32f10x_fsmc.c 
 CONTIKI_CPU_SOURCEFILES += stm32f10x_pwr.c stm32f10x_spi.c
 
-# $(CONTIKI_CPU)/lib/STM32_USB_Device_Library/Core/src/ -- TO ADD
 CONTIKI_CPU_SOURCEFILES += usbd_core.c usbd_ioreq.c usbd_req.c
-
-# $(CONTIKI_CPU)/lib/STM32_USB_Device_Library/Class/cdc/src/ -- TO ADD -- do not include template
 CONTIKI_CPU_SOURCEFILES += usbd_cdc_core.c 
 #CONTIKI_CPU_SURCEFILES += usbd_cdc_core_loopback.c
-
-# USB Files -- TO ADD
-CONTIKI_CPU_SOURCEFILES += deca_usb.c deca_usb_bsp_evk1000.c usbd_desc.c usbd_usr.c
-#CONTIKI_CPU_SOURCEFILES += usb_bsp.c usbd_cdc_vcp.c
-
-# STM32 USB OTG Driver Source Files -- do not include the template -- TO ADD
 CONTIKI_CPU_SOURCEFILES += usb_core.c
-#CONTIKI_CPU_SOURCEFILES += usb_hcd_int.c usb_hcd.c // host mode, seems not needed
+#CONTIKI_CPU_SOURCEFILES += usb_bsp.c usbd_cdc_vcp.c
+#CONTIKI_CPU_SOURCEFILES += usb_hcd_int.c usb_hcd.c
 CONTIKI_CPU_SOURCEFILES += usb_dcd_int.c usb_dcd.c
 
 # STM32F105 Contiki Core Drivers -- TO ADD
