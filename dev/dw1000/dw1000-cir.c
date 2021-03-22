@@ -48,6 +48,8 @@
 /*---------------------------------------------------------------------------*/
 #if PRINTF_OVER_RTT
 #include "SEGGER_RTT.h"
+#elif CONTIKI_TARGET_EVB1000
+#include "deca_usb.h"
 #endif
 #include <stdio.h>
 /*---------------------------------------------------------------------------*/
@@ -187,10 +189,21 @@ uint16_t dw1000_print_cir_from_radio() {
   return dw1000_print_cir_samples_from_radio(0, DW1000_CIR_MAX_LEN);
 }
 
-/* Print CIR buffer in hex */
+/* Print CIR buffer in hex.
+ *
+ * NB! This is a blocking function. If USB output is used, it will block
+ * in busy waiting until the whole CIR is printed. If the host is too slow
+ * to poll USB or it is not polling, or it is not connected, this
+ * function will **BLOCK FOREVER**. Probably, watchdog will reboot the device.
+ */
 void dw1000_print_cir_hex(dw1000_cir_sample_t* cir, uint16_t n_samples) {
   static const char t[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
                                    'a', 'b', 'c', 'd', 'e', 'f' };
+
+#if CONTIKI_TARGET_EVB1000
+  fflush(0); // flush printf buffer to avoid data reordering
+#endif
+
   char buf[9];
   for (int i=0; i<n_samples; i++) {
     uint8_t *p = (uint8_t*)(cir+i);
@@ -216,12 +229,24 @@ void dw1000_print_cir_hex(dw1000_cir_sample_t* cir, uint16_t n_samples) {
     if (res < 0) {
       break;
     }
+#elif CONTIKI_TARGET_EVB1000
+    uint16_t res;
+    do {
+      res = DW_VCP_DataTx((uint8_t*)buf, 8);
+      if (res != USBD_OK) clock_wait(1); // 1 ms
+    } while (res != USBD_OK);
 #else
     printf(buf);
 #endif
   }
 #if PRINTF_OVER_RTT
   SEGGER_RTT_Write(0, "\n", 1);
+#elif CONTIKI_TARGET_EVB1000
+  uint16_t res;
+  do {
+    res = DW_VCP_DataTx((uint8_t*)"\n", 1);
+    if (res != USBD_OK) clock_wait(1); // 1 ms
+  } while (res != USBD_OK);
 #else
   printf("\n");
 #endif

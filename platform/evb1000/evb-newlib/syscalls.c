@@ -33,7 +33,7 @@ _write(int file, char *ptr, int len)
   if(DW_VCP_DataTx((uint8_t *)ptr, len) == USBD_OK)
     return len;
 
-  return -1;
+  return 0;
 }
 
 int

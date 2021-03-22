@@ -61,7 +61,14 @@ uint16_t dw1000_read_cir(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* sa
 uint16_t dw1000_print_cir_from_radio();
 uint16_t dw1000_print_cir_samples_from_radio(int16_t s1, uint16_t n_samples);
 /*---------------------------------------------------------------------------*/
+
+/* Print CIR buffer in hex.
+ *
+ * NB! This is a blocking function. If USB output is used, it will block
+ * in busy waiting until the whole CIR is printed. If the host is too slow
+ * to poll USB or it is not polling, or it is not connected, this
+ * function will **BLOCK FOREVER**. Probably, watchdog will reboot the device.
+ */
 void dw1000_print_cir_hex(dw1000_cir_sample_t* cir, uint16_t n_samples);
-void dw1000_print_cir(dw1000_cir_sample_t* cir, uint16_t n_samples);
 
 #endif // DW1000_CIR_H
