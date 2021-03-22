@@ -2,6 +2,8 @@
 #define DEPLOYMENT_H
 
 #include <inttypes.h>
+#include <stdbool.h>
+#include "net/netstack.h"
 #include "sys/node-id.h"
 
 #define IEEE_ADDR_LEN 8
@@ -22,5 +24,12 @@ uint16_t deployment_get_n_nodes(void);
  * Note: call deployment_set_node_id_ieee_addr() before
  */
 void deployment_print_id_info(void);
+
+/* Get the node address from its ID.
+ *
+ * If node_id is found in the table, copies the address to addr and
+ * returns true. Otherwise returns false.
+ */
+bool deployment_get_addr_by_id(uint16_t node_id, linkaddr_t* addr);
 
 #endif /* DEPLOYMENT_H */

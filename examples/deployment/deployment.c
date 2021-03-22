@@ -7,6 +7,10 @@
 #include "deployment.h"
 #include "node-map.c"
 
+#if LINKADDR_SIZE > IEEE_ADDR_LEN
+#error Wrong address sizes
+#endif
+
 unsigned short int node_id = 0;
 
 /* The total number of nodes in the deployment */
@@ -51,3 +55,14 @@ void deployment_print_id_info(void)
          ieee_addr[6], ieee_addr[7]);
 }
 
+bool deployment_get_addr_by_id(uint16_t node_id, linkaddr_t* addr) {
+  for (int i=0; i<N_NODES; i++) {
+    if (deployment_id_addr_list[i].id == node_id) {
+      // copy all 8 bytes if long addresses are used or only the last two bytes
+      // for short addresses.
+      memcpy(addr, &deployment_id_addr_list[i].ieee_addr + IEEE_ADDR_LEN - LINKADDR_SIZE, LINKADDR_SIZE);
+      return true;
+    }
+  }
+  return false;
+}
