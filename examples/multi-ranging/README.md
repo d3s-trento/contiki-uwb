@@ -41,8 +41,11 @@ The pre-defined value of `MAX_PRINTING_DELAY` is set large enough to print the f
 
 The constant `PRINT_RXDIAG` enables/disables printing the RX diagnostics for the last ranging packet received.
 
-## Important note
+## Important notes
 Make sure that all tags share the same configuration (same firmware). Anchor nodes need to be reflashed
 only if the radio configuration changes, but may keep the firmware if only the set of tags changes.
 
 Pay attention to error messages in the logs. If those appear, multiple rangings might overlap and fail or provide incorrect results.
+
+If you enable CIR printing, make sure that the device is connected to a computer and the USB output is actually read.
+Otherwise, the device will reboot due to watchdog.
