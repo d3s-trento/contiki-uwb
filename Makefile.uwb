@@ -1,8 +1,20 @@
 # Please define UWB_CONTIKI pointing to the contiki-uwb directory in
 # your application Makefile
+ifndef UWB_CONTIKI
+  ${error UWB_CONTIKI not defined!}
+endif
 
-# we assume that the contiki dir is inside the uwb_contiki dir
+# If you want to use a Contiki tree different from the one
+# of the submodule, place a file named Makefile.redirect to
+# contiki subdirectory and define the CONTIKI constant there
+
+ifneq ("$(wildcard $(UWB_CONTIKI)/contiki/Makefile.redirect)","")
+include $(UWB_CONTIKI)/contiki/Makefile.redirect
+${warning Using non-submodule Contiki: $(CONTIKI)}
+else
+# by default use contiki subdir
 CONTIKI = $(UWB_CONTIKI)/contiki
+endif
 
 UWB_MODULES += core/net core/sys
 
@@ -31,8 +43,14 @@ ifeq ($(UWB_CONTIKI_PRINT_DEF),1)
   CFLAGS += -DUWB_CONTIKI_PRINT_DEF=1
 endif
 
-# convert UWB_MODULES to Contiki's MODULES
-MODULES += $(addprefix ../,$(UWB_MODULES))
+
+ifdef UWB_MODULES
+  UNIQUE_UWB_MODULES = $(call uniq,$(UWB_MODULES))
+  UWB_MODULEDIRS = ${wildcard ${addprefix $(UWB_CONTIKI)/, $(UNIQUE_UWB_MODULES)}}
+  UWB_MODULES_SOURCES = ${foreach d, $(UWB_MODULEDIRS), ${subst ${d}/,,${wildcard $(d)/*.c}}}
+  CONTIKI_SOURCEFILES += $(UWB_MODULES_SOURCES)
+  APPDS += $(UWB_MODULEDIRS)
+endif
 
 TARGETDIRS += $(UWB_CONTIKI)/platform
 
