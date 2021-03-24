@@ -316,7 +316,7 @@ msg_set_u32(uint8_t *ts_field, uint32_t ts)
   }
 }
 /*---------------------------------------------------------------------------*/
-PROCESS(dw1000_rng_process, "DW1000 dbg process");
+PROCESS(dw1000_rng_process, "DW1000 rng process");
 #if DEBUG_RNG_PERIODIC
 PROCESS(dw1000_rng_dbg_process, "DW1000 rng dbg process");
 #endif
@@ -868,7 +868,7 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
     PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
 
 #if PROFILE_RANGING
-  r_proc = RTIMER_NOW();
+    r_proc = RTIMER_NOW();
 #endif
     uint8_t irq_status = dw1000_disable_interrupt();
 
@@ -910,7 +910,7 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
     }
 
 #if PROFILE_RANGING
-  r_calc = RTIMER_NOW();
+    r_calc = RTIMER_NOW();
 #endif
 
     ranging_data.cir_samples_acquired = 0;
@@ -929,18 +929,19 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
     }
 
 #if PROFILE_RANGING
-  r_cir = RTIMER_NOW();
+    r_cir = RTIMER_NOW();
 #endif
-    struct process *process_to_poll = req_process;
-    req_process = PROCESS_NONE;
-    old_state = state;
-    state = S_WAIT_POLL;
 
     if (state != S_RESET) {
       // if no reset was requested, re-enable reception
       dwt_setrxtimeout(0);
       dwt_rxenable(DWT_START_RX_IMMEDIATE);
     }
+
+    struct process *process_to_poll = req_process;
+    req_process = PROCESS_NONE;
+    old_state = state;
+    state = S_WAIT_POLL;
 
     dw1000_enable_interrupt(irq_status);
 
