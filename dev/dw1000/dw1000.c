@@ -87,6 +87,9 @@ static uint32_t radio_status;
 
 /* Static variables */
 static uint16_t data_len; /* received data length (payload without CRC) */
+static dwt_rxdiag_t rx_diag; /* diagnostic info for the received frame */
+static bool rxdiag_enabled;  /* True if rx_diag reading is enabled */
+static bool rxdiag_acquired; /* True when rx_diag contains data about the last packet */
 static bool frame_pending;
 static bool frame_uploaded;
 static bool auto_ack_enabled;
@@ -576,10 +579,16 @@ PROCESS_THREAD(dw1000_process, ev, data)
     dw1000_radio_read(packetbuf_dataptr(), data_len);
     packetbuf_set_datalen(data_len);
 
+    if (rxdiag_enabled) {
+      /* Read RX diagnostics */
+      dwt_readdiagnostics(&rx_diag);
+      rxdiag_acquired = true;
+    }
     /* Re-enable RX to keep listening */
     dw1000_on();
     /*PRINTF("dw1000_process: calling recv cb, len %d\n", data_len); */
     NETSTACK_RDC.input();
+    rxdiag_acquired = false;
   }
 
   PROCESS_END();
@@ -654,6 +663,19 @@ dw1000_wakeup(void)
 #endif
   return DWT_SUCCESS;
 }
+/*---------------------------------------------------------------------------*/
+
+void dw1000_enable_rxdiag_read(bool enable){
+  rxdiag_enabled = enable;
+}
+
+dwt_rxdiag_t* dw1000_get_last_rxdiag() {
+  if (!rxdiag_acquired)
+    return NULL;
+
+  return &rx_diag;
+}
+
 /*---------------------------------------------------------------------------*/
 bool
 range_with(linkaddr_t *dst, dw1000_rng_type_t type)
