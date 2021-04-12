@@ -87,9 +87,9 @@ static uint32_t radio_status;
 
 /* Static variables */
 static uint16_t data_len; /* received data length (payload without CRC) */
-static dwt_rxdiag_t rx_diag; /* diagnostic info for the received frame */
-static bool rxdiag_enabled;  /* True if rx_diag reading is enabled */
-static bool rxdiag_acquired; /* True when rx_diag contains data about the last packet */
+static dwt_rxdiag_t rxdiag; /* diagnostic info for the received frame */
+static bool rxdiag_enabled;  /* True if rxdiag reading is enabled */
+static bool rxdiag_acquired; /* True when rxdiag contains data about the last packet */
 static bool frame_pending;
 static bool frame_uploaded;
 static bool auto_ack_enabled;
@@ -581,7 +581,7 @@ PROCESS_THREAD(dw1000_process, ev, data)
 
     if (rxdiag_enabled) {
       /* Read RX diagnostics */
-      dwt_readdiagnostics(&rx_diag);
+      dwt_readdiagnostics(&rxdiag);
       rxdiag_acquired = true;
     }
     /* Re-enable RX to keep listening */
@@ -673,7 +673,7 @@ dwt_rxdiag_t* dw1000_get_last_rxdiag() {
   if (!rxdiag_acquired)
     return NULL;
 
-  return &rx_diag;
+  return &rxdiag;
 }
 
 /*---------------------------------------------------------------------------*/
