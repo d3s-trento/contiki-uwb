@@ -301,7 +301,7 @@ CUSTOM_RULE_LINK=1
 
 %.elf: $(TARGET_STARTFILES) %.co $(PROJECT_OBJECTFILES) $(PROJECT_LIBRARIES) contiki-$(TARGET).a $(OBJECTS)
 	$(TRACE_LD)
-	$(Q)$(CC) $(LDFLAGS) ${filter %o %.co %.a,$^} -lm -o $@
+	$(Q)$(CC) $(LDFLAGS) ${filter %o %.co %.a,$^} $(TARGET_LIBFILES) -lm -o $@
 
 # Assemble files
 $(OBJECT_DIRECTORY)/%.o: %.S
