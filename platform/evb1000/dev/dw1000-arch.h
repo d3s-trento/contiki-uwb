@@ -44,11 +44,12 @@ void dw1000_spi_set_fast_rate(void);
 static inline int8_t
 dw1000_disable_interrupt(void)
 {
-  if(! (EXTI->IMR & DW1000_IRQ_EXTI)) {
+  int8_t irqn_status = (EXTI->IMR & DW1000_IRQ_EXTI);
+
+  if(irqn_status != 0 ) {
     NVIC_DisableIRQ(DW1000_IRQ_EXTI_IRQN);
-    return 0;
   }
-  return 1;
+  return irqn_status;
 }
 /*---------------------------------------------------------------------------*/
 static inline void

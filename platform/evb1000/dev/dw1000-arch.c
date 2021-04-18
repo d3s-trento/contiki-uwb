@@ -112,7 +112,7 @@ dw1000_spi_read(uint16_t hdrlen, const uint8_t *hdrbuf, uint32_t len, uint8_t *b
 void
 dw1000_spi_write(uint16_t hdrlen, const uint8_t *hdrbuf, uint32_t len, const uint8_t *buf)
 {
-  uint32_t i;
+  //uint32_t i;
   int8_t irqn_status;
 
   /* Disable DW1000 EXT Interrupt */
