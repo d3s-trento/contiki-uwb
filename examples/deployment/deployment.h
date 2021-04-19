@@ -13,11 +13,9 @@ struct id_addr {
   uint8_t ieee_addr[IEEE_ADDR_LEN];
 };
 
+
 /* Assign node ID based on the deployment table */
 uint8_t deployment_set_node_id_ieee_addr(void);
-
-/* Get the number of nodes in the deployment table */
-uint16_t deployment_get_n_nodes(void);
 
 /* Print the current node ID and extended address 
  *

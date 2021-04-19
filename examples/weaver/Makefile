@@ -91,6 +91,6 @@ UWB_CONTIKI=../..
 
 # use deployment
 PROJECTDIRS += $(UWB_CONTIKI)/examples/deployment $(UWB_CONTIKI)/examples/deployment/$(TESTBED)
-PROJECT_SOURCEFILES += deployment.c
+PROJECT_SOURCEFILES += deployment.c node-map.c
 
 include $(UWB_CONTIKI)/Makefile.uwb

@@ -6,7 +6,7 @@ all: $(CONTIKI_PROJECT)
 
 # Deployment files
 PROJECTDIRS += ../deployment ../deployment/$(TESTBED)
-PROJECT_SOURCEFILES += deployment.c
+PROJECT_SOURCEFILES += deployment.c node-map.c
 
 DEFINES+=PROJECT_CONF_H=\"project-conf.h\"
 

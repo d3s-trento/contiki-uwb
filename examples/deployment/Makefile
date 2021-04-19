@@ -1,6 +1,6 @@
 TESTBED?=mytestbed-${TARGET}
 CONTIKI_PROJECT = deployment-test
-PROJECT_SOURCEFILES += deployment.c
+PROJECT_SOURCEFILES += deployment.c node-map.c
 
 PROJECTDIRS += ./$(TESTBED)
 

@@ -1,6 +1,6 @@
 #include "deployment.h"
 
-static const struct id_addr deployment_id_addr_list[] = {
+const struct id_addr deployment_id_addr_list[] = {
 
     // Address-to-id mapping
     //
@@ -9,3 +9,5 @@ static const struct id_addr deployment_id_addr_list[] = {
     {2, {0x04, 0x32, 0x51, 0x02, 0x01, 0x64, 0x1c, 0x97}},
     {3, {0x10, 0x20, 0x5f, 0x13, 0x10, 0x00, 0x19, 0x26}},
 };
+
+const unsigned int deployment_num_nodes = sizeof(deployment_id_addr_list)/sizeof(struct id_addr);
