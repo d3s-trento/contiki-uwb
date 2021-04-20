@@ -14,7 +14,7 @@ Insert the ID and the corresponding MAC address of nodes
 deployed to the `deployment_id_addr_list` array.
 
 ```c
- static const struct id_addr deployment_id_addr_list[] = {
+const struct id_addr deployment_id_addr_list[] = {
 
    {1, {0x00, 0x12, 0x4b, 0x00, 0x06, 0x0d ,0xb5, 0xf0}},
    {2, {0x00, 0x12, 0x4b, 0x00, 0x06, 0x0d ,0xb4, 0x59}},
@@ -62,13 +62,13 @@ chain adding the following lines to the Makefile.
 ```Makefile
 # path to this project folder
 PROJECTDIRS += ../deployment ../deployment/$(TESTBED)
-PROJECT_SOURCEFILES += deployment.c
+PROJECT_SOURCEFILES += deployment.c node-map.c
 ```
 
-Within the code, issue the following call to 
-set the node ID based on its MAC address.
-Variable `node_id` is then made directly
-available once importing the `sys/node-id.h` Contiki header.
+Within the code, issue the following call somewhere in the beginning of your
+program execution to set the node ID based on its MAC address. Variable
+`node_id` is then made directly available once importing the `sys/node-id.h`
+Contiki header.
 
 ```c
 deployment_set_node_id_ieee_addr();
