@@ -54,6 +54,9 @@ endif
 
 TARGETDIRS += $(UWB_CONTIKI)/platform
 
+# use this as dependency to force a target to always rebuild
+.PHONY: FORCE
+
 # include the original Contiki Makefile
 include $(CONTIKI)/Makefile.include
 

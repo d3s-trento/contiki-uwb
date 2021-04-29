@@ -337,7 +337,8 @@ endif #NRF52_SOFTDEVICE != 0
 	cp $*.elf $@
 	$(Q)$(SIZE) $@
 
-%.jlink:
+### Force this file to be always updated. Otherwise if there is an old version present, it is never updated
+%.jlink: FORCE
 	sed -e 's/#OUTPUT_FILENAME#/$*.hex/' $(CONTIKI_CPU)/flash.jlink > $@
 
 softdevice.help:
@@ -363,7 +364,7 @@ softdevice.help:
 	@echo if XXX 0 \(default value\) the softdevice is not used and
 	@echo app is not compiled to use it
 
-softdevice.jlink:
+softdevice.jlink: FORCE
 ifndef NRF52_SOFTDEVICE_HEX
 	$(error miss softdevice to use)
 else
