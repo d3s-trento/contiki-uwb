@@ -132,6 +132,15 @@ void dw1000_enable_rxdiag_read(bool enable);
  *          reception callback, or the rxdiag acquisition is not enabled.
  */
 dwt_rxdiag_t* dw1000_get_last_rxdiag();
+/**
+ * \brief   Get the sender clock frequency offset computed from the carrier
+ *          frequency offset of the last received frame. It should be 
+ *          called directly from the reception callback of the stack as the value
+ *          is undefined as soon as the radio is reenabled (in this case the call
+ *          will return NULL). Make sure to enable reading the diagnostics with
+ *          dw1000_enable_rxdiag_read().
+ */
+double dw1000_get_last_clock_offset();
 /*---------------------------------------------------------------------------*/
 typedef enum {DW1000_RNG_SS, DW1000_RNG_DS} dw1000_rng_type_t;
 

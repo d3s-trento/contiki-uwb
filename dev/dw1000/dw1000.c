@@ -42,6 +42,7 @@
 #include "dw1000-arch.h"
 #include "dw1000-ranging.h"
 #include "dw1000-config.h"
+#include "dw1000-util.h"
 #include "dw1000-shared-state.h"
 #include "net/packetbuf.h"
 #include "net/rime/rimestats.h"
@@ -88,6 +89,7 @@ static uint32_t radio_status;
 /* Static variables */
 static uint16_t data_len; /* received data length (payload without CRC) */
 static dwt_rxdiag_t rxdiag; /* diagnostic info for the received frame */
+static double clockOffsetRatio; /* clock frequency offset of the sender of the received frame */
 static bool rxdiag_enabled;  /* True if rxdiag reading is enabled */
 static bool rxdiag_acquired; /* True when rxdiag contains data about the last packet */
 static bool frame_pending;
@@ -582,6 +584,13 @@ PROCESS_THREAD(dw1000_process, ev, data)
     if (rxdiag_enabled) {
       /* Read RX diagnostics */
       dwt_readdiagnostics(&rxdiag);
+      /* Read carrier integrator */
+      int32_t carrierIntegrator = dwt_readcarrierintegrator();
+      double hertz_to_ppm_multiplier = dw1000_get_hz2ppm_multiplier(
+                                                dw1000_get_current_cfg());
+  
+      clockOffsetRatio = carrierIntegrator * (hertz_to_ppm_multiplier / 1.0e6);
+      
       rxdiag_acquired = true;
     }
     /* Re-enable RX to keep listening */
@@ -667,6 +676,7 @@ dw1000_wakeup(void)
 
 void dw1000_enable_rxdiag_read(bool enable){
   rxdiag_enabled = enable;
+  if (!enable) clockOffsetRatio = 0;
 }
 
 dwt_rxdiag_t* dw1000_get_last_rxdiag() {
@@ -674,6 +684,10 @@ dwt_rxdiag_t* dw1000_get_last_rxdiag() {
     return NULL;
 
   return &rxdiag;
+}
+
+double dw1000_get_last_clock_offset() {
+  return clockOffsetRatio;
 }
 
 /*---------------------------------------------------------------------------*/
