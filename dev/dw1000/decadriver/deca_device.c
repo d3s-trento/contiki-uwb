@@ -980,6 +980,8 @@ void dwt_readdiagnostics(dwt_rxdiag_t *diagnostics)
 
     diagnostics->rxPreamCount = (dwt_read32bitreg(RX_FINFO_ID) & RX_FINFO_RXPACC_MASK) >> RX_FINFO_RXPACC_SHIFT  ;
     diagnostics->pacNonsat = dwt_read16bitoffsetreg(DRX_CONF_ID, 0x2C);
+    diagnostics->peakPath = dwt_read16bitoffsetreg(LDE_IF_ID, LDE_PPINDX_OFFSET);
+    diagnostics->peakPathAmp = dwt_read16bitoffsetreg(LDE_IF_ID, LDE_PPAMPL_OFFSET);
 }
 
 /*! ------------------------------------------------------------------------------------------------------------------

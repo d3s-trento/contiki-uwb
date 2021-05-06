@@ -263,7 +263,6 @@ dwt_txconfig_t ;
 
 typedef struct
 {
-
     uint16      maxNoise ;          // LDE max value of noise
     uint16      firstPathAmp1 ;     // Amplitude at floor(index FP) + 1
     uint16      stdNoise ;          // Standard deviation of noise
@@ -272,7 +271,9 @@ typedef struct
     uint16      maxGrowthCIR ;      // Channel Impulse Response max growth CIR
     uint16      rxPreamCount ;      // Count of preamble symbols accumulated
     uint16      firstPath ;         // First path index (10.6 bits fixed point integer)
-    uint16      pacNonsat ;        // Non-saturated Preamble Accumulator Count (PAC)
+    uint16      pacNonsat ;         // Non-saturated Preamble Accumulator Count (PAC)
+    uint16      peakPath ;          // Peak path index
+    uint16      peakPathAmp ;       // Amplitude of the peak
 }dwt_rxdiag_t ;
 
 
