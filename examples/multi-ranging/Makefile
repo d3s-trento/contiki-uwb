@@ -5,6 +5,9 @@ CFLAGS += -DNRF_SHOW_RESETREASON
 
 DEFINES+=PROJECT_CONF_H=\"project-conf.h\"
 
+PRINTF_OVER_RTT = 1 # set to 0 to use slow serial output
+
+
 # Enable Rime
 CONTIKI_WITH_IPV4 = 0
 CONTIKI_WITH_IPV6 = 0

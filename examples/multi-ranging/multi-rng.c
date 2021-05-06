@@ -75,7 +75,7 @@ linkaddr_t anchors[] = { // responders (a node can be both a tag and an anchor)
 #define RANGING_STYLE  DW1000_RNG_SS     // single- or double-sided (DW1000_RNG_DS)
 #define ROUND_PERIOD   (CLOCK_SECOND*1)  // period of multi-ranging
 
-#define ACQUIRE_CIR 1           // 1 = enable CIR acquisition
+#define ACQUIRE_CIR 0           // 1 = enable CIR acquisition
 #define CIR_START_FROM_PEAK 0   // 0 = print from beginning, 1 = print starting from the first ray peak
 #define CIR_MAX_SAMPLES DW1000_CIR_MAX_LEN // number of CIR samples to acquire
 #define PRINT_RXDIAG 1          // 1 = enable printing RX diagnostics
@@ -85,7 +85,8 @@ linkaddr_t anchors[] = { // responders (a node can be both a tag and an anchor)
 #define MAX_PRINTING_TIME (CLOCK_SECOND / 20)     // estimated time needed to print a full CIR (depends on the platform)
 #define CIR_DUMP_DELAY    (CLOCK_SECOND / 200)    // a delay inserted after printing CIR to let the USB buffer get emptied
 #else
-#define MAX_PRINTING_TIME (CLOCK_SECOND / 1000)   // time needed to print ranging results and diagnostics (upper bound)
+#define MAX_PRINTING_TIME (CLOCK_SECOND / 1000)   // time needed to print ranging results and diagnostics (USB or RTT output)
+//#define MAX_PRINTING_TIME (CLOCK_SECOND / 100)    // choose this instead if using serial output
 #define CIR_DUMP_DELAY 0
 #endif
 /*--------------------------------------------------------------------------*/
