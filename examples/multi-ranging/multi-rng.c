@@ -352,7 +352,7 @@ bc_recv(struct broadcast_conn *c, const linkaddr_t *from)
     uint8_t num_ordered_tags = bc_data[8];
     linkaddr_t ordered_tags[num_ordered_tags];
     memcpy(&ordered_tags, &bc_data[9], num_ordered_tags*sizeof(linkaddr_t));
-    PRINTF("Control received (seqn: %lu, dur: %lu tags: #%u >", seqn, max_duration, num_ordered_tags);
+    PRINTF("Control received [%lums] (seqn: %lu, dur: %lu tags: #%u >", clock_time() * 1000UL / CLOCK_SECOND, seqn, max_duration, num_ordered_tags);
     if (busy_ranging) {
       printf("Error: received a new command while busy with the previous one, adjust the timing to avoid collisions!\n");
       return;
