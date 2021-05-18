@@ -18,8 +18,10 @@ CONTIKI_SOURCEFILES += rtt-printf.c
 # CONTIKI_SOURCEFILES += nrf_log_printf.c
 CFLAGS += -DPRINTF_OVER_RTT
 PRINTF_OVER_UART=0
+${warning printf will use RTT}
 else
 PRINTF_OVER_UART=1
+${warning printf will use UART}
 endif
 
 ifeq ($(NRF_LOG_OVER_RTT),1)
