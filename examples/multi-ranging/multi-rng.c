@@ -76,8 +76,17 @@ linkaddr_t anchors[] = { // responders (a node can be both a tag and an anchor)
 #define ROUND_PERIOD   (CLOCK_SECOND*1)  // period of multi-ranging
 
 #define ACQUIRE_CIR 0           // 1 = enable CIR acquisition
-#define CIR_START_FROM_PEAK 0   // 0 = print from beginning, 1 = print starting from the first ray peak
-#define CIR_MAX_SAMPLES DW1000_CIR_MAX_LEN // number of CIR samples to acquire
+
+/* Acquire CIR samples around the first path index */
+#define CIR_IDX_MODE DW1000_CIR_IDX_RELATIVE
+#define CIR_IDX_START (-16)
+#define CIR_MAX_SAMPLES 128 // number of CIR samples to acquire
+
+/* Acquire CIR samples starting from arbitrary index */
+//#define CIR_IDX_MODE DW1000_CIR_IDX_ABSOLUTE
+//#define CIR_IDX_START 0
+//#define CIR_MAX_SAMPLES DW1000_CIR_MAX_LEN // number of CIR samples to acquire
+
 #define PRINT_RXDIAG 1          // 1 = enable printing RX diagnostics
 
 /*--------------------------------------------------------------------------*/
@@ -242,11 +251,12 @@ PROCESS_THREAD(ranging_process, ev, data)
             dst.u8[0], dst.u8[1]);
 #if ACQUIRE_CIR
         dw1000_ranging_acquire_diagnostics(
-            CIR_START_FROM_PEAK ? DW1000_GET_CIR_FROM_FP : 0,
+            CIR_IDX_MODE,
+            CIR_IDX_START,
             CIR_MAX_SAMPLES,
             cir_buf);
 #else // only request diagnostics
-        dw1000_ranging_acquire_diagnostics(0, 0, NULL);
+        dw1000_ranging_acquire_diagnostics(0, 0, 0, NULL);
 #endif
         status = range_with(&dst, RANGING_STYLE);
         if(!status) {

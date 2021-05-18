@@ -80,7 +80,7 @@
  * NB: the samples buffer must be big enough to contain n_samples+1 records. The CIR data starts
  *     at index 1 of the samples buffer.
  */
-uint16_t dw1000_read_cir(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* samples) {
+uint16_t dw1000_read_cir(uint16_t s1, uint16_t n_samples, dw1000_cir_sample_t* samples) {
   uint16_t max_samples = (dw1000_get_current_cfg()->prf == DWT_PRF_64M) ? 
                            DW1000_CIR_LEN_PRF64 : 
                            DW1000_CIR_LEN_PRF16;
