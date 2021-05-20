@@ -134,7 +134,7 @@ print_rxdiag(const dwt_rxdiag_t *d, const dw1000_rxpwr_t *p) {
     d->firstPathAmp1,
     d->firstPathAmp2,
     d->firstPathAmp3,
-    (int)p->cir_pwr,
+    (int)p->cir_pwr_norm,
     d->maxGrowthCIR,
     d->rxPreamCount,
     d->pacNonsat,
