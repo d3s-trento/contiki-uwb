@@ -81,7 +81,7 @@
 #undef TREX_STATS_PRINT
 #define TREX_STATS_PRINT()\
     do {trexd_stats_get(&trex_stats);\
-        PRINTF("E %u, TX %d, RX %d, TO %d, ER %d\n", logging_context,\
+        PRINTF("E %lu, TX %d, RX %d, TO %d, ER %d\n", logging_context,\
                 trex_stats.n_txok, trex_stats.n_rxok,\
                 (trex_stats.n_fto + trex_stats.n_pto),\
                 (trex_stats.n_phe + trex_stats.n_sfdto + trex_stats.n_rse + trex_stats.n_fcse + trex_stats.n_rej));\
@@ -427,7 +427,7 @@ static char sink_thread() {
         }
 
         logging_context = epoch;
-        printf("E %u, NSLOTS %d\n", logging_context, PA.slot_idx < 0 ? 0 : PA.slot_idx + 1);
+        printf("E %lu, NSLOTS %d\n", logging_context, PA.slot_idx < 0 ? 0 : PA.slot_idx + 1);
         print_acked(node_acked);
         print_app_interactions();
         TREX_STATS_PRINT();
@@ -767,10 +767,10 @@ static char peer_thread() {
 
         logging_context = epoch;
         if (is_originator) {
-            printf("E %u, IS_ORIG\n", logging_context);
+            printf("E %lu, IS_ORIG\n", logging_context);
         }
-        printf("E %u, NSLOTS %d\n", logging_context, PA.slot_idx < 0 ? 0 : PA.slot_idx + 1);
-        PRINTF("BOOT %u, B %d, N %d, L %d\n", logging_context, is_bootstrapped, n_missed_bootstrap, leak);
+        printf("E %lu, NSLOTS %d\n", logging_context, PA.slot_idx < 0 ? 0 : PA.slot_idx + 1);
+        PRINTF("BOOT %lu, B %d, N %d, L %d\n", logging_context, is_bootstrapped, n_missed_bootstrap, leak);
         leak = false;
         print_acked(node_acked);
         static char label[] = "BUF";
@@ -1043,11 +1043,11 @@ static inline void
 print_app_interactions() {
     size_t i = 0;
     for (; i < out_pnt; i++) {
-        PRINTF("OUT %u, O %d, S %d\n", logging_context, out_buf[i].originator_id, out_buf[i].seqno);
+        PRINTF("OUT %lu, O %d, S %d\n", logging_context, out_buf[i].originator_id, out_buf[i].seqno);
     }
     i = 0;
     for (; i < in_pnt; i++) {
-        PRINTF("IN %u, O %d, S %d, I %d\n", logging_context, in_buf[i].originator_id, in_buf[i].seqno, in_buf[i].slot_idx);
+        PRINTF("IN %lu, O %d, S %d, I %d\n", logging_context, in_buf[i].originator_id, in_buf[i].seqno, in_buf[i].slot_idx);
     }
 }
 
