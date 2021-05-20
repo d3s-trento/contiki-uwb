@@ -39,6 +39,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "trex-driver.h"
 
 enum tsm_action {
   TSM_ACTION_NONE,      // no action was performed
@@ -51,16 +52,19 @@ enum tsm_action {
   TSM_ACTION_STOP       // request TSM to stop
 };
 
+typedef enum trex_status tsm_status_t; // TSM action status
+
 /* Interface structure reporting the status of the action performed by TSM 
  * in the previous slot */
 struct tsm_prev_action {
-    enum tsm_action action;     // action performed
-    int      status;            // Trex status of the performed operation
-    //uint32_t slot_ref_time;     // SFD time of the past TX or RX (if any) minus the TX delay (TODO)
-    int16_t  slot_idx;          // slot index according to the local counter
-    uint16_t remote_slot_idx;   // slot index received in the packet
-    uint8_t* buffer;            // TX/RX buffer
-    uint8_t  payload_len;       // TX/RX payload length
+    enum tsm_action action;            // action performed
+    tsm_status_t    status;            // Trex status of the performed operation
+    radio_status_t  radio_status;      // radio status for the performed operation
+    //uint32_t        slot_ref_time;     // SFD time of the past TX or RX (if any) minus the TX delay (TODO)
+    int16_t         slot_idx;          // slot index according to the local counter
+    uint16_t        remote_slot_idx;   // slot index received in the packet
+    uint8_t*        buffer;            // TX/RX buffer
+    uint8_t         payload_len;       // TX/RX payload length
 };
 
 /* Inrerface structure requesting the next action for TSM to perform.

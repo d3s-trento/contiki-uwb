@@ -190,11 +190,12 @@ static struct tsm_next_action TSM_NEXT_ACTION_INITIALIZER = {
 /*-- Forward declarations for slot logging -----------------------------------*/
 
 #if TSM_LOG_SLOTS
-#define TSM_LOG_STATUS_RX_WITH_SYNCH (-1) // make sure the value is compatible with  enum trex_status
+#define TSM_LOG_STATUS_RX_WITH_SYNCH (255) // make sure the value is compatible with  enum trex_status
+_Static_assert (TSM_LOG_STATUS_RX_WITH_SYNCH > TREX_STATUS_ENUM_MAX, "Invalid constant");
 
 struct tsm_log {
   uint8_t action;
-  int8_t  status;
+  uint8_t status;
   int16_t idx_diff;
   int16_t slot_idx;
   uint8_t progress;
@@ -453,6 +454,7 @@ static void driver_slot_callback(const trexd_slot_t* slot) {
 
   tsm_prev_action.payload_len = slot->payload_len - sizeof(struct tsm_header);
   tsm_prev_action.buffer = slot->buffer;
+  tsm_prev_action.radio_status = slot->radio_status;
   tsm_slot_event();
 }
 
