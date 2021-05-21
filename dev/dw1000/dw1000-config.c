@@ -218,6 +218,24 @@ dw1000_configure_ant_dly(uint16_t rx_dly, uint16_t tx_dly) {
   return 1;
 }
 
+/* Configure LDE */
+bool
+dw1000_configure_lde(uint8_t ntm, uint8_t pmult) {
+  if (dw1000_is_sleeping) {
+    PRINTF("Err: LDE configure requested while sleeping\n");
+    return 0;
+  }
+  int8_t irq_status = dw1000_disable_interrupt();
+
+  CUR_CFG.lde_ntm = DW1000_LDE_NTM;
+  CUR_CFG.lde_pmult = DW1000_LDE_PMULT;
+  uint8_t lde_cfg = (DW1000_LDE_NTM | (DW1000_LDE_PMULT << 5));
+  dwt_write8bitoffsetreg(LDE_IF_ID, LDE_CFG1_OFFSET, lde_cfg);
+
+  dw1000_enable_interrupt(irq_status);
+  return 1;
+}
+
 
 /* Configures the radio with the pre-defined default parameters */
 bool
@@ -270,6 +288,9 @@ dw1000_reset_cfg() {
 
   // set antenna delays
   dw1000_configure_ant_dly(DW1000_CONF_RX_ANT_DLY, DW1000_CONF_TX_ANT_DLY);
+
+  // set LDE configuration
+  dw1000_configure_lde(DW1000_LDE_NTM, DW1000_LDE_PMULT);
 
   return 1;
 }
@@ -366,6 +387,13 @@ dw1000_get_current_ant_dly(uint16_t* rx_dly, uint16_t* tx_dly) {
   *tx_dly = CUR_CFG.tx_ant_dly;
 }
 
+/* Get the current (cached) LDE configuration */
+void
+dw1000_get_current_lde_cfg(uint8_t* ntm, uint8_t* pmult) {
+  *ntm = CUR_CFG.lde_ntm;
+  *pmult = CUR_CFG.lde_pmult;
+}
+
 /* Restore antenna delay configuration after wake-up */
 bool
 dw1000_restore_ant_delay(void)
@@ -397,6 +425,8 @@ dw1000_print_cfg() {
   printf("  TX Power: %lx\n",      CUR_CFG.tx_cfg.power);
   printf("  RX ant delay: %u\n",   CUR_CFG.rx_ant_dly);
   printf("  TX ant delay: %u\n",   CUR_CFG.tx_ant_dly);
+  printf("  LDE NTM: %u\n",        CUR_CFG.lde_ntm);
+  printf("  LDE PMULT: %u\n",      CUR_CFG.lde_pmult);
 }
 
 #if UWB_CONTIKI_PRINT_DEF

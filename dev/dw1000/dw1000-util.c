@@ -38,8 +38,13 @@
  *      Timofei Istomin <tim.ist@gmail.com>
  */
 #include "deca_device_api.h"
+#include "dw1000-arch.h"
+#include "dw1000-cir.h"
 #include "dw1000-util.h"
+#include "dw1000-config.h"
 #include <math.h>
+/*---------------------------------------------------------------------------*/
+#define POW2(x) ((x)*(x))
 /*---------------------------------------------------------------------------*/
 static double cfo_jitter_guard = DW1000_CFO_JITTER_GUARD;
 /*---------------------------------------------------------------------------*/
@@ -143,8 +148,6 @@ dw1000_estimate_tx_time(const dwt_config_t* dwt_config, uint16_t framelength, bo
 
 }
 /*---------------------------------------------------------------------------*/
-
-
 double dw1000_get_hz2ppm_multiplier(const dwt_config_t *dwt_config) {
     double freq_offs;
     double hz2ppm;
@@ -170,8 +173,7 @@ double dw1000_get_hz2ppm_multiplier(const dwt_config_t *dwt_config) {
     }
     return freq_offs*hz2ppm;
 }
-
-
+/*---------------------------------------------------------------------------*/
 double
 dw1000_get_ppm_offset(const dwt_config_t *dwt_config)
 {
@@ -207,6 +209,21 @@ dw1000_get_best_trim_code(double curr_offset_ppm, uint8_t curr_trim)
     }
     return curr_trim;
 }
+/*--------------------------------------------------------------------------*/
+/* Trim crystal frequency to reduce CFO wrt the last frame received */
+bool
+dw1000_trim() {
+  double ppm_offset = dw1000_get_ppm_offset(dw1000_get_current_cfg());
+  uint8_t current_trim_code = dwt_getxtaltrim();
+  uint8_t new_trim_code = dw1000_get_best_trim_code(ppm_offset, current_trim_code);
+  if(new_trim_code != current_trim_code) {
+    dw1000_spi_set_slow_rate();
+    dwt_setxtaltrim(new_trim_code);
+    dw1000_spi_set_fast_rate();
+    return 1;
+  }
+  return 0;
+}
 /*---------------------------------------------------------------------------*/
 /* Compute the received signal power levels for the first path and for the
  * overall transmission according to the DW1000 User Manual (4.7.1 "Estimating
@@ -219,7 +236,6 @@ dw1000_get_best_trim_code(double curr_offset_ppm, uint8_t curr_trim)
  */
 bool dw1000_rxpwr(dw1000_rxpwr_t *d, const dwt_rxdiag_t* rxdiag, const dwt_config_t* config) {
 
-  #define POW2(x) ((x)*(x))
   /* Compute corrected preamble counter (used for CIR power adjustment) */
   if(rxdiag->rxPreamCount == rxdiag->pacNonsat) {
     uint16_t sfd_correction = (config->dataRate == DWT_BR_110K) ? 64 : 8;
@@ -247,3 +263,108 @@ bool dw1000_rxpwr(dw1000_rxpwr_t *d, const dwt_rxdiag_t* rxdiag, const dwt_confi
 
   return true;
 }
+/*---------------------------------------------------------------------------*/
+/* Estimates the probability that the received signal is affected by NLOS,
+ * based on the analysis of DW1000 diagnostics data. The methodology is
+ * inspired by DecaWave's "APS006 PART 3 APPLICATION NOTE -
+ * DW1000 Metrics for Estimation of Non Line Of SightOperating Conditions".
+ * Params:
+ *  - d [out]         results are stored in the dw1000_nlos_t structure.
+ *  - rxdiag [in]     diagnostics for the acquired signal.
+ *  - samples [in]    the CIR window to search for undetected paths.
+ *                    The window must precede the detected first path.
+ *  - n_samples [in]  length of the CIR window.
+ *                    The recommended number of samples is 16.
+ */
+void dw1000_nlos(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag, const dw1000_cir_sample_t* samples, uint16_t n_samples) {
+
+  /* --- Step 1: extract NLOS probability based on the distance between the first path and peak path indexes */
+
+  /* First, compute the index difference between first path and peak path;
+   * firstPath is expressed as a 16-bits fixed point value (10bits.6bits).
+   * We obtain the floating point representation simply dividing by 64.
+   * The reported peakPath, instead, has no fractional part. */
+  double fp = (double)(rxdiag->firstPath) / 64;
+  d->path_diff = fabs((double)rxdiag->peakPath - fp);
+
+  /* Derive NLOS probability based on the difference between first and peak path;
+   * the computation for pr_nlos is provided by the manufacturer. */
+  if(d->path_diff <= 3.3)
+    d->pr_nlos = 0.0;
+  else if((d->path_diff < 6.0) && (d->path_diff > 3.3))
+    d->pr_nlos = 0.39178 * d->path_diff - 1.31719;
+  else
+    d->pr_nlos = 1.0;
+
+  /* --- Step 2: likelihood of undetected early path */
+
+  /* Lower the threshold for path detection */
+  uint8_t ntm, pmult;
+  dw1000_get_current_lde_cfg(&ntm, &pmult);
+  d->low_noise = (double)(rxdiag->stdNoise) * ntm * 0.6;
+
+  /* Count the number of candidate undetected paths in the CIR window;
+   * if the CIR was not provided, skip this search */
+  d->num_early_peaks = 0;
+  if(samples != NULL && n_samples > 2) {
+    double ampl_prev, ampl, ampl_next;
+    int16_t r, c;
+
+    /* Start by computing the magnitude of the first CIR sample */
+    dw1000_get_cir_sample_parts(samples[0], &r, &c);
+    ampl = sqrt(POW2((double)r) + POW2((double)c));
+
+    /* Check all samples in the window, three-by-three, to detect peaks */
+    for(int n=1; n<n_samples-1; n++) {
+
+      /* Extract the magnitudes of the CIR for the previous CIR
+       * sample, the current one and the next one */
+      ampl_prev = ampl;
+      dw1000_get_cir_sample_parts(samples[n], &r, &c);
+      ampl = sqrt(POW2((double)r) + POW2((double)c));
+      dw1000_get_cir_sample_parts(samples[n+1], &r, &c);
+      ampl_next = sqrt(POW2((double)r) + POW2((double)c));
+
+      /* Identify a candidate peak when the magnitude first rises
+       * above the new noise level, and then decreases */
+      if(ampl > d->low_noise && ampl-ampl_prev > 0 && ampl_next-ampl < 0) {
+        d->num_early_peaks++;
+      }
+    }
+
+    /* The likelihood depends on the number of candidate early paths vs the window size */
+    d->luep = d->num_early_peaks / ((n_samples - 1) / 2);
+  }
+  else {
+    d->luep = 0;
+  }
+
+  /* --- Step 3: detect accumulator saturation */
+
+  /* Find the maximum amplitude of the first path (the radio reports 3 values close 
+   * to the leading edge) */
+  uint16_t firstPathAmp = rxdiag->firstPathAmp1;
+  if(rxdiag->firstPathAmp2 > firstPathAmp) firstPathAmp = rxdiag->firstPathAmp2;
+  if(rxdiag->firstPathAmp3 > firstPathAmp) firstPathAmp = rxdiag->firstPathAmp3;
+
+  /* When first and peak path have similar magnitudes, the metric is close to 1.0,
+   * indicating that saturation has likely occured */
+  d->mc = (double)firstPathAmp / (double)rxdiag->peakPathAmp;
+
+  /* --- Step 4: combine metrics in a single indicator (Confidence Level CL = 1 -> LOS). */
+  /* 
+   * If early paths were detected, the channel is likely NLOS (CL = 0.0);
+   * if first and peak path are very close, or saturation happened,
+   * channel is likely LOS (CL = 1.0);
+   * in other cases, CL depends on the distance between first and peak path. */
+  if(d->luep > 0.01) {
+    d->cl = 0.0;
+  }
+  else if(d->pr_nlos < 0.01 || d->mc > 0.9) {
+    d->cl = 1.0;
+  }
+  else {
+    d->cl = 1.0 - d->pr_nlos;
+  }
+}
+/*---------------------------------------------------------------------------*/

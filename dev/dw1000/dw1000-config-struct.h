@@ -12,6 +12,8 @@ struct dw1000_all_config {
   uint16_t tx_ant_dly;
   uint16_t rx_ant_dly;
   bool smart_power;
+  uint8_t lde_ntm;
+  uint8_t lde_pmult;
 };
 
 #endif //DW1000_CONFIG_STRUCT_H

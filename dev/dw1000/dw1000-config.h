@@ -3,6 +3,7 @@
 
 #include "deca_device_api.h"
 #include "deca_regs.h"
+#include "deca_param_types.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include "contiki-conf.h"
@@ -97,6 +98,19 @@
 // DW1000_CONF_TX_POWER
 // DW1000_CONF_PG_DELAY
 
+/*-- LDE configuration --------------------------------------------------- */
+
+#ifdef DW1000_CONF_LDE_NTM
+#define DW1000_LDE_NTM DW1000_CONF_LDE_NTM
+#else
+#define DW1000_LDE_NTM N_STD_FACTOR
+#endif
+
+#ifdef DW1000_CONF_LDE_PMULT
+#define DW1000_LDE_PMULT DW1000_CONF_LDE_PMULT
+#else
+#define DW1000_LDE_PMULT (PEAK_MULTPLIER >> 5)
+#endif
 
 /*-- Driver configuration --------------------------------------------------- */
 
@@ -105,7 +119,6 @@
 #else
 #define DW1000_DEBUG_LEDS 1
 #endif
-
 
 /*--------------------------------------------------------------------------- */
 
@@ -131,6 +144,10 @@ dw1000_configure_tx(const dwt_txconfig_t* tx_cfg, bool smart);
 /* Configure only the antenna delays */
 bool
 dw1000_configure_ant_dly(uint16_t rx_dly, uint16_t tx_dly);
+
+/* Configure LDE */
+bool
+dw1000_configure_lde(uint8_t ntm, uint8_t pmult);
 
 /* Configures the radio with the pre-defined default parameters */
 bool
@@ -163,6 +180,10 @@ dw1000_get_current_tx_cfg();
 /* Get the current (cached) antenna delays */
 void
 dw1000_get_current_ant_dly(uint16_t* rx_dly, uint16_t* tx_dly);
+
+/* Get the current (cached) LDE configuration */
+void
+dw1000_get_current_lde_cfg(uint8_t* ntm, uint8_t* pmult);
 
 /* Restore antenna delay configuration after wake-up */
 bool dw1000_restore_ant_delay(void);
