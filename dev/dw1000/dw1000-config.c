@@ -394,11 +394,14 @@ dw1000_get_current_lde_cfg(uint8_t* ntm, uint8_t* pmult) {
   *pmult = CUR_CFG.lde_pmult;
 }
 
-/* Restore antenna delay configuration after wake-up */
+/* Restore the configuration after wake-up */
 bool
-dw1000_restore_ant_delay(void)
+dw1000_restore_config_wa(void)
 {
-  return dw1000_configure_ant_dly(CUR_CFG.rx_ant_dly, CUR_CFG.tx_ant_dly);
+  bool ret; 
+  ret =  dw1000_configure_lde(CUR_CFG.lde_ntm, CUR_CFG.lde_pmult);
+  ret &= dw1000_configure_ant_dly(CUR_CFG.rx_ant_dly, CUR_CFG.tx_ant_dly);
+  return ret;
 }
 
 /* Get the current (cached) status of the Smart TX power control feature */

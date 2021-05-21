@@ -653,8 +653,8 @@ dw1000_wakeup(void)
 
   dw1000_is_sleeping = 0;
   
-  /* Restore antenna delay values for ranging */
-  dw1000_restore_ant_delay();
+  /* Restore the parts of the configuration that are not preserved */
+  dw1000_restore_config_wa();
   
 #if LINKADDR_SIZE == 8
   // DW1000 does not preserve the extended address while sleeping
