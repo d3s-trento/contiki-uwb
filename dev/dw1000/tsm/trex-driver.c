@@ -143,6 +143,7 @@ tx_done_cb(const dwt_cb_data_t *cbdata)
 {
   STATETIME_MONITOR(dw1000_statetime_after_tx(dwt_readtxtimestamphi32(), context.slot.payload_len + TREXD_FRAME_OVERHEAD));
   context.slot.status = TREX_TX_DONE;
+  context.slot.radio_status = cbdata->status;
   context.state = TREXD_ST_IDLE;
   update_txok_stats();
   slot_event();
@@ -159,6 +160,7 @@ rx_ok_cb(const dwt_cb_data_t *cbdata)
   dwt_readrxdata(context.slot.buffer, 
                  cbdata->datalength - TREXD_FRAME_OVERHEAD, 0);
   context.slot.payload_len = cbdata->datalength - TREXD_FRAME_OVERHEAD;
+  context.slot.radio_status = cbdata->status;
   context.state = TREXD_ST_IDLE;
   update_rxok_stats();
   slot_event();
@@ -177,6 +179,7 @@ rx_to_cb(const dwt_cb_data_t *cbdata)
     context.slot.status = TREX_RX_TIMEOUT;
   }
 
+  context.slot.radio_status = cbdata->status;
   context.state = TREXD_ST_IDLE;
   slot_event();
 }
@@ -186,6 +189,7 @@ rx_err_cb(const dwt_cb_data_t *cbdata)
 {
   STATETIME_MONITOR(dw1000_statetime_after_rxerr(dwt_readsystimestamphi32()));
   update_rxerr_stats(cbdata->status);
+  context.slot.radio_status = cbdata->status;
   context.slot.status = TREX_RX_ERROR;
   context.state = TREXD_ST_IDLE;
   slot_event();

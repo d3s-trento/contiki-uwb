@@ -113,6 +113,7 @@ static dw1000_rng_type_t rng_type;
 static dw1000_cir_sample_t* cir_buffer;
 static bool acquire_diagnostics;
 static int16_t cir_s1;
+static uint16_t cir_idx_mode;
 static uint16_t cir_n_samples;
 
 typedef enum {
@@ -917,11 +918,12 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
     if (state == S_RANGING_DONE && acquire_diagnostics) {
       dwt_readdiagnostics(&ranging_data.rxdiag);
 
-      if (cir_s1 == DW1000_GET_CIR_FROM_FP) {
-        cir_s1 = ranging_data.rxdiag.firstPath >> 6; // take the integer part of the index
-      }
+      if (cir_idx_mode == DW1000_CIR_IDX_RELATIVE) {
+        // take the integer part of the FP index and add the relative shift
+        cir_s1 = (ranging_data.rxdiag.firstPath >> 6) + cir_s1; 
+      } 
       
-      if (cir_buffer) {
+      if (cir_s1 >= 0 && cir_buffer) {
         ranging_data.cir_samples_acquired = dw1000_read_cir(cir_s1, cir_n_samples, cir_buffer);
       }
       cir_buffer = NULL;
@@ -996,11 +998,12 @@ dw1000_range_reset()
   }
 }
 
-void dw1000_ranging_acquire_diagnostics(int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* samples) {
+void dw1000_ranging_acquire_diagnostics(uint16_t idx_mode, int16_t s1, uint16_t n_samples, dw1000_cir_sample_t* samples) {
   acquire_diagnostics = true;
   cir_buffer = samples;
   cir_n_samples = n_samples;
   cir_s1 = s1;
+  cir_idx_mode = idx_mode;
 }
 /*---------------------------------------------------------------------------*/
 #endif /* DW1000_RANGING_ENABLED */

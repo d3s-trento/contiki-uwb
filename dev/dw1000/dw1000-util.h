@@ -11,7 +11,7 @@
 /* Structure for the RX power computation results */
 typedef struct {
   uint32_t pac_correction; /* PAC normalization factor, affected by non-saturated PAC */
-  double cir_pwr; /* Adjusted CIR power from ((C * 2^17) / N^2)) where C is the raw CIR power and N is the PAC normalization factor */
+  double cir_pwr_norm; /* Adjusted CIR power from ((C * 2^17) / N^2)) where C is the raw CIR power and N is the PAC normalization factor */
   double fp_raw; /* First Path Power Level before SFD correction */
   double fp_pwr; /* First Path Power Level */
   double rx_pwr; /* RX Power Level */

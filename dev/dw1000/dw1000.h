@@ -116,31 +116,9 @@ void dw1000_sleep(void);
 int dw1000_wakeup(void);
 /*---------------------------------------------------------------------------*/
 
-/**
- * \brief   Enable or disable reading the RX diagnostics for every received
- *          packet.
- */
-void dw1000_enable_rxdiag_read(bool enable);
-/**
- * \brief   Get the RX diagnostics structure for the received packet. It should be 
- *          called directly from the reception callback of the stack as the value
- *          is undefined as soon as the radio is reenabled (in this case the call
- *          will return NULL). Make sure to enable reading the diagnostics with
- *          dw1000_enable_rxdiag_read().
- *
- * \retval  NULL if the value was not acquired, or if called outside of the
- *          reception callback, or the rxdiag acquisition is not enabled.
- */
-dwt_rxdiag_t* dw1000_get_last_rxdiag();
-/**
- * \brief   Get the sender clock frequency offset computed from the carrier
- *          frequency offset of the last received frame. It should be 
- *          called directly from the reception callback of the stack as the value
- *          is undefined as soon as the radio is reenabled (in this case the call
- *          will return NULL). Make sure to enable reading the diagnostics with
- *          dw1000_enable_rxdiag_read().
- */
-double dw1000_get_last_clock_offset();
+/* Get the low 32 bit of the DW1000 STATUS register for the current reception.
+ * Only returns a valid value if called within the stack reception callback.*/
+uint32_t dw1000_get_rx_status();
 /*---------------------------------------------------------------------------*/
 typedef enum {DW1000_RNG_SS, DW1000_RNG_DS} dw1000_rng_type_t;
 

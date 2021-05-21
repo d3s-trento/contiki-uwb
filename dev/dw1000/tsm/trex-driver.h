@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include "trex.h"
 
+typedef uint32_t radio_status_t; // low-level radio status
+
 typedef struct trexs_stats_t {
     // rx_err events
     uint16_t n_phe;      /* PHR errors */
@@ -23,6 +25,7 @@ typedef struct trexs_stats_t {
 
 typedef struct {
   uint32_t          trx_sfd_time_4ns;   // SFD time of the last TX or RX
+  radio_status_t    radio_status;       // radio status
   enum trex_status  status;             // slot operation status
   uint8_t*          buffer;             // packet buffer
   uint8_t           payload_len;        // length of the received or transmitted packet

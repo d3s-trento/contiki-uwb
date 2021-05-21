@@ -83,15 +83,12 @@ typedef enum {
   TX_SUCCESS,
 } dw1000_event_t;
 static dw1000_event_t dw_dbg_event;
-static uint32_t radio_status;
 #endif
+static uint32_t int_radio_status; // radio status to be read in the interrupt
+static uint32_t saved_radio_status; // radio status saved for the process
 
 /* Static variables */
 static uint16_t data_len; /* received data length (payload without CRC) */
-static dwt_rxdiag_t rxdiag; /* diagnostic info for the received frame */
-static double clockOffsetRatio; /* clock frequency offset of the sender of the received frame */
-static bool rxdiag_enabled;  /* True if rxdiag reading is enabled */
-static bool rxdiag_acquired; /* True when rxdiag contains data about the last packet */
 static bool frame_pending;
 static bool frame_uploaded;
 static bool auto_ack_enabled;
@@ -152,9 +149,7 @@ rx_ok_cb(const dwt_cb_data_t *cb_data)
   data_len = cb_data->datalength - DW1000_CRC_LEN;
   /* Set the appropriate event flag */
   frame_pending = true;
-#if DEBUG
-  radio_status = cb_data->status;
-#endif
+  int_radio_status = cb_data->status;
   /* if we have auto-ACKs enabled and an ACK was requested, */
   /* don't signal the reception until the TX done interrupt */
   if(auto_ack_enabled && (cb_data->status & SYS_STATUS_AAT)) {
@@ -173,9 +168,9 @@ rx_to_cb(const dwt_cb_data_t *cb_data)
 #if DW1000_RANGING_ENABLED
   dw1000_range_reset();
 #endif
+  int_radio_status = cb_data->status;
 #if DEBUG
   dw_dbg_event = RECV_TO;
-  radio_status = cb_data->status;
   process_poll(&dw1000_dbg_process);
 #endif
   dw1000_on();
@@ -191,9 +186,9 @@ rx_err_cb(const dwt_cb_data_t *cb_data)
 #if DW1000_RANGING_ENABLED
   dw1000_range_reset();
 #endif
+  int_radio_status = cb_data->status;
 #if DEBUG
   dw_dbg_event = RECV_ERROR;
-  radio_status = cb_data->status;
   process_poll(&dw1000_dbg_process);
 #endif
   dw1000_on();
@@ -555,7 +550,7 @@ PROCESS_THREAD(dw1000_process, ev, data)
     PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
 
 #if DEBUG
-    uint32_t r1 = radio_status;
+    uint32_t r1 = int_radio_status;
     printf("RX OK: %02x %02x %02x %02x\n",
            (uint8_t)(r1 >> 24), (uint8_t)(r1 >> 16),
            (uint8_t)(r1 >> 8), (uint8_t)r1);
@@ -580,28 +575,28 @@ PROCESS_THREAD(dw1000_process, ev, data)
     /* Copy the received frame to packetbuf */
     dw1000_radio_read(packetbuf_dataptr(), data_len);
     packetbuf_set_datalen(data_len);
+    saved_radio_status = int_radio_status; // store the RX status for the callback to access, if needed
 
-    if (rxdiag_enabled) {
-      /* Read RX diagnostics */
-      dwt_readdiagnostics(&rxdiag);
-      /* Read carrier integrator */
-      int32_t carrierIntegrator = dwt_readcarrierintegrator();
-      double hertz_to_ppm_multiplier = dw1000_get_hz2ppm_multiplier(
-                                                dw1000_get_current_cfg());
-  
-      clockOffsetRatio = carrierIntegrator * (hertz_to_ppm_multiplier / 1.0e6);
-      
-      rxdiag_acquired = true;
-    }
-    /* Re-enable RX to keep listening */
-    dw1000_on();
-    /*PRINTF("dw1000_process: calling recv cb, len %d\n", data_len); */
+#if DW1000_RXOFF_WHILE_PROCESSING
+    #warning RX is kept off while packet processing
+    // This is not optimal but allows reading registers related to the 
+    // received packet (e.g. CIR and RX diagnostics) in the callback
     NETSTACK_RDC.input();
-    rxdiag_acquired = false;
+    dw1000_on();
+#else
+    dw1000_on();
+    NETSTACK_RDC.input();
+#endif
+    saved_radio_status = 0;
   }
 
   PROCESS_END();
 }
+
+uint32_t dw1000_get_rx_status() {
+  return saved_radio_status;
+}
+
 /*---------------------------------------------------------------------------*/
 const struct radio_driver dw1000_driver =
 {
@@ -674,23 +669,6 @@ dw1000_wakeup(void)
 }
 /*---------------------------------------------------------------------------*/
 
-void dw1000_enable_rxdiag_read(bool enable){
-  rxdiag_enabled = enable;
-  if (!enable) clockOffsetRatio = 0;
-}
-
-dwt_rxdiag_t* dw1000_get_last_rxdiag() {
-  if (!rxdiag_acquired)
-    return NULL;
-
-  return &rxdiag;
-}
-
-double dw1000_get_last_clock_offset() {
-  return clockOffsetRatio;
-}
-
-/*---------------------------------------------------------------------------*/
 bool
 range_with(linkaddr_t *dst, dw1000_rng_type_t type)
 {
@@ -715,7 +693,7 @@ PROCESS_THREAD(dw1000_dbg_process, ev, data)
     etimer_set(&et, CLOCK_SECOND);
     PROCESS_WAIT_EVENT();
     if(ev == PROCESS_EVENT_POLL) {
-      uint32_t r1 = radio_status;
+      uint32_t r1 = int_radio_status;
       printf("RX FAIL(%u) %02x %02x %02x %02x\n",
              dw_dbg_event, (uint8_t)(r1 >> 24), (uint8_t)(r1 >> 16),
              (uint8_t)(r1 >> 8), (uint8_t)r1);

@@ -10,6 +10,7 @@ enum trex_status {
   TREX_TIMER_EVENT,     // Trex timer triggered
   TREX_TX_DONE          // transmission has been performed
 };
+#define TREX_STATUS_ENUM_MAX (TREX_TX_DONE) // maximum value of enum trex_status
 
 #define TREX_IS_RX_STATUS(status) ((status)>=TREX_RX_SUCCESS && (status)<=TREX_RX_MALFORMED)
 

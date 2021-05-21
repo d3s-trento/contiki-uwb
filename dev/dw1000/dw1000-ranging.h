@@ -61,25 +61,29 @@
 #endif
 
 
-/* A flag indicating that the CIR reading should start from the
- * first path index, as identified by the radio */
-#define DW1000_GET_CIR_FROM_FP (-1)
+/* A flag indicating that the CIR index is provided as relative w.r.t. 
+ * the first path index.*/
+#define DW1000_CIR_IDX_RELATIVE 0
+
+/* A flag indicating that an absolute CIR index is provided. */
+#define DW1000_CIR_IDX_ABSOLUTE 1
 
 /* Call this function before every ranging request to enable acquiring RX diagnostics
  * and/or CIR of the last received message.
  *
  * Params:
- *  - cir_s1     CIR sample index to start reading the CIR from or DW1000_GET_CIR_FROM_FP to
- *               indicate that the CIR should be read from the first path index.
- *  - n_samples  Number of CIR samples to read to the buffer
- *  - samples    CIR samples buffer. Must be of length at least (n_samples + 1).
- *               If NULL, then CIR will not be read.
+ *  - cir_idx_mode  DW1000_CIR_IDX_RELATIVE or DW1000_CIR_IDX_ABSOLUTE
+ *  - cir_s1        CIR sample index to start reading the CIR from. Might be
+ *                  absoulte or relative depending on cir_idx_mode
+ *  - n_samples     Number of CIR samples to read to the buffer
+ *  - samples       A buffer to read CIR samples to. It must be at least
+ *                  (n_samples + 1) long. If NULL, CIR will not be read.
  *
  * After the ranging is done with a successful status, the diagnostics will be available
  * in the associated ranging_data_t structure and the CIR will be read in the specified 
  * buffer (if any).
  */
-void dw1000_ranging_acquire_diagnostics(int16_t cir_s1, uint16_t n_samples, dw1000_cir_sample_t* samples);
+void dw1000_ranging_acquire_diagnostics(uint16_t cir_idx_mode, int16_t cir_s1, uint16_t n_samples, dw1000_cir_sample_t* samples);
 
 extern process_event_t ranging_event;
 
