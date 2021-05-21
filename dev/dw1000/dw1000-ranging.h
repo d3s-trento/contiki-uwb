@@ -76,8 +76,8 @@
  *  - cir_s1        CIR sample index to start reading the CIR from. Might be
  *                  absoulte or relative depending on cir_idx_mode
  *  - n_samples     Number of CIR samples to read to the buffer
- *  - samples       CIR samples buffer. Must be of length at least (n_samples + 1).
- *                  If NULL, then CIR will not be read.
+ *  - samples       A buffer to read CIR samples to. It must be at least
+ *                  (n_samples + 1) long. If NULL, CIR will not be read.
  *
  * After the ranging is done with a successful status, the diagnostics will be available
  * in the associated ranging_data_t structure and the CIR will be read in the specified 
