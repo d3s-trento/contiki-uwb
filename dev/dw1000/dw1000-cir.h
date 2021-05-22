@@ -52,13 +52,20 @@
 
 /* Type holding a single CIR sample.
  * Each sample is formed by a 16-bit real + 16-bit imaginary number */
-typedef uint32_t dw1000_cir_sample_t;
+typedef union dw1000_cir_sample
+{
+  uint32_t u32;
+  struct {
+    signed real:16;
+    signed imag:16;
+  } compl;
+} dw1000_cir_sample_t;
+
 #define DW1000_CIR_SAMPLE_SIZE (sizeof(dw1000_cir_sample_t))
 _Static_assert (DW1000_CIR_SAMPLE_SIZE == 4, "Wrong CIR sample size");
 
 /*---------------------------------------------------------------------------*/
 uint16_t dw1000_read_cir(uint16_t s1, uint16_t n_samples, dw1000_cir_sample_t* samples);
-void dw1000_get_cir_sample_parts(const dw1000_cir_sample_t sample, int16_t* r, int16_t* c);
 uint16_t dw1000_print_cir_from_radio();
 uint16_t dw1000_print_cir_samples_from_radio(int16_t s1, uint16_t n_samples);
 /*---------------------------------------------------------------------------*/

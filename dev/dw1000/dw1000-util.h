@@ -22,7 +22,7 @@ typedef struct {
   double path_diff; /* Index difference between first and peak paths */
   double pr_nlos; /* NLOS probability based on path_diff */
   double low_noise; /* New noise threshold for early path detection */
-  double num_early_peaks; /* Number of candidate early paths when low_noise is the threshold */
+  uint16_t num_early_peaks; /* Number of candidate early paths when low_noise is the threshold */
   double luep; /* Likelihood of undetected early path given num_early_peaks (can overrule pr_nlos) */
   double mc; /* Indicator for accumulator saturation in LOS conditions (can overrule pr_nlos) */
   double cl; /* Overall confidence level (0.0 -> NLOS, 1.0 -> LOS) */

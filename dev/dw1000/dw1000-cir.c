@@ -121,25 +121,9 @@ uint16_t dw1000_read_cir(uint16_t s1, uint16_t n_samples, dw1000_cir_sample_t* s
 #else
   dwt_readaccdata(write_pos-1, len_bytes + 1, read_idx);
 #endif
-  samples[0] = s1;
+  samples[0].u32 = s1;
 
   return n_samples;
-}
-
-/* Extract the real and complex parts as signed integers from the CIR sample.
- *
- * Params
- *  - sample [in]   single CIR sample
- *  - r [out]       real part
- *  - c [out]       complex part
- */
-void dw1000_get_cir_sample_parts(const dw1000_cir_sample_t sample, int16_t* r, int16_t* c) {
-
-  /* Read the sample into signed 16-bit integers */
-  *r = sample & 0x0000ffff;
-  *c = sample & 0xffff0000;
-  // if(*r > 0x7fff) *r = *r - ((uint32_t)1 << 16);
-  // if(*c > 0x7fff) *c = *c - ((uint32_t)1 << 16);
 }
 
 /* Print max n_samples samples from the CIR accumulator, starting at index s1.

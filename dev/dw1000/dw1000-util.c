@@ -45,6 +45,9 @@
 #include <math.h>
 /*---------------------------------------------------------------------------*/
 #define POW2(x) ((x)*(x))
+
+// Compute the square of the magnitude of the complex CIR sample
+#define MAGSQ(x) (POW2(x.compl.real) + POW2(x.compl.imag))
 /*---------------------------------------------------------------------------*/
 static double cfo_jitter_guard = DW1000_CFO_JITTER_GUARD;
 /*---------------------------------------------------------------------------*/
@@ -305,29 +308,26 @@ void dw1000_nlos(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag, const dw1000_cir_
   /* Lower the threshold for path detection */
   uint8_t ntm, pmult;
   dw1000_get_current_lde_cfg(&ntm, &pmult);
-  d->low_noise = (double)(rxdiag->stdNoise) * ntm * 0.6;
+  d->low_noise = rxdiag->stdNoise * ntm * 0.6;
 
   /* Count the number of candidate undetected paths in the CIR window;
    * if the CIR was not provided, skip this search */
   d->num_early_peaks = 0;
   if(samples != NULL && n_samples > 2) {
     double ampl_prev, ampl, ampl_next;
-    int16_t r, c;
 
     /* Start by computing the magnitude of the first CIR sample */
-    dw1000_get_cir_sample_parts(samples[0], &r, &c);
-    ampl = sqrt(POW2((double)r) + POW2((double)c));
+    ampl      = sqrt(MAGSQ(samples[0]));
+    ampl_next = sqrt(MAGSQ(samples[1]));
 
     /* Check all samples in the window, three-by-three, to detect peaks */
-    for(int n=1; n<n_samples-1; n++) {
+    for(int n=2; n<n_samples; n++) {
 
       /* Extract the magnitudes of the CIR for the previous CIR
        * sample, the current one and the next one */
       ampl_prev = ampl;
-      dw1000_get_cir_sample_parts(samples[n], &r, &c);
-      ampl = sqrt(POW2((double)r) + POW2((double)c));
-      dw1000_get_cir_sample_parts(samples[n+1], &r, &c);
-      ampl_next = sqrt(POW2((double)r) + POW2((double)c));
+      ampl = ampl_next;
+      ampl_next = sqrt(MAGSQ(samples[n]));
 
       /* Identify a candidate peak when the magnitude first rises
        * above the new noise level, and then decreases */
@@ -337,7 +337,7 @@ void dw1000_nlos(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag, const dw1000_cir_
     }
 
     /* The likelihood depends on the number of candidate early paths vs the window size */
-    d->luep = d->num_early_peaks / ((n_samples - 1) / 2);
+    d->luep = (double)(d->num_early_peaks * 2) / (n_samples - 1);
   }
   else {
     d->luep = 0;
@@ -364,7 +364,7 @@ void dw1000_nlos(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag, const dw1000_cir_
   if(d->luep > 0.01) {
     d->cl = 0.0;
   }
-  else if(d->pr_nlos < 0.01 || d->mc > 0.9) {
+  else if(d->pr_nlos < 0.001 || d->mc >= 0.9) {
     d->cl = 1.0;
   }
   else {
