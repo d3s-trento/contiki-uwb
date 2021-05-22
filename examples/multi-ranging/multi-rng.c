@@ -275,7 +275,7 @@ PROCESS_THREAD(ranging_process, ev, data)
                 (int)(1000*rxpwr.fp_pwr), (int)(1000*rxpwr.rx_pwr),
                 (int)(10e8*d->freq_offset));
 #if ACQUIRE_CIR
-            uint16_t cir_start = cir_buf[0];
+            uint16_t cir_start = cir_buf[0].u32;
             uint16_t cir_fp_int = d->rxdiag.firstPath >> 6;
             uint16_t cir_fp_frac = d->rxdiag.firstPath & 0x3f;
             // fp (first path) is printed as the integer part and the 1/64 fractional part
