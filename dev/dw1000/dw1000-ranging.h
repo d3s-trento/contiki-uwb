@@ -92,7 +92,7 @@ typedef struct {
   uint16_t cir_samples_acquired;
   double distance;
   double raw_distance;
-  double freq_offset;
+  double clock_offset_ppm;
   dwt_rxdiag_t rxdiag;
 } ranging_data_t;
 

@@ -422,7 +422,7 @@ static uint32_t ds_poll_rx_ts, ds_resp_tx_ts, ds_final_rx_ts;
 
 // clock frequency offset to compensate the distance bias in SS-TWR
 static int32  carrierIntegrator;
-static double clockOffsetRatio;
+static double clockOffsetPPM;
 
 
 /*---------------------------------------------------------------------------*/
@@ -830,7 +830,8 @@ ss_tof_calc()
   double hertz_to_ppm_multiplier = dw1000_get_hz2ppm_multiplier(
       &dw1000_cached_config.cfg);
   
-  clockOffsetRatio = carrierIntegrator * (hertz_to_ppm_multiplier / 1.0e6);
+  clockOffsetPPM = carrierIntegrator * hertz_to_ppm_multiplier;
+  double clockOffsetRatio = clockOffsetPPM / 1.0e6;
 
   return ((rtd_init - rtd_resp * (1 - clockOffsetRatio)) / 2.0) * DWT_TIME_UNITS; // with clock drift compensation
   //return ((rtd_init - rtd_resp) / 2.0) * DWT_TIME_UNITS; // without the compensation
@@ -901,7 +902,7 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
 #else
       ranging_data.distance = not_corrected;
 #endif
-      ranging_data.freq_offset = clockOffsetRatio;
+      ranging_data.clock_offset_ppm = clockOffsetPPM;
 
       //PRINTF_RNG("dwr: %d done %f, after bias %f\n", my_seqn, not_corrected, ranging_data.distance);
       ranging_data.status = 1;

@@ -273,7 +273,7 @@ PROCESS_THREAD(ranging_process, ev, data)
             printf("SUCCESS %d bias %d fppwr %d rxpwr %d cifo %d\n",
                 (int)(100*d->raw_distance), (int)(100*d->distance),
                 (int)(1000*rxpwr.fp_pwr), (int)(1000*rxpwr.rx_pwr),
-                (int)(10e8*d->freq_offset));
+                (int)(1000*d->clock_offset_ppm));
 #if ACQUIRE_CIR
             uint16_t cir_start = cir_buf[0].u32;
             uint16_t cir_fp_int = d->rxdiag.firstPath >> 6;
