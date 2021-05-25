@@ -518,16 +518,16 @@ extern "C" {
 #define TX_POWER_ID             0x1E            /* TX Power Control */
 #define TX_POWER_LEN            (4)
 /*mask and shift definition for Smart Transmit Power Control*/
-#define TX_POWER_BOOSTNORM_MASK 0x00000000UL    /* This is the normal power setting used for frames that do not fall */
+#define TX_POWER_BOOSTNORM_MASK 0x000000FFUL    /* This is the normal power setting used for frames that do not fall */
 #define BOOSTNORM_MASK          TX_POWER_BOOSTNORM_MASK
 #define TX_POWER_BOOSTNORM_SHIFT (0)
-#define TX_POWER_BOOSTP500_MASK 0x00000000UL    /* This value sets the power applied during transmission at the 6.8 Mbps data rate frames that are less than 0.5 ms duration */
+#define TX_POWER_BOOSTP500_MASK 0x0000FF00UL    /* This value sets the power applied during transmission at the 6.8 Mbps data rate frames that are less than 0.5 ms duration */
 #define BOOSTP500_MASK          TX_POWER_BOOSTP500_MASK
 #define TX_POWER_BOOSTP500_SHIFT (8)
-#define TX_POWER_BOOSTP250_MASK 0x00000000UL    /* This value sets the power applied during transmission at the 6.8 Mbps data rate frames that are less than 0.25 ms duration */
+#define TX_POWER_BOOSTP250_MASK 0x00FF0000UL    /* This value sets the power applied during transmission at the 6.8 Mbps data rate frames that are less than 0.25 ms duration */
 #define BOOSTP250_MASK          TX_POWER_BOOSTP250_MASK
 #define TX_POWER_BOOSTP250_SHIFT (16)
-#define TX_POWER_BOOSTP125_MASK 0x00000000UL    /* This value sets the power applied during transmission at the 6.8 Mbps data rate frames that are less than 0.125 ms */
+#define TX_POWER_BOOSTP125_MASK 0xFF000000UL    /* This value sets the power applied during transmission at the 6.8 Mbps data rate frames that are less than 0.125 ms */
 #define BOOSTP125_MASK          TX_POWER_BOOSTP125_MASK
 #define TX_POWER_BOOSTP125_SHIFT (24)
 /*mask and shift definition for Manual Transmit Power Control (DIS_STXP=1 in SYS_CFG)*/
