@@ -948,7 +948,7 @@ extern "C" {
 #define RF_TXCTRL_CH2           0x00045CA0UL    /* 32-bit value to program to Sub-Register 0x28:0C – RF_TXCTRL */
 #define RF_TXCTRL_CH3           0x00086CC0UL    /* 32-bit value to program to Sub-Register 0x28:0C – RF_TXCTRL */
 #define RF_TXCTRL_CH4           0x00045C80UL    /* 32-bit value to program to Sub-Register 0x28:0C – RF_TXCTRL */
-#define RF_TXCTRL_CH5           0x001E3FE0UL    /* 32-bit value to program to Sub-Register 0x28:0C – RF_TXCTRL */
+#define RF_TXCTRL_CH5           0x001E3FE3UL    /* 32-bit value to program to Sub-Register 0x28:0C – RF_TXCTRL */
 #define RF_TXCTRL_CH7           0x001E7DE0UL    /* 32-bit value to program to Sub-Register 0x28:0C – RF_TXCTRL */
 
 /* offset from RF_CONF in bytes */
