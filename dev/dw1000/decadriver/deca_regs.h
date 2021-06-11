@@ -994,7 +994,7 @@ extern "C" {
 #define TC_PGDELAY_CH2          0xC2            /* Recommended value for channel 2 */
 #define TC_PGDELAY_CH3          0xC5            /* Recommended value for channel 3 */
 #define TC_PGDELAY_CH4          0x95            /* Recommended value for channel 4 */
-#define TC_PGDELAY_CH5          0xC0            /* Recommended value for channel 5 */
+#define TC_PGDELAY_CH5          0xB5            /* Recommended value for channel 5 */
 #define TC_PGDELAY_CH7          0x93            /* Recommended value for channel 7 */
 /* offset from TX_CAL_ID in bytes */
 #define TC_PGTEST_OFFSET        0x0C            /* Transmitter Calibration – Pulse Generator Test */
