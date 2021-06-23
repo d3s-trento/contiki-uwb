@@ -270,7 +270,7 @@ const static ranging_conf_t ranging_conf_110K = {
 static ranging_conf_t ranging_conf;
 
 /* Update ranging delays based on current radio config */
-static inline void update_ranging_conf() {
+static inline void update_ranging_conf(void) {
   switch(dw1000_cached_config.cfg.dataRate) {
   case DWT_BR_6M8:
     ranging_conf = ranging_conf_6M8;
@@ -331,7 +331,7 @@ PROCESS(dw1000_rng_dbg_process, "DW1000 rng dbg process");
 
 /* Initialise the ranging module. */
 void
-dw1000_ranging_init()
+dw1000_ranging_init(void)
 {
   process_start(&dw1000_rng_process, NULL);
   state = S_WAIT_POLL;
@@ -819,18 +819,22 @@ dw1000_rng_tx_conf_cb(const dwt_cb_data_t *cb_data) {
   }
 }
 
+static double retrieve_clock_offset(void)
+{
+  double hertz_to_ppm_multiplier = dw1000_get_hz2ppm_multiplier(
+    &dw1000_cached_config.cfg);
+
+  return carrierIntegrator * hertz_to_ppm_multiplier;
+}
+
 static double
-ss_tof_calc()
+ss_tof_calc(void)
 {
   int32_t rtd_init, rtd_resp;
   /* Compute time of flight. */
   rtd_init = ss_resp_rx_ts - ss_poll_tx_ts;
   rtd_resp = ss_resp_tx_ts - ss_poll_rx_ts;
 
-  double hertz_to_ppm_multiplier = dw1000_get_hz2ppm_multiplier(
-      &dw1000_cached_config.cfg);
-  
-  clockOffsetPPM = carrierIntegrator * hertz_to_ppm_multiplier;
   double clockOffsetRatio = clockOffsetPPM / 1.0e6;
 
   return ((rtd_init - rtd_resp * (1 - clockOffsetRatio)) / 2.0) * DWT_TIME_UNITS; // with clock drift compensation
@@ -838,7 +842,7 @@ ss_tof_calc()
 }
 /*---------------------------------------------------------------------------*/
 static double
-ds_tof_calc()
+ds_tof_calc(void)
 {
   double Ra, Rb, Da, Db;
   int64_t tof_dtu;
@@ -885,6 +889,10 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
     if(state == S_RANGING_DONE) {
       double tof;
       double not_corrected;
+
+      /* Clock offset is strictly necessary for SS TWR, but we acquire it also 
+       * in case of DS just for the sake of completeness */
+      clockOffsetPPM = retrieve_clock_offset();
 
       if(rng_type == DW1000_RNG_SS) {
         tof = ss_tof_calc();
@@ -981,14 +989,14 @@ PROCESS_THREAD(dw1000_rng_dbg_process, ev, data)
 #endif
 /*---------------------------------------------------------------------------*/
 bool
-dw1000_is_ranging()
+dw1000_is_ranging(void)
 {
   return state != S_WAIT_POLL;
 }
 /*---------------------------------------------------------------------------*/
 /* Should be called with interrupts disabled */
 void
-dw1000_range_reset()
+dw1000_range_reset(void)
 {
   if (state != S_WAIT_POLL) {
     dwt_write8bitoffsetreg(PMSC_ID, PMSC_CTRL0_OFFSET, 0); /* disable the errata TX-1 workaround (to save energy) */
