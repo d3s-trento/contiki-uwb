@@ -421,7 +421,6 @@ static uint32_t ds_poll_tx_ts, ds_resp_rx_ts, ds_final_tx_ts;
 static uint32_t ds_poll_rx_ts, ds_resp_tx_ts, ds_final_rx_ts;
 
 // clock frequency offset to compensate the distance bias in SS-TWR
-static int32  carrierIntegrator;
 static double clockOffsetPPM;
 
 
@@ -609,9 +608,6 @@ dw1000_rng_ok_cb(const dwt_cb_data_t *cb_data)
     /* Retrieve poll transmission and response reception timestamps. */
     ss_poll_tx_ts = dwt_readtxtimestamplo32();
     ss_resp_rx_ts = dwt_readrxtimestamplo32();
-
-    /* Read and store carrier integrator value */
-    carrierIntegrator = dwt_readcarrierintegrator();
 
     /* Get timestamps embedded in response message. */
     msg_get_u32(&rtx_buf[rx_hdr_len + RESP_MSG_POLL_RX_TS_OFS], &ss_poll_rx_ts);
@@ -821,6 +817,9 @@ dw1000_rng_tx_conf_cb(const dwt_cb_data_t *cb_data) {
 
 static double retrieve_clock_offset(void)
 {
+  /* Read and store carrier integrator value */
+  int32 carrierIntegrator = dwt_readcarrierintegrator();
+  
   double hertz_to_ppm_multiplier = dw1000_get_hz2ppm_multiplier(
     &dw1000_cached_config.cfg);
 
@@ -890,7 +889,7 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
       double tof;
       double not_corrected;
 
-      /* Clock offset is strictly necessary for SS TWR, but we acquire it also 
+      /* Clock offset is strictly necessary for SS TWR, but we acquiring it also 
        * in case of DS just for the sake of completeness */
       clockOffsetPPM = retrieve_clock_offset();
 
