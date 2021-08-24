@@ -90,6 +90,13 @@
 #define DW1000_RANGING_ENABLED 1
 #endif
 
+/* Delay after waking from sleep to let crystal stabilise (in milliseconds) */
+#ifdef DW1000_CONF_WAKEUP_DELAY
+#define DW1000_WAKEUP_DELAY DW1000_CONF_WAKEUP_DELAY
+#else
+#define DW1000_WAKEUP_DELAY 5
+#endif
+
 /*---------------------------------------------------------------------------*/
 extern const struct radio_driver dw1000_driver;
 /*---------------------------------------------------------------------------*/

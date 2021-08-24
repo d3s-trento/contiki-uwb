@@ -643,7 +643,7 @@ dw1000_wakeup(void)
   
   if(dwt_readdevid() != DWT_DEVICE_ID) { // Device was in deep sleep (the first read fails)
     dw1000_arch_wakeup_nowait();
-    deca_sleep(5); // need to sleep 5 ms to let crystal stabilise
+    deca_sleep(DW1000_WAKEUP_DELAY); // need to sleep for some ms to let crystal stabilise
     
     if(dwt_readdevid() != DWT_DEVICE_ID) {
       dw1000_is_sleeping = 1;
