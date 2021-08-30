@@ -100,10 +100,7 @@ typedef struct {
 /* Private functions for driver-level use only                               */
 /*---------------------------------------------------------------------------*/
 
-/* (Re)initialise the ranging module.
- *
- * Needs to be called before issuing or serving ranging requests and
- * after changing radio parameters. */
+/* (Re)initialise the ranging module */
 void dw1000_ranging_init(void);
 
 /* Callback to process ranging good frame events */
