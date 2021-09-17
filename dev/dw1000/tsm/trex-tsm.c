@@ -53,38 +53,40 @@
  * time structures (slot series) with TX or RX operations. Its features include
  * the following.
  *   - It hides time handling from the application.
- *   - It keeps track of the reference time of the slot series and allows scheduling 
+ *   - It keeps track of the reference time of the slot series and allows scheduling
  *     a new series in the future.
  *   - It keeps track of the slot index and allows skipping slots, if needed.
  *   - It provides channel scanning and automatic synchronisation to a heard slot series.
- *   - It allows transmitting with a delay specified per-slot (which does not affect 
+ *   - It allows transmitting with a delay specified per-slot (which does not affect
  *     synchronisation).
  *   - It is tailored for protothreads (but can be used with regular callbacks, too).
  */
 
 /* TSM slot structure is presented below. Slots are of fixed duration.
- * Each slot has the slot reference time, the earliest time when a packet SFD can be 
+ * Each slot has the slot reference time, the earliest time when a packet SFD can be
  * received or transmitted (when the tx delay is set to 0).
  *
- * Packets can be delayed by tx delay, which is the difference between the actual 
+ * Packets can be delayed by tx delay, which is the difference between the actual
  * SFD time and the slot reference.
  *
- * RX slots have a fixed timeout, the time elapsed since the slot reference that forces 
+ * RX slots have a fixed timeout, the time elapsed since the slot reference that forces
  * any reception to stop and allow time for packet processing at the end of the slot.
  *
+ *                |<-------->| preamble
+ *                | rx guard | duration
+ * slot:      |___|__________|__________|_____________________________________________|
+ *            ^                         ^                                             ^
+ *            0                   slot reference                                slot duration
+ *                                      |<--------------------->|<------------------->|
+ *                                      |      slot timeout       time for processing
+ *                                      |
+ * packet:                            #############|========
+ *                                      preamble   |  data
+ *                                        |       SFD
+ *                                        |<------>|
+ *                                         tx delay
  *
- * slot:      |______________|_____________________________________________|
- *            ^              ^                                             ^
- *            0        slot reference                                slot duration
- *                |<-------->|<--------------------->|<------------------->|
- *                  rx guard |      slot timeout       time for processing           
- *                           |
- * packet:                ############|========
- *                          preamble  |  data
- *                           |       SFD
- *                           |<------>|
- *                            tx delay
- */ 
+ */
 
 /* TSM schedules slots in series, one after another and calls the application callback
  * between slots. The callback can analyse the information about the previous slot and
@@ -102,14 +104,14 @@
  *       | .....returns next action.....> |
  *       |                                | performs the requested action, when done, calls back
  *       | <-------- callback() --------- |
- *       | .....returns next action.....> |  
+ *       | .....returns next action.....> |
  *       |                                |
  *      ...                              ...
  *
  *
  * The next action might be:
- *  - SCAN -- start listening right away until get a RX error or a correct 
- *    reception. In case of correct reception, the TSM is synchronised to the 
+ *  - SCAN -- start listening right away until get a RX error or a correct
+ *    reception. In case of correct reception, the TSM is synchronised to the
  *    slot series of the transmitter. Received packet (if any) is available to
  *    the application.
  *    Note that if this operation is invoked right after RESTART, the scanning
@@ -117,7 +119,7 @@
  *
  *  - TX -- transmit in the next slot, according to the current slot series timing.
  *    Packet to transmit and the payload length must be provided.
- *  
+ *
  *  - RX -- receive in the next slot, according to the current slot series timing.
  *    Received packet (if any) is available to the application.
  *
@@ -125,11 +127,11 @@
  *    The new series starts at the reference time of the previous series plus the
  *    specified interval. The callback will be called again to request the operation
  *    for the slot 0 of the new series.
- *  
+ *
  *  - STOP -- stop everything.
  *
  *
- * The application may alter the following fields (set to default values) to modify 
+ * The application may alter the following fields (set to default values) to modify
  * the action of the next slot:
  *  - tx delay -- shift the transmission (only positive shifts are allowed, default is 0)
  *  - slot progression -- used to skip slots if the application desires. By default is set
@@ -229,17 +231,17 @@ int tsm_tx(uint8_t *buffer, uint8_t payload_len) {
 static inline
 int tsm_rx(uint8_t *buffer) {
   DBGF();
-  uint32_t expected_rx_sfd = 
+  uint32_t expected_rx_sfd =
               context.tref 
               + context.slot_idx*context.slot_duration;
   
-  uint32_t rx_enable_time = 
+  uint32_t expected_rx_sfd_with_guard =
               expected_rx_sfd 
               - tsm_next_action.rx_guard_time;
 
   uint32_t deadline = expected_rx_sfd + context.slot_rx_timeout;
 
-  return trexd_rx_slot(buffer, rx_enable_time, deadline);
+  return trexd_rx_slot(buffer, expected_rx_sfd_with_guard, deadline);
 }
 
 static inline
@@ -284,8 +286,8 @@ static void tsm_slot_event() {
     // prepare the interface structures
     tsm_next_action = TSM_NEXT_ACTION_INITIALIZER;
     tsm_prev_action.action   = context.slot_action;
-    tsm_prev_action.slot_idx = context.slot_idx; 
-    tsm_prev_action.status   = context.slot_status; 
+    tsm_prev_action.slot_idx = context.slot_idx;
+    tsm_prev_action.status   = context.slot_status;
     tsm_prev_action.remote_slot_idx = context.tentative_slot_idx;
 
     DBG("Calling higher layer");
@@ -338,7 +340,7 @@ static void tsm_slot_event() {
 
     int ret = -1;
     context.slot_action = TSM_ACTION_NONE; /* in case anything goes wrong */
-    
+
     switch(tsm_next_action.action) {
       case TSM_ACTION_TX:
         WARNIF(tsm_next_action.progress_slots == 0); // cannot TX in the same slot twice
@@ -361,7 +363,7 @@ static void tsm_slot_event() {
             ret = tsm_scan(tsm_next_action.buffer);
         }
         break;
-      case TSM_ACTION_RESTART: 
+      case TSM_ACTION_RESTART:
         context.tref += tsm_next_action.restart_interval;
         context.slot_idx = -1;
         context.slot_status = TREX_NONE;
@@ -586,7 +588,7 @@ tsm_log_append(struct tsm_log *entry) {
   }
 }
 
-static inline void 
+static inline void
 tsm_log_print() {
 
   struct tsm_log *s;
@@ -619,7 +621,7 @@ tsm_log_print() {
 
     // print slot operation modifier
 
-    if (s->idx_diff) { 
+    if (s->idx_diff) {
       // difference between expected slot idx and the received one
       // in the previous slot (only print if non-zero)
       printf("m%+d", s->idx_diff);
