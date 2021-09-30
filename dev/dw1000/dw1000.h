@@ -121,6 +121,10 @@ void dw1000_sleep(void);
  *          transaction of around 500us.
  */
 int dw1000_wakeup(void);
+/**
+ * \brief   Check if the DW1000 is still in deep sleep mode
+ */
+int dw1000_is_asleep(void);
 /*---------------------------------------------------------------------------*/
 
 /* Get the low 32 bit of the DW1000 STATUS register for the current reception.

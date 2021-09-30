@@ -54,7 +54,7 @@
 #include "deca_device_api.h"
 #include "deca_regs.h"
 /*---------------------------------------------------------------------------*/
-#define DEBUG 0
+#define DEBUG 1
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -636,6 +636,13 @@ dw1000_sleep(void)
   dw1000_is_sleeping = 1;
 }
 /*---------------------------------------------------------------------------*/
+/* Check if the DW1000 is still sleeping */
+int
+dw1000_is_asleep(void)
+{
+  return dw1000_is_sleeping;
+}
+/*---------------------------------------------------------------------------*/
 int
 dw1000_wakeup(void)
 {
@@ -647,6 +654,7 @@ dw1000_wakeup(void)
     
     if(dwt_readdevid() != DWT_DEVICE_ID) {
       dw1000_is_sleeping = 1;
+      PRINTF("WAKEUP ERROR\n");
       return DWT_ERROR;
     }
   } 
