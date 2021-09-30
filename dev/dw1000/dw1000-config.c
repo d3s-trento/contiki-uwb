@@ -45,7 +45,7 @@
 #include "dw1000-shared-state.h"
 #include "dw1000-config-struct.h"
 
-#define DEBUG 0
+#define DEBUG 1
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -102,7 +102,7 @@ dw1000_configure(const dwt_config_t *cfg) {
   
   if (dw1000_is_sleeping) {
     PRINTF("Err: Radio configure requested while sleeping\n");
-    return 0;
+    return false;
   }
 
   int8_t irq_status = dw1000_disable_interrupt();
@@ -128,7 +128,7 @@ dw1000_configure_ch(uint8_t chan, uint8_t txCode, uint8_t rxCode) {
   
   if (dw1000_is_sleeping) {
     PRINTF("Err: Channel configure requested while sleeping\n");
-    return 0;
+    return false;
   }
   
   int8_t irq_status = dw1000_disable_interrupt();
@@ -227,10 +227,16 @@ dw1000_configure_lde(uint8_t ntm, uint8_t pmult) {
   }
   int8_t irq_status = dw1000_disable_interrupt();
 
-  CUR_CFG.lde_ntm = DW1000_LDE_NTM;
-  CUR_CFG.lde_pmult = DW1000_LDE_PMULT;
-  uint8_t lde_cfg = (DW1000_LDE_NTM | (DW1000_LDE_PMULT << 5));
+  CUR_CFG.lde_ntm = ntm;
+  CUR_CFG.lde_pmult = pmult;
+  uint8_t lde_cfg = (ntm | (pmult << 5));
+  PRINTF("LDE_CFG write %u\n", lde_cfg);
   dwt_write8bitoffsetreg(LDE_IF_ID, LDE_CFG1_OFFSET, lde_cfg);
+
+  if(DEBUG) {
+    uint8_t lde_reg = dwt_read8bitoffsetreg(LDE_IF_ID, LDE_CFG1_OFFSET);
+    PRINTF("LDE_CFG read %u\n", lde_reg);
+  }
 
   dw1000_enable_interrupt(irq_status);
   return 1;
