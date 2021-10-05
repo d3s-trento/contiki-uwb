@@ -14,6 +14,7 @@ struct dw1000_all_config {
   bool smart_power;
   uint8_t lde_ntm;
   uint8_t lde_pmult;
+  uint16_t lde_prf_tune;
 };
 
 #endif //DW1000_CONFIG_STRUCT_H

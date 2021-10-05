@@ -100,17 +100,64 @@
 
 /*-- LDE configuration --------------------------------------------------- */
 
+#if DW1000_NLOS_OPTIMIZATION
+
+// warning for potentially misused NLOS optimization
+#if DW1000_PRF != DWT_PRF_16M
+#warning "PRF 16MHz is recommended for NLOS optimization."
+#endif
+#if DW1000_PRF != DWT_PRF_16M
+#warning "PRF 16MHz is recommended for NLOS optimization."
+#endif
+#if DW1000_PLEN == DWT_PLEN_64 || DW1000_PLEN == DWT_PLEN_128 || \
+    DW1000_PLEN == DWT_PLEN_256 || DW1000_PLEN == DWT_PLEN_512
+#warning "PLEN >=1024 is recommended for NLOS optimization."
+#endif
+
+// LDE configuration optimized for NLOS (DecaWave APS006 Part 2, v.1.5)
+#define DW1000_LDE_NTM (7)
+#define DW1000_LDE_PMULT (0)
+#define DW1000_LDE_PRF_TUNE (0x0003)
+
+// warnings for found definitions that will have no effect
+#ifdef DW1000_CONF_LDE_NTM
+#warning "DW1000_CONF_LDE_NTM will be ignored (NLOS optimization enabled)."
+#endif
+#ifdef DW1000_CONF_LDE_PMULT
+#warning "DW1000_CONF_LDE_PMULT will be ignored (NLOS optimization enabled)."
+#endif
+#ifdef DW1000_CONF_LDE_PRF_TUNE
+#warning "DW1000_CONF_LDE_PRF_TUNE will be ignored (NLOS optimization enabled)."
+#endif
+
+#else
+
+// Sub-Register 0x2E:0806 – LDE_CFG1, NTM bits of NTM_1
 #ifdef DW1000_CONF_LDE_NTM
 #define DW1000_LDE_NTM DW1000_CONF_LDE_NTM
 #else
-#define DW1000_LDE_NTM N_STD_FACTOR
+#define DW1000_LDE_NTM N_STD_FACTOR // default: (13)
 #endif
 
+// Sub-Register 0x2E:0806 – LDE_CFG1, PMULT bits of NTM_1
 #ifdef DW1000_CONF_LDE_PMULT
 #define DW1000_LDE_PMULT DW1000_CONF_LDE_PMULT
 #else
-#define DW1000_LDE_PMULT (PEAK_MULTPLIER >> 5)
+#define DW1000_LDE_PMULT (PEAK_MULTPLIER >> 5) // default: (0x60 >> 5)
 #endif
+
+// Sub-Register 0x2E:1806 – LDE_CFG2, NTM_2
+#ifdef DW1000_CONF_LDE_PRF_TUNE
+#define DW1000_LDE_PRF_TUNE DW1000_CONF_LDE_PRF_TUNE
+#else
+#if DW1000_PRF == DWT_PRF_16M
+#define DW1000_LDE_PRF_TUNE LDE_PARAM3_16 // default: (0x1607)
+#elif DW1000_PRF == DWT_PRF_64M
+#define DW1000_LDE_PRF_TUNE LDE_PARAM3_64 // default: (0x0607)
+#endif 
+#endif
+
+#endif /* DW1000_NLOS_OPTIMIZATION */
 
 /*-- Driver configuration --------------------------------------------------- */
 
@@ -147,7 +194,7 @@ dw1000_configure_ant_dly(uint16_t rx_dly, uint16_t tx_dly);
 
 /* Configure LDE */
 bool
-dw1000_configure_lde(uint8_t ntm, uint8_t pmult);
+dw1000_configure_lde(uint8_t ntm, uint8_t pmult, uint16_t prf_tune);
 
 /* Configures the radio with the pre-defined default parameters */
 bool
@@ -183,7 +230,7 @@ dw1000_get_current_ant_dly(uint16_t* rx_dly, uint16_t* tx_dly);
 
 /* Get the current (cached) LDE configuration */
 void
-dw1000_get_current_lde_cfg(uint8_t* ntm, uint8_t* pmult);
+dw1000_get_current_lde_cfg(uint8_t* ntm, uint8_t* pmult, uint16_t* prf_tune);
 
 /* Restore the configuration after wake-up */
 bool dw1000_restore_config_wa(void);

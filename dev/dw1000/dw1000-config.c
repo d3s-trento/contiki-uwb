@@ -45,7 +45,7 @@
 #include "dw1000-shared-state.h"
 #include "dw1000-config-struct.h"
 
-#define DEBUG 1
+#define DEBUG 0
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -220,7 +220,7 @@ dw1000_configure_ant_dly(uint16_t rx_dly, uint16_t tx_dly) {
 
 /* Configure LDE */
 bool
-dw1000_configure_lde(uint8_t ntm, uint8_t pmult) {
+dw1000_configure_lde(uint8_t ntm, uint8_t pmult, uint16_t prf_tune) {
   if (dw1000_is_sleeping) {
     PRINTF("Err: LDE configure requested while sleeping\n");
     return 0;
@@ -229,14 +229,13 @@ dw1000_configure_lde(uint8_t ntm, uint8_t pmult) {
 
   CUR_CFG.lde_ntm = ntm;
   CUR_CFG.lde_pmult = pmult;
+  CUR_CFG.lde_prf_tune = prf_tune;
   uint8_t lde_cfg = (ntm | (pmult << 5));
-  PRINTF("LDE_CFG write %u\n", lde_cfg);
   dwt_write8bitoffsetreg(LDE_IF_ID, LDE_CFG1_OFFSET, lde_cfg);
+  dwt_write16bitoffsetreg(LDE_IF_ID, LDE_CFG2_OFFSET, prf_tune);
 
-  if(DEBUG) {
-    uint8_t lde_reg = dwt_read8bitoffsetreg(LDE_IF_ID, LDE_CFG1_OFFSET);
-    PRINTF("LDE_CFG read %u\n", lde_reg);
-  }
+  PRINTF("LDE_CFG1 set %u\n", lde_cfg);
+  PRINTF("LDE_CFG2 set %u\n", prf_tune);
 
   dw1000_enable_interrupt(irq_status);
   return 1;
@@ -296,7 +295,7 @@ dw1000_reset_cfg() {
   dw1000_configure_ant_dly(DW1000_CONF_RX_ANT_DLY, DW1000_CONF_TX_ANT_DLY);
 
   // set LDE configuration
-  dw1000_configure_lde(DW1000_LDE_NTM, DW1000_LDE_PMULT);
+  dw1000_configure_lde(DW1000_LDE_NTM, DW1000_LDE_PMULT, DW1000_LDE_PRF_TUNE);
 
   return 1;
 }
@@ -395,9 +394,10 @@ dw1000_get_current_ant_dly(uint16_t* rx_dly, uint16_t* tx_dly) {
 
 /* Get the current (cached) LDE configuration */
 void
-dw1000_get_current_lde_cfg(uint8_t* ntm, uint8_t* pmult) {
+dw1000_get_current_lde_cfg(uint8_t* ntm, uint8_t* pmult, uint16_t* prf_tune) {
   *ntm = CUR_CFG.lde_ntm;
   *pmult = CUR_CFG.lde_pmult;
+  *prf_tune = CUR_CFG.lde_prf_tune;
 }
 
 /* Restore the configuration after wake-up */
@@ -405,7 +405,7 @@ bool
 dw1000_restore_config_wa(void)
 {
   bool ret; 
-  ret =  dw1000_configure_lde(CUR_CFG.lde_ntm, CUR_CFG.lde_pmult);
+  ret =  dw1000_configure_lde(CUR_CFG.lde_ntm, CUR_CFG.lde_pmult, CUR_CFG.lde_prf_tune);
   ret &= dw1000_configure_ant_dly(CUR_CFG.rx_ant_dly, CUR_CFG.tx_ant_dly);
   return ret;
 }
@@ -436,6 +436,10 @@ dw1000_print_cfg() {
   printf("  TX ant delay: %u\n",   CUR_CFG.tx_ant_dly);
   printf("  LDE NTM: %u\n",        CUR_CFG.lde_ntm);
   printf("  LDE PMULT: %u\n",      CUR_CFG.lde_pmult);
+  printf("  LDE PRF TUNE: %u\n",   CUR_CFG.lde_prf_tune);
+  // printf("  * AGC TUNE 1: %u\n",   dwt_read16bitoffsetreg(AGC_CTRL_ID, AGC_TUNE1_OFFSET));
+  // printf("  * RF_TXCTRL: %lu\n",   dwt_read32bitoffsetreg(RF_CONF_ID, RF_TXCTRL_OFFSET));
+  // printf("  * FS_PLLTUNE: %u\n",   dwt_read8bitoffsetreg(FS_CTRL_ID, FS_PLLTUNE_OFFSET));
 }
 
 #if UWB_CONTIKI_PRINT_DEF

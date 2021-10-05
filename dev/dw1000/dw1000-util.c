@@ -307,7 +307,8 @@ void dw1000_nlos(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag, const dw1000_cir_
 
   /* Lower the threshold for path detection */
   uint8_t ntm, pmult;
-  dw1000_get_current_lde_cfg(&ntm, &pmult);
+  uint16_t prf_tune;
+  dw1000_get_current_lde_cfg(&ntm, &pmult, &prf_tune);
   d->low_noise = rxdiag->stdNoise * ntm * 0.6;
 
   /* Count the number of candidate undetected paths in the CIR window;
