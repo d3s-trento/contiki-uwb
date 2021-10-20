@@ -106,9 +106,6 @@
 #if DW1000_PRF != DWT_PRF_16M
 #warning "PRF 16MHz is recommended for NLOS optimization."
 #endif
-#if DW1000_PRF != DWT_PRF_16M
-#warning "PRF 16MHz is recommended for NLOS optimization."
-#endif
 #if DW1000_PLEN == DWT_PLEN_64 || DW1000_PLEN == DWT_PLEN_128 || \
     DW1000_PLEN == DWT_PLEN_256 || DW1000_PLEN == DWT_PLEN_512
 #warning "PLEN >=1024 is recommended for NLOS optimization."
