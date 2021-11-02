@@ -89,6 +89,8 @@ linkaddr_t anchors[] = { // responders (a node can be both a tag and an anchor)
 
 #define PRINT_RXDIAG 1          // 1 = enable printing RX diagnostics
 
+#define CLOCK_TRIMMING 0        // adjust clock frequency to match the master tag's
+
 /*--------------------------------------------------------------------------*/
 #if ACQUIRE_CIR
 #define MAX_PRINTING_TIME (CLOCK_SECOND / 20)     // estimated time needed to print a full CIR (depends on the platform)
@@ -354,6 +356,9 @@ bc_recv(struct broadcast_conn *c, const linkaddr_t *from)
   bool found_myself = false;
 
   if(linkaddr_cmp(&master_tag, from)) {
+#if CLOCK_TRIMMING
+    dw1000_trim();
+#endif
     uint8_t* bc_data = packetbuf_dataptr();
     memcpy(&seqn, bc_data, sizeof(seqn));
     uint32_t max_duration;
