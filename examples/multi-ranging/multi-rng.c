@@ -48,50 +48,50 @@
 #include "dw1000-config.h"
 #include "core/net/linkaddr.h"
 /*--------------------------------------------------------------------------*/
-#define DEBUG 1
+#define DEBUG 0
 #if DEBUG
 #define PRINTF(...) printf(__VA_ARGS__)
 #else
 #define PRINTF(...) do {} while(0)
 #endif
 
-/*-- Configuration ----------------------------------------------------------*/
-linkaddr_t master_tag = {{0x18, 0x32}}; // 11 // orchestrates other tags
+/*-- Nodes -----------------------------------------------------------------*/
+
+linkaddr_t master_tag = {{0x10, 0x2e}}; // orchestrates other tags 
 linkaddr_t other_tags[] = { // tags, wait for the schedule from the master (may be empty)
+  // e.g., {{0x10, 0x38}},
 }; 
 linkaddr_t anchors[] = { // responders (a node can be both a tag and an anchor)
-  {{0x10, 0x89}}, // 8
-  {{0x11, 0x4a}}, // 9
-  {{0xc8, 0x0c}}, // 10
-  {{0x18, 0x32}}, // 11
-  {{0x17, 0x93}}, // 12
-  {{0x02, 0xd8}}, // 13
-  {{0xca, 0x99}}, // 14
-  {{0x14, 0x53}}, // 15
-  {{0x51, 0x08}}, // 16
-  {{0x15, 0x81}}, // 17
-  //{{0xaa, 0xaa}}, // invalid node for debugging
+  // e.g., {{0x4c, 0x07}},
 };
-#define RANGING_STYLE  DW1000_RNG_SS     // single- or double-sided (DW1000_RNG_DS)
-#define ROUND_PERIOD   (CLOCK_SECOND*1)  // period of multi-ranging
 
-#define ACQUIRE_CIR 0           // 1 = enable CIR acquisition
+/*-- Configuration ---------------------------------------------------------*/
+
+/* Ranging style and frequency */
+#define RANGING_STYLE  DW1000_RNG_SS      // single- or double-sided (DW1000_RNG_DS)
+#define ROUND_PERIOD   (CLOCK_SECOND/10)  // period of multi-ranging
+
+/* Option to read and print CIR */
+#define ACQUIRE_CIR 0                     // 1 = enable CIR acquisition
 
 /* Acquire CIR samples around the first path index */
 #define CIR_IDX_MODE DW1000_CIR_IDX_RELATIVE
 #define CIR_IDX_START (-16)
-#define CIR_MAX_SAMPLES 128 // number of CIR samples to acquire
+#define CIR_MAX_SAMPLES 128               // number of CIR samples to acquire
 
 /* Acquire CIR samples starting from arbitrary index */
 //#define CIR_IDX_MODE DW1000_CIR_IDX_ABSOLUTE
 //#define CIR_IDX_START 0
 //#define CIR_MAX_SAMPLES DW1000_CIR_MAX_LEN // number of CIR samples to acquire
 
-#define PRINT_RXDIAG 1          // 1 = enable printing RX diagnostics
+/* Print RX diagnostics (such as RX power and noise) */
+#define PRINT_RXDIAG 0                    // 1 = enable printing RX diagnostics
 
-#define CLOCK_TRIMMING 0        // adjust clock frequency to match the master tag's
+/* Print no extra information together with distance estimation */
+#define PRINT_MINIMAL 1                   // minimal ranging output (timestamp and distance)
 
-/*--------------------------------------------------------------------------*/
+/*-- Printing time settings ------------------------------------------------*/
+
 #if ACQUIRE_CIR
 #define MAX_PRINTING_TIME (CLOCK_SECOND / 20)     // estimated time needed to print a full CIR (depends on the platform)
 #define CIR_DUMP_DELAY    (CLOCK_SECOND / 200)    // a delay inserted after printing CIR to let the USB buffer get emptied
@@ -100,9 +100,11 @@ linkaddr_t anchors[] = { // responders (a node can be both a tag and an anchor)
 //#define MAX_PRINTING_TIME (CLOCK_SECOND / 100)    // choose this instead if using serial output
 #define CIR_DUMP_DELAY 0
 #endif
-/*--------------------------------------------------------------------------*/
+
+/*-- Derived definitions (do not modify) -----------------------------------*/
+
 #define INIT_GUARD 2 // leave one-two ticks between the command tx/rx and the first ranging slot
-#define RANGING_GAP 2 // leave one-two ticks between consecutive rangings
+#define RANGING_GAP 0 // leave one-two ticks between consecutive rangings
 #if RANGING_STYLE == DW1000_RNG_SS
 #define RANGING_TIME (CLOCK_SECOND / 1000)  // time allocated for a single TWR
 #else
@@ -116,7 +118,7 @@ linkaddr_t anchors[] = { // responders (a node can be both a tag and an anchor)
 #define TOTAL_ROUND_DURATION (TAG_SLOT_DURATION*(NUM_OTHER_TAGS+1) + INIT_GUARD)
 
 // sanity check that there is enough time for ranging
-_Static_assert (ROUND_PERIOD > TOTAL_ROUND_DURATION + CLOCK_SECOND/100, 
+_Static_assert (ROUND_PERIOD > TOTAL_ROUND_DURATION + CLOCK_SECOND/200, 
                 "Not enough time for ranging");
 
 /*--------------------------------------------------------------------------*/
@@ -124,7 +126,6 @@ _Static_assert (ROUND_PERIOD > TOTAL_ROUND_DURATION + CLOCK_SECOND/100,
 #define ROLE_TAG 2
 #define ROLE_ANCHOR 3
 /*--------------------------------------------------------------------------*/
-
 #if ACQUIRE_CIR
 dw1000_cir_sample_t cir_buf[CIR_MAX_SAMPLES+1]; // +1 is required!
 #endif
@@ -145,7 +146,7 @@ print_rxdiag(const dwt_rxdiag_t *d, const dw1000_rxpwr_t *p) {
   );
 }
 #endif
-
+/*--------------------------------------------------------------------------*/
 PROCESS(ranging_process, "Ranging process");
 AUTOSTART_PROCESSES(&ranging_process);
 /*--------------------------------------------------------------------------*/
@@ -246,7 +247,11 @@ PROCESS_THREAD(ranging_process, ev, data)
       for(i=0; i<NUM_ANCHORS; i++) {
         static linkaddr_t dst;
         dst = anchors[i];
+
+        /* Skip self if the node is both tag and anchor */
         if(linkaddr_cmp(&linkaddr_node_addr, &dst)) continue;
+
+        /* Output ranging results */
         printf("RNG [%lu/%lums] %02x%02x->%02x%02x: ",
             seqn, (clock_time() * 1000UL / CLOCK_SECOND),
             linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
@@ -268,14 +273,19 @@ PROCESS_THREAD(ranging_process, ev, data)
           PROCESS_YIELD_UNTIL(ev == ranging_event);
           if(((ranging_data_t *)data)->status) {
             static ranging_data_t *d;
-            static dw1000_rxpwr_t rxpwr;
-
             d = data;
+#if !PRINT_MINIMAL || PRINT_RXDIAG
+            static dw1000_rxpwr_t rxpwr;
             dw1000_rxpwr(&rxpwr, &d->rxdiag, dw1000_get_current_cfg());
+#endif
+#if PRINT_MINIMAL
+            printf("%d\n", (int)(100*d->raw_distance));
+#else
             printf("SUCCESS %d bias %d fppwr %d rxpwr %d cifo %d\n",
                 (int)(100*d->raw_distance), (int)(100*d->distance),
                 (int)(1000*rxpwr.fp_pwr), (int)(1000*rxpwr.rx_pwr),
                 (int)(1000*d->clock_offset_ppm));
+#endif
 #if ACQUIRE_CIR
             uint16_t cir_start = cir_buf[0].u32;
             uint16_t cir_fp_int = d->rxdiag.firstPath >> 6;
