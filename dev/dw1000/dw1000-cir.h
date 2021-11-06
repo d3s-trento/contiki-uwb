@@ -61,11 +61,20 @@ typedef union dw1000_cir_sample
   } compl;
 } dw1000_cir_sample_t;
 
+/* Types for CIR amplitude */
+typedef enum
+{
+  DW1000_CIR_AMPL_POW_ALGORITH,
+  DW1000_CIR_AMPL_FAST_ALGORITH
+} dw1000_ampl_alg_t;
+typedef uint32_t dw1000_cir_ampl_t;
+
 #define DW1000_CIR_SAMPLE_SIZE (sizeof(dw1000_cir_sample_t))
 _Static_assert (DW1000_CIR_SAMPLE_SIZE == 4, "Wrong CIR sample size");
 
 /*---------------------------------------------------------------------------*/
 uint16_t dw1000_read_cir(uint16_t s1, uint16_t n_samples, dw1000_cir_sample_t* samples);
+void dw1000_get_cir_ampl(uint16_t n_samples, const dw1000_cir_sample_t* samples, dw1000_ampl_alg_t alg, dw1000_cir_ampl_t* ampls);
 uint16_t dw1000_print_cir_from_radio();
 uint16_t dw1000_print_cir_samples_from_radio(int16_t s1, uint16_t n_samples);
 /*---------------------------------------------------------------------------*/

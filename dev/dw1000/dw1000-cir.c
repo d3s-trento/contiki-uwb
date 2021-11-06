@@ -45,6 +45,8 @@
 #include "deca_regs.h"
 #include "deca_device_api.h"
 #include "watchdog.h"
+#include <math.h>
+#include <stdlib.h>
 /*---------------------------------------------------------------------------*/
 #if PRINTF_OVER_RTT
 #include "SEGGER_RTT.h"
@@ -53,16 +55,18 @@
 #endif
 #include <stdio.h>
 /*---------------------------------------------------------------------------*/
-
 #define LOG_LEVEL LOG_ERR
 #include "logging.h"
 /*---------------------------------------------------------------------------*/
+#define POW2(x) ((x)*(x))
 
+// magnitude of the complex CIR sample
+#define MAGSQ(x) (POW2(x.compl.real) + POW2(x.compl.imag))
+#define MAGSQ_FAST(x) (MAX(x.compl.real, x.compl.imag) + MIN(x.compl.real, x.compl.imag) / 4) // ABS!!!
+/*---------------------------------------------------------------------------*/
 #define SPI_READ_LIMIT 0 // on some platforms SPI cannot read all CIR at once. Zero means no limit.
 #define CIR_PRINT_STEP 128 // printing in small portions to avoid creating huge buffers
-
 /*---------------------------------------------------------------------------*/
-
 /* Read max n_samples samples from the CIR accumulator, starting at index s1.
  * Call after packet reception and before re-enabling listening.
  *
@@ -80,7 +84,8 @@
  * NB: the samples buffer must be big enough to contain n_samples+1 records. The CIR data starts
  *     at index 1 of the samples buffer.
  */
-uint16_t dw1000_read_cir(uint16_t s1, uint16_t n_samples, dw1000_cir_sample_t* samples) {
+uint16_t
+dw1000_read_cir(uint16_t s1, uint16_t n_samples, dw1000_cir_sample_t* samples) {
   uint16_t max_samples = (dw1000_get_current_cfg()->prf == DWT_PRF_64M) ? 
                            DW1000_CIR_LEN_PRF64 : 
                            DW1000_CIR_LEN_PRF16;
@@ -125,7 +130,41 @@ uint16_t dw1000_read_cir(uint16_t s1, uint16_t n_samples, dw1000_cir_sample_t* s
 
   return n_samples;
 }
-
+/*---------------------------------------------------------------------------*/
+/* Compute CIR amplitude using either a precise or fast algorithm. 
+ *
+ * Params
+ * - n_samples [in]        number of samples to convert
+ * - samples [in]          samples to convert to amplitudes
+ * - alg [in]              DW1000_CIR_AMPL_POW_ALGORITH or DW1000_CIR_AMPL_FAST_ALGORITH
+ * - ampls [out]           CIR amplitudes (required size: n_samples)
+ */
+void
+dw1000_get_cir_ampl(uint16_t n_samples, const dw1000_cir_sample_t* samples, dw1000_ampl_alg_t alg, dw1000_cir_ampl_t* ampls)
+{
+  dw1000_cir_sample_t x;
+  if(alg == DW1000_CIR_AMPL_POW_ALGORITH) {
+    for(int i=0; i<n_samples; i++) {
+      x = samples[i];
+      ampls[i] = sqrt(POW2(x.compl.real) + POW2(x.compl.imag));
+    }
+  }
+  else if(alg == DW1000_CIR_AMPL_FAST_ALGORITH) {
+    dw1000_cir_sample_t x_abs;
+    for(int i=0; i<n_samples; i++) {
+      x = samples[i];
+      x_abs.compl.real = abs(x.compl.real);
+      x_abs.compl.imag = abs(x.compl.imag);
+      ampls[i] = MAX(x_abs.compl.real, x_abs.compl.imag) 
+                 + MIN(x_abs.compl.real, x_abs.compl.imag) / 4;
+    }
+  }
+  else {
+    ERR("Invalid amplitude algorithm");
+    return;
+  }
+}
+/*---------------------------------------------------------------------------*/
 /* Print max n_samples samples from the CIR accumulator, starting at index s1.
  * Call after packet reception and before re-enabling listening.
  *
@@ -135,7 +174,8 @@ uint16_t dw1000_read_cir(uint16_t s1, uint16_t n_samples, dw1000_cir_sample_t* s
  *
  * Returns the actual number of samples printed.
  */
-uint16_t dw1000_print_cir_samples_from_radio(int16_t s1, uint16_t n_samples) {
+uint16_t
+dw1000_print_cir_samples_from_radio(int16_t s1, uint16_t n_samples) {
   uint8_t buf[CIR_PRINT_STEP + 1];
   uint16_t max_samples = (dw1000_get_current_cfg()->prf == DWT_PRF_64M) ? 
                            DW1000_CIR_LEN_PRF64 : 
@@ -178,7 +218,7 @@ uint16_t dw1000_print_cir_samples_from_radio(int16_t s1, uint16_t n_samples) {
   printf("\n");
   return n_samples;
 }
-
+/*---------------------------------------------------------------------------*/
 /* Print whole CIR. Call after packet reception and before re-enabling listening.
  *
  * Returns the actual number of samples printed.
@@ -187,7 +227,7 @@ uint16_t dw1000_print_cir_from_radio() {
   // print all from the beginning
   return dw1000_print_cir_samples_from_radio(0, DW1000_CIR_MAX_LEN);
 }
-
+/*---------------------------------------------------------------------------*/
 /* Print CIR buffer in hex.
  *
  * NB! This is a blocking function. If USB output is used, it will block
@@ -250,3 +290,4 @@ void dw1000_print_cir_hex(dw1000_cir_sample_t* cir, uint16_t n_samples) {
   printf("\n");
 #endif
 }
+/*---------------------------------------------------------------------------*/

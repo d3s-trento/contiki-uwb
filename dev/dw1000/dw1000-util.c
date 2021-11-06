@@ -45,9 +45,6 @@
 #include <math.h>
 /*---------------------------------------------------------------------------*/
 #define POW2(x) ((x)*(x))
-
-// Compute the square of the magnitude of the complex CIR sample
-#define MAGSQ(x) (POW2(x.compl.real) + POW2(x.compl.imag))
 /*---------------------------------------------------------------------------*/
 static double cfo_jitter_guard = DW1000_CFO_JITTER_GUARD;
 /*---------------------------------------------------------------------------*/
@@ -237,7 +234,8 @@ dw1000_trim() {
  *
  * False is returned if power levels could not be computed.
  */
-bool dw1000_rxpwr(dw1000_rxpwr_t *d, const dwt_rxdiag_t* rxdiag, const dwt_config_t* config) {
+bool
+dw1000_rxpwr(dw1000_rxpwr_t *d, const dwt_rxdiag_t* rxdiag, const dwt_config_t* config) {
 
   /* Compute corrected preamble counter (used for CIR power adjustment) */
   int16_t corrected_pac;
@@ -278,12 +276,15 @@ bool dw1000_rxpwr(dw1000_rxpwr_t *d, const dwt_rxdiag_t* rxdiag, const dwt_confi
  * Params:
  *  - d [out]         results are stored in the dw1000_nlos_t structure.
  *  - rxdiag [in]     diagnostics for the acquired signal.
- *  - samples [in]    the CIR window to search for undetected paths.
+ *  - ampls [in]      the amplitudes of the CIR window to search for
+ *                    undetected paths. They can be obtained from
+ *                    dw1000_cir_ampl().
  *                    The window must precede the detected first path.
- *  - n_samples [in]  length of the CIR window.
- *                    The recommended number of samples is 16.
+ *  - n_ampls [in]    length of the CIR window.
+ *                    The recommended number of amplitude samples is 16.
  */
-void dw1000_nlos(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag, const dw1000_cir_sample_t* samples, uint16_t n_samples) {
+void
+dw1000_nlos(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag, const dw1000_cir_ampl_t* ampls, uint16_t n_ampls) {
 
   /* --- Step 1: extract NLOS probability based on the distance between the first path and peak path indexes */
 
@@ -314,21 +315,21 @@ void dw1000_nlos(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag, const dw1000_cir_
   /* Count the number of candidate undetected paths in the CIR window;
    * if the CIR was not provided, skip this search */
   d->num_early_peaks = 0;
-  if(samples != NULL && n_samples > 2) {
+  if(ampls != NULL && n_ampls > 2) {
     double ampl_prev, ampl, ampl_next;
 
     /* Start by computing the magnitude of the first CIR sample */
-    ampl      = sqrt(MAGSQ(samples[0]));
-    ampl_next = sqrt(MAGSQ(samples[1]));
+    ampl      = ampls[0];
+    ampl_next = ampls[1];
 
     /* Check all samples in the window, three-by-three, to detect peaks */
-    for(int n=2; n<n_samples; n++) {
+    for(int n=2; n<n_ampls; n++) {
 
       /* Extract the magnitudes of the CIR for the previous CIR
        * sample, the current one and the next one */
       ampl_prev = ampl;
       ampl = ampl_next;
-      ampl_next = sqrt(MAGSQ(samples[n]));
+      ampl_next = ampls[n];
 
       /* Identify a candidate peak when the magnitude first rises
        * above the new noise level, and then decreases */
@@ -338,7 +339,7 @@ void dw1000_nlos(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag, const dw1000_cir_
     }
 
     /* The likelihood depends on the number of candidate early paths vs the window size */
-    d->luep = (double)(d->num_early_peaks * 2) / (n_samples - 1);
+    d->luep = (double)(d->num_early_peaks * 2) / (n_ampls - 1);
   }
   else {
     d->luep = 0;

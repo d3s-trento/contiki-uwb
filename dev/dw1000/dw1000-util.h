@@ -107,12 +107,14 @@ bool dw1000_rxpwr(dw1000_rxpwr_t *d, const dwt_rxdiag_t* rxdiag, const dwt_confi
  * Params:
  *  - d [out]         results are stored in the dw1000_nlos_t structure.
  *  - rxdiag [in]     diagnostics for the acquired signal.
- *  - samples [in]    the CIR window to search for undetected paths.
+ *  - ampls [in]      the amplitudes of the CIR window to search for
+ *                    undetected paths. They can be obtained from
+ *                    dw1000_cir_ampl().
  *                    The window must precede the detected first path.
- *  - n_samples [in]  length of the CIR window.
- *                    The recommended number of samples is 16.
+ *  - n_ampls [in]    length of the CIR window.
+ *                    The recommended number of amplitude samples is 16.
  */
-void dw1000_nlos(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag, const dw1000_cir_sample_t* samples, uint16_t n_samples);
+void dw1000_nlos(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag, const dw1000_cir_ampl_t* ampls, uint16_t n_ampls);
 
 /*---------------------------------------------------------------------------*/
 #endif //DW1000_UTIL_H_
