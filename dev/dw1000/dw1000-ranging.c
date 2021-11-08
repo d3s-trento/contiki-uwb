@@ -254,20 +254,6 @@ const static ranging_conf_t ranging_conf_6M8 = {
 };
 #endif
 
-const static ranging_conf_t ranging_conf_850K = {
-/* SS and DS timeouts */
-  .a = 1500,
-  .rx_dly_a = 0,
-  .to_a = 2000,
-
-/* DS timeouts */
-  .b = 1500,
-  .rx_dly_b = 0,
-  .to_b = 3000,
-  .to_c = 2500,
-};
-
-
 const static ranging_conf_t ranging_conf_110K = {
 /* SS and DS timeouts */
   .a = 3000,
@@ -281,7 +267,6 @@ const static ranging_conf_t ranging_conf_110K = {
   .to_c = 3500, /* 3000 kind of works, too */
 };
 
-
 static ranging_conf_t ranging_conf;
 
 /* Update ranging delays based on current radio config */
@@ -289,9 +274,6 @@ static inline void update_ranging_conf(void) {
   switch(dw1000_cached_config.cfg.dataRate) {
   case DWT_BR_6M8:
     ranging_conf = ranging_conf_6M8;
-    break;
-  case DWT_BR_850K:
-    ranging_conf = ranging_conf_850K;
     break;
   case DWT_BR_110K:
     ranging_conf = ranging_conf_110K;
