@@ -143,13 +143,13 @@ void
 dw1000_get_cir_ampl(uint16_t n_samples, const dw1000_cir_sample_t* samples, dw1000_ampl_alg_t alg, dw1000_cir_ampl_t* ampls)
 {
   dw1000_cir_sample_t x;
-  if(alg == DW1000_CIR_AMPL_POW_ALGORITH) {
+  if(alg == DW1000_CIR_AMPL_POW_ALGORITHM) {
     for(int i=0; i<n_samples; i++) {
       x = samples[i];
       ampls[i] = sqrt(POW2(x.compl.real) + POW2(x.compl.imag));
     }
   }
-  else if(alg == DW1000_CIR_AMPL_FAST_ALGORITH) {
+  else if(alg == DW1000_CIR_AMPL_FAST_ALGORITHM) {
     dw1000_cir_sample_t x_abs;
     for(int i=0; i<n_samples; i++) {
       x = samples[i];

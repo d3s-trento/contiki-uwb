@@ -64,8 +64,8 @@ typedef union dw1000_cir_sample
 /* Types for CIR amplitude */
 typedef enum
 {
-  DW1000_CIR_AMPL_POW_ALGORITH,
-  DW1000_CIR_AMPL_FAST_ALGORITH
+  DW1000_CIR_AMPL_POW_ALGORITHM,
+  DW1000_CIR_AMPL_FAST_ALGORITHM
 } dw1000_ampl_alg_t;
 typedef uint32_t dw1000_cir_ampl_t;
 
