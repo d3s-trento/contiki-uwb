@@ -65,6 +65,10 @@ uint32_t dw1000_estimate_tx_time(const dwt_config_t* dwt_config, uint16_t framel
  */
 void dw1000_set_cfo_jitter_guard(double ppm);
 
+/* Change the wanted CFO for best trim code computation.
+ */
+void dw1000_set_cfo_wanted(double ppm);
+
 /* Returns the multiplier to convert the carrier integrator value to PPM,
  * for the given radio configuration (namely channel and datarate).
  */

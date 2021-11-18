@@ -47,6 +47,7 @@
 #define POW2(x) ((x)*(x))
 /*---------------------------------------------------------------------------*/
 static double cfo_jitter_guard = DW1000_CFO_JITTER_GUARD;
+static double cfo_wanted = DW1000_CFO_WANTED;
 /*---------------------------------------------------------------------------*/
 /**
  * Estimate the transmission time of a frame in nanoseconds
@@ -187,6 +188,12 @@ dw1000_set_cfo_jitter_guard(double ppm)
     cfo_jitter_guard = ppm;
 }
 /*---------------------------------------------------------------------------*/
+void
+dw1000_set_cfo_wanted(double ppm)
+{
+    cfo_wanted = ppm;
+}
+/*---------------------------------------------------------------------------*/
 uint8_t
 dw1000_get_best_trim_code(double curr_offset_ppm, uint8_t curr_trim)
 {
@@ -195,7 +202,7 @@ dw1000_get_best_trim_code(double curr_offset_ppm, uint8_t curr_trim)
         ) {
         // estimate in PPM
         int8_t trim_adjust = (int8_t)round(
-          (double)(DW1000_CFO_WANTED + curr_offset_ppm)
+          (cfo_wanted + curr_offset_ppm)
           / (double)DW1000_CFO_PPM_PER_TRIM);
         // printf("ppm %d guard %d trim %u adj %d\n",
         //   (int)(curr_offset_ppm * 1000), (int)(cfo_jitter_guard * 1000),
@@ -272,7 +279,7 @@ dw1000_rxpwr(dw1000_rxpwr_t *d, const dwt_rxdiag_t* rxdiag, const dwt_config_t* 
 /* Estimates the probability that the received signal is affected by NLOS,
  * based on the analysis of DW1000 diagnostics data. The methodology is
  * inspired by DecaWave's "APS006 PART 3 APPLICATION NOTE -
- * DW1000 Metrics for Estimation of Non Line Of SightOperating Conditions".
+ * DW1000 Metrics for Estimation of Non Line Of Sight Operating Conditions".
  * Params:
  *  - d [out]         results are stored in the dw1000_nlos_t structure.
  *  - rxdiag [in]     diagnostics for the acquired signal.
