@@ -213,12 +213,12 @@ dw1000_get_best_trim_code(double curr_offset_ppm, uint8_t curr_trim, uint8_t max
       else if(trim_adjust < -max_adjust) trim_adjust = -max_adjust;
     }
 
-    printf("RST cfo %d/%d grd %d cur %u adj %d\n",
-           (int)(curr_offset_ppm * 1000),
-           (int)((cfo_wanted + curr_offset_ppm) * 1000),
-           (int)(cfo_jitter_guard * 1000),
-           (unsigned int)curr_trim,
-           (int)trim_adjust);
+    // printf("RST cfo %d/%d grd %d cur %u adj %d\n",
+    //        (int)(curr_offset_ppm * 1000),
+    //        (int)((cfo_wanted + curr_offset_ppm) * 1000),
+    //        (int)(cfo_jitter_guard * 1000),
+    //        (unsigned int)curr_trim,
+    //        (int)trim_adjust);
 
     /* Compute the resulting trim code and check its validity */
     curr_trim -= trim_adjust;
