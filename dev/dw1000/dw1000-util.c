@@ -195,34 +195,55 @@ dw1000_set_cfo_wanted(double ppm)
 }
 /*---------------------------------------------------------------------------*/
 uint8_t
-dw1000_get_best_trim_code(double curr_offset_ppm, uint8_t curr_trim)
+dw1000_get_best_trim_code(double curr_offset_ppm, uint8_t curr_trim, uint8_t max_adjust)
 {
-    if (curr_offset_ppm > DW1000_CFO_PPM_PER_TRIM/2+cfo_jitter_guard ||
-        curr_offset_ppm < -DW1000_CFO_PPM_PER_TRIM/2-cfo_jitter_guard
-        ) {
-        // estimate in PPM
-        int8_t trim_adjust = (int8_t)round(
-          (cfo_wanted + curr_offset_ppm)
-          / (double)DW1000_CFO_PPM_PER_TRIM);
-        // printf("ppm %d guard %d trim %u adj %d\n",
-        //   (int)(curr_offset_ppm * 1000), (int)(cfo_jitter_guard * 1000),
-        //   (unsigned int)curr_trim, (int)trim_adjust);
-        curr_trim -= trim_adjust;
+  /* Check whether the CFO can be reduced */
+  if(curr_offset_ppm > DW1000_CFO_PPM_PER_TRIM/2+cfo_jitter_guard ||
+     curr_offset_ppm < -DW1000_CFO_PPM_PER_TRIM/2-cfo_jitter_guard) {
 
-        if (curr_trim < 1)
-            curr_trim = 1;
-        else if (curr_trim > 31)
-            curr_trim = 31;
+    /* Compute trim code adjustment */
+    int8_t trim_adjust = (int8_t)round(
+      (double)(cfo_wanted + curr_offset_ppm)
+      // (double)(DW1000_CFO_WANTED + curr_offset_ppm)
+      / (double)DW1000_CFO_PPM_PER_TRIM);
+
+    /* Maximum trim correction */
+    if(max_adjust > 0) {
+      if(trim_adjust > max_adjust) trim_adjust = max_adjust;
+      else if(trim_adjust < -max_adjust) trim_adjust = -max_adjust;
     }
-    return curr_trim;
+
+    printf("RST cfo %d/%d grd %d cur %u adj %d\n",
+           (int)(curr_offset_ppm * 1000),
+           (int)((cfo_wanted + curr_offset_ppm) * 1000),
+           (int)(cfo_jitter_guard * 1000),
+           (unsigned int)curr_trim,
+           (int)trim_adjust);
+
+    /* Compute the resulting trim code and check its validity */
+    curr_trim -= trim_adjust;
+    if(curr_trim < 1) curr_trim = 1;
+    else if(curr_trim > 31) curr_trim = 31;
+  }
+  return curr_trim;
 }
 /*--------------------------------------------------------------------------*/
-/* Trim crystal frequency to reduce CFO wrt the last frame received */
+/* Trim crystal frequency to reduce CFO wrt the last frame received;
+ * computes the current ppm offset locally. */
 bool
 dw1000_trim() {
   double ppm_offset = dw1000_get_ppm_offset(dw1000_get_current_cfg());
+  return dw1000_trim_ppm(ppm_offset, 0);
+}
+/*--------------------------------------------------------------------------*/
+/* Trim crystal frequency to reduce CFO wrt the last frame received.
+ * Specify max_adjust to avoid swinging clock frequency too quickly.
+ * max_adjust 0 allows any trim adjustment value. */
+bool
+dw1000_trim_ppm(double curr_offset_ppm, uint8_t max_adjust) {
   uint8_t current_trim_code = dwt_getxtaltrim();
-  uint8_t new_trim_code = dw1000_get_best_trim_code(ppm_offset, current_trim_code);
+  uint8_t new_trim_code = dw1000_get_best_trim_code(
+    curr_offset_ppm, current_trim_code, max_adjust);
   if(new_trim_code != current_trim_code) {
     dw1000_spi_set_slow_rate();
     dwt_setxtaltrim(new_trim_code);

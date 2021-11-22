@@ -83,15 +83,29 @@ double dw1000_get_hz2ppm_multiplier(const dwt_config_t *dwt_config);
 double dw1000_get_ppm_offset(const dwt_config_t *dwt_config);
 
 /* Returns the XTAL trim value that best compensates the frequency offset.
- *
+ * Specify max_adjust to avoid swinging clock frequency too quickly.
+ * max_adjust 0 allows any trim adjustment value.
+ * 
  * Params:
  *  - curr_offset_ppm  current frequency offset
  *  - curr_trim        current trim values
+ *  - max_adjust       max trim steps (0 for no maximum)
  */
-uint8_t dw1000_get_best_trim_code(double curr_offset_ppm, uint8_t curr_trim);
+uint8_t dw1000_get_best_trim_code(double curr_offset_ppm, uint8_t curr_trim, uint8_t max_adjust);
 
-/* Trim crystal frequency to reduce CFO wrt the last frame received */
+/* Trim crystal frequency to reduce CFO wrt the last frame received;
+ * computes the current ppm offset locally. */
 bool dw1000_trim();
+
+/* Trim crystal frequency to reduce CFO wrt the last frame received.
+ * Specify max_adjust to avoid swinging clock frequency too quickly.
+ * max_adjust 0 allows any trim adjustment value.
+ *
+ * Params:
+ *  - ppm_offset       current frequency offset
+ *  - max_adjust       max trim steps (0 for no maximum)
+ */
+bool dw1000_trim_ppm(double curr_offset_ppm, uint8_t max_adjust);
 
 /* Compute the received signal power levels for the first path and for the
  * overall transmission according to the DW1000 User Manual (4.7.1 "Estimating
