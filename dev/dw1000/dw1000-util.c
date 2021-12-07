@@ -238,8 +238,9 @@ dw1000_trim() {
 /*--------------------------------------------------------------------------*/
 /* Trim crystal frequency to reduce CFO wrt the last frame received.
  * Specify max_adjust to avoid swinging clock frequency too quickly.
- * max_adjust 0 allows any trim adjustment value. */
-bool
+ * max_adjust 0 allows any trim adjustment value.
+ * Returns the new trim code, or 0 if no trimming occurred. */
+uint8_t
 dw1000_trim_ppm(double curr_offset_ppm, uint8_t max_adjust) {
   uint8_t current_trim_code = dwt_getxtaltrim();
   uint8_t new_trim_code = dw1000_get_best_trim_code(
@@ -248,7 +249,7 @@ dw1000_trim_ppm(double curr_offset_ppm, uint8_t max_adjust) {
     dw1000_spi_set_slow_rate();
     dwt_setxtaltrim(new_trim_code);
     dw1000_spi_set_fast_rate();
-    return 1;
+    return new_trim_code;
   }
   return 0;
 }
