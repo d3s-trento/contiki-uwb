@@ -57,12 +57,13 @@
 
 /*-- Nodes -----------------------------------------------------------------*/
 
-linkaddr_t master_tag = {{0x10, 0x2e}}; // orchestrates other tags 
+linkaddr_t master_tag = {{0x53, 0x2e}}; // orchestrates other tags 
 linkaddr_t other_tags[] = { // tags, wait for the schedule from the master (may be empty)
   // e.g., {{0x10, 0x38}},
 }; 
 linkaddr_t anchors[] = { // responders (a node can be both a tag and an anchor)
   // e.g., {{0x4c, 0x07}},
+  {{0x1b, 0xa5}}
 };
 
 /*-- Configuration ---------------------------------------------------------*/
@@ -84,11 +85,14 @@ linkaddr_t anchors[] = { // responders (a node can be both a tag and an anchor)
 //#define CIR_IDX_START 0
 //#define CIR_MAX_SAMPLES DW1000_CIR_MAX_LEN // number of CIR samples to acquire
 
+/* Print raw timestamps (can be used for one-way ranging analysis) */
+#define PRINT_TIMESTAMPS 1                // 1 = enable SS/DS timestamp printing
+
 /* Print RX diagnostics (such as RX power and noise) */
 #define PRINT_RXDIAG 0                    // 1 = enable printing RX diagnostics
 
-/* Print no extra information together with distance estimation */
-#define PRINT_MINIMAL 1                   // minimal ranging output (timestamp and distance)
+/* Print no extra information (disable all other printing options to reduce print time) */
+#define PRINT_MINIMAL 0                   // 1 = minimal ranging output (raw distance only)
 
 /*-- Printing time settings ------------------------------------------------*/
 
@@ -285,6 +289,15 @@ PROCESS_THREAD(ranging_process, ev, data)
                 (int)(100*d->raw_distance), (int)(100*d->distance),
                 (int)(1000*rxpwr.fp_pwr), (int)(1000*rxpwr.rx_pwr),
                 (int)(1000*d->clock_offset_ppm));
+#endif
+#if PRINT_TIMESTAMPS
+            printf("TS [%lu] %02x%02x->%02x%02x: %lu %lu %lu %lu %lu %lu\n",
+                seqn,
+                linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
+                dst.u8[0], dst.u8[1],
+                d->poll_tx_ts, d->poll_rx_ts,
+                d->resp_tx_ts, d->resp_rx_ts,
+                d->ds_final_tx_ts, d->ds_final_rx_ts);
 #endif
 #if ACQUIRE_CIR
             uint16_t cir_start = cir_buf[0].u32;

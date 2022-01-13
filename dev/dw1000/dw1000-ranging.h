@@ -60,7 +60,6 @@
 #define DW1000_EXTREME_RNG_TIMING 0
 #endif
 
-
 /* A flag indicating that the CIR index is provided as relative w.r.t. 
  * the first path index.*/
 #define DW1000_CIR_IDX_RELATIVE 0
@@ -94,6 +93,10 @@ typedef struct {
   double raw_distance;
   double clock_offset_ppm;
   dwt_rxdiag_t rxdiag;
+  
+  /* Raw timestamps */
+  uint32_t poll_tx_ts, resp_rx_ts, poll_rx_ts, resp_tx_ts;
+  uint32_t ds_final_tx_ts, ds_final_rx_ts;  /* For Double-sided */
 } ranging_data_t;
 
 /*---------------------------------------------------------------------------*/

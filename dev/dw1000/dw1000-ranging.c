@@ -911,8 +911,20 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
 
       if(rng_type == DW1000_RNG_SS) {
         tof = ss_tof_calc();
+        ranging_data.poll_tx_ts = ss_poll_tx_ts;
+        ranging_data.resp_rx_ts = ss_resp_rx_ts;
+        ranging_data.poll_rx_ts = ss_poll_rx_ts;
+        ranging_data.resp_tx_ts = ss_resp_tx_ts;
+        ranging_data.ds_final_tx_ts = 0;
+        ranging_data.ds_final_rx_ts = 0;
       } else {
         tof = ds_tof_calc();
+        ranging_data.poll_tx_ts = ds_poll_tx_ts;
+        ranging_data.resp_rx_ts = ds_resp_rx_ts;
+        ranging_data.poll_rx_ts = ds_poll_rx_ts;
+        ranging_data.resp_tx_ts = ds_resp_tx_ts;
+        ranging_data.ds_final_tx_ts = ds_final_tx_ts;
+        ranging_data.ds_final_rx_ts = ds_final_rx_ts;
       }
 
       not_corrected = tof * SPEED_OF_LIGHT;
