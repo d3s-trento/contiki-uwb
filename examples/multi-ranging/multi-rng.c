@@ -57,13 +57,12 @@
 
 /*-- Nodes -----------------------------------------------------------------*/
 
-linkaddr_t master_tag = {{0x53, 0x2e}}; // orchestrates other tags 
+linkaddr_t master_tag = {{0x10, 0x2e}}; // orchestrates other tags 
 linkaddr_t other_tags[] = { // tags, wait for the schedule from the master (may be empty)
   // e.g., {{0x10, 0x38}},
 }; 
 linkaddr_t anchors[] = { // responders (a node can be both a tag and an anchor)
   // e.g., {{0x4c, 0x07}},
-  {{0x1b, 0xa5}}
 };
 
 /*-- Configuration ---------------------------------------------------------*/
