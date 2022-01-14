@@ -20,7 +20,7 @@ CFLAGS += -DPRINTF_OVER_RTT
 PRINTF_OVER_UART=0
 ${warning printf will use RTT}
 else
-PRINTF_OVER_UART=1
+PRINTF_OVER_UART ?= 1
 ${warning printf will use UART}
 endif
 
