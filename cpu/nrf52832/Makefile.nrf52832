@@ -133,13 +133,13 @@ SDK_INC_PATHS += external/fprintf
 SDK_INC_PATHS += integration/nrfx
 
 #source common to all targets
+#NOTE: nrfx_spi and nrfx_twim must be enabled explicitly
 SDK_SOURCE_FILES += modules/nrfx/mdk/system_nrf52.c
 SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_gpiote.c
 SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_rtc.c
 SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_timer.c
 SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_wdt.c
 SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_uart.c
-SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_spi.c
 SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_spim.c
 SDK_SOURCE_FILES += modules/nrfx/drivers/src/prs/nrfx_prs.c
 SDK_SOURCE_FILES += modules/nrfx/drivers/src/nrfx_uarte.c
