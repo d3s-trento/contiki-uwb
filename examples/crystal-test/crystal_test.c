@@ -1,7 +1,11 @@
 #include <stdio.h>
 
 #include "crystal_test.h"
-#include "crystal.h"
+#include "print-def.h"
+
+//#include "crystal.h"
+#include "crystal_tsm.h"
+
 #include "node-id.h"
 #include "etimer.h"
 
@@ -9,6 +13,8 @@
 
 #include "contiki.h"
 #include "deployment.h"
+
+#include "crystal_bitmap_mapping.h"
 
 static app_t_payload t_payload;
 static app_a_payload a_payload;
@@ -82,6 +88,33 @@ static inline void app_mark_acked() {
 #endif //LOGGING
 }
 
+// TODO: Check this
+bool app_is_originator() {
+  if (is_sink)
+    return false;
+
+  if (crystal_info.epoch < START_EPOCH)
+    return false;
+
+  int i;
+  int cur_idx = ((crystal_info.epoch - START_EPOCH) % NUM_ACTIVE_EPOCHS) * CONCURRENT_TXS;
+  for (i=0; i<CONCURRENT_TXS; i++) {
+      if (node_id == sndtbl[cur_idx + i]) {
+        return true;
+      }
+  }
+
+  return false;
+}
+
+bool app_has_packet() {
+  if (is_sink) {
+    return false;
+  }
+
+  return app_have_packet;
+}
+
 // Post-S phase Crystal callback
 void app_post_S(int received, uint8_t* payload) {
     if (is_sink)
@@ -113,7 +146,6 @@ void app_post_S(int received, uint8_t* payload) {
 uint8_t* app_pre_T() {
     if (app_have_packet) {
         t_payload.seqn = app_seqn;
-        t_payload.src  = node_id;
         crystal_app_log.send_seqn  = app_seqn;
         return (uint8_t*)&t_payload;
     }
@@ -121,41 +153,42 @@ uint8_t* app_pre_T() {
 }
 
 // Post-T, pre-A phase Crystal callback
-uint8_t* app_between_TA(int received, uint8_t* payload) {
+uint8_t* app_between_TA(int received, uint8_t* payload,  const crystal_data_hdr_t * const data_hdr) {
     if (received) {
         t_payload = *(app_t_payload*)payload;
 
-        crystal_app_log.recv_src  = t_payload.src;
+        crystal_app_log.recv_src  = data_hdr->src;
         crystal_app_log.recv_seqn = t_payload.seqn;
     }
     if (received && is_sink) {
         // fill in the ack payload
-        a_payload.src  = t_payload.src;
         a_payload.seqn = t_payload.seqn;
 
 #if LOGGING
+#pragma message "Logging active"
         if (n_pkt_recv < RECV_PACKET_NUM) {
-            in_packets[n_pkt_recv].src = t_payload.src;
+            in_packets[n_pkt_recv].src = data_hdr->src;
             in_packets[n_pkt_recv].seqn = t_payload.seqn;
             n_pkt_recv ++;
         }
+#else
+#pragma message "Logging NOT active"
 #endif
     }
     else {
         a_payload.seqn = NO_SEQN;
-        a_payload.src  = NO_NODE;
     }
     return (uint8_t*)&a_payload;
 }
 
 // Post-A phase Crystal callback
-void app_post_A(int received, uint8_t* payload) {
+void app_post_A(int received, uint8_t* payload, const crystal_ack_hdr_t * const ack_hdr) {
     // non-sink: if acked us, stop sending data
     crystal_app_log.acked = 0;
     if (app_have_packet && received) {
         a_payload = *(app_a_payload*)payload;
 
-        if ((a_payload.src == node_id) && (a_payload.seqn == app_seqn)) {
+        if ((ack_hdr->ack_bitmap & flag_node(0x0, node_id))) {
             crystal_app_log.acked = 1;
             app_mark_acked();
             if (n_pkt_sent < PACKETS_PER_EPOCH) {
@@ -171,7 +204,7 @@ void app_post_A(int received, uint8_t* payload) {
 // Called when Crystal goes to sleep (inactive portion of the epoch)
 void app_epoch_end() {
     // "wake up" the main process
-    process_post(&crystal_test, EPOCH_END_EV, NULL);
+    process_post_synch(&crystal_test, EPOCH_END_EV, NULL);
 }
 
 
@@ -204,7 +237,7 @@ PROCESS_THREAD(crystal_test, ev, data) {
     is_sink = node_id == SINK_ID;
 
     crystal_init();
-    crystal_slot_log_init();
+    //crystal_slot_log_init();
 #if CRYSTAL_DW1000 && STATETIME_CONF_ON
     crystal_statetime_log_init();
 #endif
@@ -234,15 +267,8 @@ PROCESS_THREAD(crystal_test, ev, data) {
         PROCESS_WAIT_EVENT();
         if (ev==EPOCH_END_EV) {
             int i;
-            crystal_print_epoch_logs();
 
-            // print and then reset
-            crystal_slot_log_print();
-            crystal_slot_log_init();
-#if CRYSTAL_DW1000 && STATETIME_CONF_ON
-            crystal_statetime_log_print();
-            crystal_statetime_log_init();
-#endif
+            printf("epoch end n_pkt %hu\n", n_pkt_recv);
 
             if (is_sink) {
                 for (i=0; i<n_pkt_recv; i++) {

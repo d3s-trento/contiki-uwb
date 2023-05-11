@@ -2,6 +2,8 @@
 #include <inttypes.h>
 #include <stdio.h>
 
+#include <stdint.h>
+
 #include "sys/node-id.h"
 #include "net/netstack.h"
 #include "deployment.h"
@@ -13,7 +15,7 @@
 unsigned short int node_id = 0;
 
 /* Number of nodes in the deployment table */
-extern const unsigned int deployment_num_nodes;
+extern const uint16_t deployment_num_nodes;
 
 /* Deployment table */
 extern const struct id_addr deployment_id_addr_list[];
@@ -51,7 +53,7 @@ void deployment_print_id_info(void)
 }
 
 bool deployment_get_addr_by_id(uint16_t node_id, linkaddr_t* addr) {
-  for (int i=0; i<deployment_num_nodes; i++) {
+  for (uint16_t i=0; i<deployment_num_nodes; i++) {
     if (deployment_id_addr_list[i].id == node_id) {
       // copy all 8 bytes if long addresses are used or only the last two bytes
       // for short addresses.

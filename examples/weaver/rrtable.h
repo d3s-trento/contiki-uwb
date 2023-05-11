@@ -70,6 +70,8 @@ bool rr_table_remove(rr_table_t* table, uint16_t originator_id);
 
 bool rr_table_contains(rr_table_t* table, uint16_t originator_id);
 
+bool rr_table_check_any_negative_deadline(const rr_table_t* table, int16_t current_slot);
+
 /** Return true if the table has no free entry left */
 bool rr_table_is_empty(rr_table_t* table);
 

@@ -18,4 +18,31 @@
 
 #define STATETIME_CONF_ON 1
 
+#define FS_MACROSLOT 3
+#define FS_MINISLOT (42)
+
+#define MAX_LATENCY_FS ((uint32_t)(564 * UUS_TO_DWT_TIME_32))
+#define SNIFF_FS_OFF_TIME (26)
+
+#if SNIFF_FS_OFF_TIME != 0
+#define SNIFF_FS (1)
+#else
+#define SNIFF_FS (0)
+#endif
+
+#define SLOT_DURATION (20 * UUS_TO_DWT_TIME_32)
+#define TIMEOUT (146 * UUS_TO_DWT_TIME_32)
+
+#define TSM_DEFAULT_MINISLOTS_GROUPING 28
+
+#define TSM_CONF_DEFAULT_RXGUARD (1*UUS_TO_DWT_TIME_32)
+
+#define TSM_LOGS_MAX 100
+
+#define GLOBAL_ACK_PERIOD 6
+
+#define WEAVER_LOG_VERBOSE 0
+
+#define WEAVER_BOOT_REDUNDANCY 2
+
 #endif /* PROJECT_CONF_H_ */

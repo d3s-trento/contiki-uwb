@@ -43,7 +43,16 @@
 #define LOG_PREFIX "E"  // epoch
 #include "logging.h"
 
+
+#include PROJECT_CONF_H
+#include "print-def.h"
+
+#ifndef WEAVER_LOGS_MAX
 #define WEAVER_LOGS_MAX 100
+#endif
+
+#pragma message STRDEF(WEAVER_LOGS_MAX)
+
 static weaver_log_t weaver_slot_logs[WEAVER_LOGS_MAX];
 static size_t next_log = 0;
 
@@ -86,7 +95,7 @@ weaver_log_print()
             default:
                 snprintf(stat_label, 2, "#");        // unknown (should not happen)
         }
-        printf(LOG_PREFIX " %u, I %"PRIi16", L %s, D %"PRIu8", S %"PRIu16", H %"PRIu16", A 0x%"PRIx64", B 0x%"PRIx64"\n",
+        printf(LOG_PREFIX "W %"PRIu32" %"PRIi16" %s %"PRIu8" %"PRIu16" %"PRIu16" 0x%"PRIx64" 0x%"PRIx64"\n",
                 logging_context, s->idx, stat_label, s->node_dist, s->originator_id, s->lhs, s->acked, s->buffer);
     }
 }

@@ -1,0 +1,59 @@
+#!/bin/python
+
+import argparse
+
+parser = argparse.ArgumentParser(
+        description='Show how the latency is distributed'
+)
+
+parser.add_argument('log', type=int, nargs='+',
+                    help='the id of the log to use')
+
+parser.add_argument('--no-slotCompensation', dest='slotCompensation', default=False, action='store_false', help='Compensate that some nodes might start before the slot')
+parser.add_argument('--slotCompensation',    dest='slotCompensation', default=False, action='store_true',  help='Compensate that some nodes might start before the slot')
+
+parser.add_argument('--no-synchFilter', dest='synchFilter', default=True, action='store_false', help='filter by only succesful synchs')
+parser.add_argument('--synchFilter', dest='synchFilter', default=True, action='store_true', help='filter by only succesful synchs')
+
+parser.add_argument('--no-epochFilter', dest='epochFilter', default=False, action='store_false', help='filter by epoch')
+parser.add_argument('--epochFilter',    dest='epochFilter', default=False, action='store_true',  help='filter by epoch')
+
+parser.add_argument('--no-cumulative', dest='cumulative', default=False, action='store_false', help='Show the density or the cumulative distribution')
+parser.add_argument('--cumulative',    dest='cumulative', default=False, action='store_true',  help='Show the density or the cumulative distribution')
+
+args = parser.parse_args()
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+import common as c
+
+for i in args.log:
+    data = c.compute_time_diff(c.get_event_data(i))
+    epochData = c.get_synch_data(i)
+
+    if args.epochFilter:
+        data = c.filter_by_epoch(data, 10, -10)
+
+    if args.synchFilter:
+        data = c.filter_by_complete_synch(data, epochData, 33)
+
+    fig,ax = plt.subplots(1,1)
+    ax.set_title(i)
+
+    if args.slotCompensation:
+        d = data.groupby('epoch')['diff'].max() - data.groupby('epoch').min()['diff'].apply(lambda x: min(0,x))
+    else:
+        d = data.groupby('epoch')['diff'].max()
+
+
+    ax.hist(d, bins=100, cumulative=args.cumulative)
+
+    for i in range(1,6):
+        p = (1 - 10**-i)*100
+        ax.axvline(x=np.percentile(d, p), color='red', linestyle='--', label=f'{p} percentile')
+        ax.annotate(p, textcoords='data', rotation=90, xy=(np.percentile(d, p), ax.get_ylim()[1]/2))
+
+    ax.legend()
+
+plt.show()

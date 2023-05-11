@@ -18,6 +18,44 @@ endif
 
 UWB_MODULES += core/net core/sys
 
+ifeq ($(UWB_WITH_TSM_GLOSSY),1)
+  ifeq ($(UWB_WITH_GLOSSY),1)
+    ${error only one of UWB_WITH_GLOSSY_TSM or UWB_WITH_GLOSSY can be enabled, not both}
+  endif
+
+  ifneq ($(UWB_WITH_TSM),1)
+    ${error To use tsm glossy you first need to enable TSM}
+  endif
+
+  CFLAGS += -DNETSTACK_CONF_WITH_GLOSSY=1
+  UWB_MODULES += dev/dw1000/glossy_tsm
+  CFLAGS+=-DNETSTACK_CONF_NETWORK=dummynet_driver
+  CONTIKI_WITH_IPV6 = 0
+  CONTIKI_WITH_RIME = 0
+	# CONTIKI_WITH_TREX = 0 # ?
+endif
+
+ifeq ($(UWB_WITH_TSM_CRYSTAL),1)
+  ifeq ($(UWB_WITH_GLOSSY),1)
+    ${error only one of UWB_WITH_GLOSSY_TSM or UWB_WITH_GLOSSY can be enabled, not both}
+  endif
+
+  ifneq ($(UWB_WITH_TSM),1)
+    ${error To use tsm glossy you first need to enable TSM}
+  endif
+
+  ifneq ($(UWB_WITH_TSM_GLOSSY),1)
+    ${error To use tsm crystal you first need to enable TSM glossy}
+  endif
+
+  CFLAGS += -DNETSTACK_CONF_WITH_GLOSSY=1
+  UWB_MODULES += dev/dw1000/crystal_tsm
+  CFLAGS+=-DNETSTACK_CONF_NETWORK=dummynet_driver
+  CONTIKI_WITH_IPV6 = 0
+  CONTIKI_WITH_RIME = 0
+	# CONTIKI_WITH_TREX = 0 # ?
+endif
+
 # If requested, include Glossy and Crystal and disable other stacks
 ifeq ($(UWB_WITH_GLOSSY),1)
   CFLAGS += -DNETSTACK_CONF_WITH_GLOSSY=1

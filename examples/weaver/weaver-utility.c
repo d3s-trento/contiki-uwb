@@ -57,7 +57,7 @@ print_bitmap(char *prefix, const size_t prefix_len, const uint64_t bitmap)
     size_t i = 0;
     if (prefix_len > 0) {
         prefix[prefix_len - 1] = '\0';
-        PRINTF("%s %u, ", prefix, logging_context);
+        PRINTF("%s %" PRIu32 ", ", prefix, logging_context);
     }
     for (; i < n_nodes_deployed; i++) {
         if ((bitmap & ((uint64_t) 1 << i)) > 0) {

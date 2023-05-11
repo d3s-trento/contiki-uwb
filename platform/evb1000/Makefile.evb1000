@@ -16,7 +16,7 @@ CONTIKI_TARGET_SOURCEFILES += dw1000-arch.c
 # Decawave Driver
 CONTIKIDIRS += $(UWB_CONTIKI)/dev/dw1000 $(UWB_CONTIKI)/dev/dw1000/decadriver
 CONTIKI_TARGET_SOURCEFILES += deca_device.c deca_params_init.c deca_range_tables.c
-CONTIKI_TARGET_SOURCEFILES += dw1000.c dw1000-ranging.c dw1000-config.c dw1000-util.c dw1000-cir.c dw1000-statetime.c
+CONTIKI_TARGET_SOURCEFILES += dw1000.c dw1000-ranging.c dw1000-config.c dw1000-util.c dw1000-cir.c dw1000-statetime.c evb1000-timer-mapping.c
 
 # USB
 CONTIKI_TARGET_SOURCEFILES += deca_usb.c deca_usb_bsp_evk1000.c usbd_desc.c usbd_usr.c
