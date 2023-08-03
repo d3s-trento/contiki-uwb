@@ -268,9 +268,35 @@ dw1000_rxpwr(dw1000_rxpwr_t *d, const dwt_rxdiag_t* rxdiag, const dwt_config_t* 
 
   /* Compute corrected preamble counter (used for CIR power adjustment) */
   int16_t corrected_pac;
+  int16_t sfd_correction;
   if(rxdiag->rxPreamCount == rxdiag->pacNonsat) {
     // NOTE this is only valid for standard SFDs!
-    int16_t sfd_correction = (config->dataRate == DWT_BR_110K) ? 64 : 5;
+    if(config->nsSFD)
+    {
+      if(config->dataRate == DWT_BR_110K)
+      {
+        sfd_correction = 82;
+      }
+      else if(config->dataRate == DWT_BR_850K)
+      {
+        sfd_correction = 18;
+      }
+      else
+      {
+        sfd_correction = 10;
+      }
+    }
+    else
+    {
+      if(config->dataRate == DWT_BR_110K)
+      {
+        sfd_correction = 64;
+      }
+      else
+      {
+        sfd_correction = 5;
+      }
+    }
     corrected_pac = rxdiag->rxPreamCount - sfd_correction;
   }
   else {
