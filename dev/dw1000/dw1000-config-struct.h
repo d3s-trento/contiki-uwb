@@ -15,6 +15,10 @@ struct dw1000_all_config {
   uint8_t lde_ntm;
   uint8_t lde_pmult;
   uint16_t lde_prf_tune;
+  bool nssfd;
+  bool custom_nssfd;
+  uint16_t nssfd_polarity;
+  uint16_t nssfd_magnitude;
 };
 
 #endif //DW1000_CONFIG_STRUCT_H

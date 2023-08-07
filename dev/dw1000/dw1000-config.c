@@ -130,6 +130,10 @@ dw1000_configure_ch(uint8_t chan, uint8_t txCode, uint8_t rxCode) {
     PRINTF("dwc: error. Channel configure requested while sleeping\n");
     return false;
   }
+  if (CUR_CFG.nssfd == 1) {
+    PRINTF("dwc: error. Channel configure does not support NSSFD\n");
+    return false;
+  }
   
   int8_t irq_status = dw1000_disable_interrupt();
 
@@ -182,6 +186,47 @@ dw1000_configure_ch(uint8_t chan, uint8_t txCode, uint8_t rxCode) {
   return true;
 }
 
+/* Configure the non-standard SFD
+ *
+ * Note that it turns the radio OFF and resets any requested/ongoing
+ * operation.
+ *
+ * If returns false, the radio configuration is undefined.
+ */
+bool
+dw1000_configure_nssfd(uint16_t polarities, uint16_t magnitudes) {
+  
+  if (dw1000_is_sleeping) {
+    PRINTF("dwc: error. NSSFD configure requested while sleeping\n");
+    return false;
+  }
+
+  if (CUR_CFG.cfg.dataRate == DWT_BR_110K) {
+    PRINTF("dwc: error. Data rate 110kbps does not support 16-symbol NSSFD\n");
+    return false;
+  }
+  
+  int8_t irq_status = dw1000_disable_interrupt();
+
+  /* Set SFD configuration to enable any custom 16-symbol SFD */
+  uint32_t regval = dwt_read32bitreg(CHAN_CTRL_ID);
+  regval &= ~CHAN_CTRL_DWSFD;
+  regval |= CHAN_CTRL_TNSSFD;
+  regval |= CHAN_CTRL_RNSSFD;
+  dwt_write32bitreg(CHAN_CTRL_ID, regval); // DWSFD 0, TNSSFD 1, RNSSFD 1
+  dwt_write8bitoffsetreg(USR_SFD_ID, 0, 16); // 16 symbols
+
+  /* Set the custom SFD */
+  CUR_CFG.nssfd = 1;
+  CUR_CFG.custom_nssfd = 1;
+  CUR_CFG.nssfd_polarity = polarities;
+  CUR_CFG.nssfd_magnitude = magnitudes;
+  dwt_write32bitoffsetreg(USR_SFD_ID, 1, ((polarities << 16) | magnitudes));
+
+  dw1000_enable_interrupt(irq_status);
+  return true;
+}
+
 /* Configure only the TX parameters of the radio */
 bool 
 dw1000_configure_tx(const dwt_txconfig_t* tx_cfg, bool smart) {
@@ -205,7 +250,7 @@ bool
 dw1000_configure_ant_dly(uint16_t rx_dly, uint16_t tx_dly) {
   if (dw1000_is_sleeping) {
     PRINTF("dwc: error. Ant dly configure requested while sleeping\n");
-    return 0;
+    return false;
   }
   int8_t irq_status = dw1000_disable_interrupt();
 
@@ -215,7 +260,7 @@ dw1000_configure_ant_dly(uint16_t rx_dly, uint16_t tx_dly) {
   dwt_settxantennadelay(CUR_CFG.tx_ant_dly);
   
   dw1000_enable_interrupt(irq_status);
-  return 1;
+  return true;
 }
 
 /* Configure LDE */
@@ -223,7 +268,7 @@ bool
 dw1000_configure_lde(uint8_t ntm, uint8_t pmult, uint16_t prf_tune) {
   if (dw1000_is_sleeping) {
     PRINTF("dwc: error. LDE configure requested while sleeping\n");
-    return 0;
+    return false;
   }
 
 #if DEBUG
@@ -254,7 +299,7 @@ dw1000_configure_lde(uint8_t ntm, uint8_t pmult, uint16_t prf_tune) {
 #endif
 
   dw1000_enable_interrupt(irq_status);
-  return 1;
+  return true;
 }
 
 
@@ -263,7 +308,7 @@ bool
 dw1000_reset_cfg() {
   if (dw1000_is_sleeping) {
     PRINTF("dwc: error. Reset cfg requested while sleeping\n");
-    return 0;
+    return false;
   }
   
   // use the configuration constants
@@ -291,6 +336,10 @@ dw1000_reset_cfg() {
     smart = false;
   }
 
+  if (DW1000_SFD_MODE) {
+    CUR_CFG.nssfd = 1;
+  }
+
   dwt_txconfig_t tmp;
 
   // get the recommended values
@@ -313,7 +362,7 @@ dw1000_reset_cfg() {
   // set LDE configuration
   dw1000_configure_lde(DW1000_LDE_NTM, DW1000_LDE_PMULT, DW1000_LDE_PRF_TUNE);
 
-  return 1;
+  return true;
 }
 
 

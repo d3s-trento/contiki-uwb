@@ -181,6 +181,10 @@ dw1000_configure(const dwt_config_t *cfg);
 bool
 dw1000_configure_ch(uint8_t chan, uint8_t txCode, uint8_t rxCode);
 
+/* Set a custom non-standard SFD */
+bool
+dw1000_configure_nssfd(uint16_t polarities, uint16_t magnitudes);
+
 /* Configure only the TX parameters of the radio */
 bool
 dw1000_configure_tx(const dwt_txconfig_t* tx_cfg, bool smart);
