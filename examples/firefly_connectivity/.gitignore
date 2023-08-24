@@ -1,0 +1,4 @@
+*.zoul
+obj_zoul/
+symbols.c
+symbols.h
