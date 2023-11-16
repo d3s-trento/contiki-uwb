@@ -26,6 +26,7 @@ typedef struct {
   double luep; /* Likelihood of undetected early path given num_early_peaks (can overrule pr_nlos) */
   double mc; /* Indicator for accumulator saturation in LOS conditions (can overrule pr_nlos) */
   double cl; /* Overall confidence level (0.0 -> NLOS, 1.0 -> LOS) */
+  double cl_noluep; /* Confidence level without early path detection (0.0 -> NLOS, 1.0 -> LOS) */
 } dw1000_nlos_t;
 
 /**
@@ -135,6 +136,10 @@ bool dw1000_rxpwr(dw1000_rxpwr_t *d, const dwt_rxdiag_t* rxdiag, const dwt_confi
  *                    The recommended number of amplitude samples is 16.
  */
 void dw1000_nlos(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag, const dw1000_cir_ampl_t* ampls, uint16_t n_ampls);
+
+/* Variant of dw1000_nlos() that does not require the CIR,
+ * as the likelihood of undetected early path (LUEP) is not computed. */
+void dw1000_nlos_noluep(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag);
 
 /*---------------------------------------------------------------------------*/
 #endif //DW1000_UTIL_H_

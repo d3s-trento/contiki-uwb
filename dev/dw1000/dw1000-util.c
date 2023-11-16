@@ -49,6 +49,10 @@
 static double cfo_jitter_guard = DW1000_CFO_JITTER_GUARD;
 static double cfo_wanted = DW1000_CFO_WANTED;
 /*---------------------------------------------------------------------------*/
+void dw1000_prnlos(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag);
+void dw1000_luep(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag, const dw1000_cir_ampl_t* ampls, uint16_t n_ampls);
+void dw1000_mc(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag);
+/*---------------------------------------------------------------------------*/
 /**
  * Estimate the transmission time of a frame in nanoseconds
  * dwt_config_t   dwt_config  Configuration struct of the DW1000
@@ -342,6 +346,64 @@ void
 dw1000_nlos(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag, const dw1000_cir_ampl_t* ampls, uint16_t n_ampls) {
 
   /* --- Step 1: extract NLOS probability based on the distance between the first path and peak path indexes */
+  dw1000_prnlos(d, rxdiag);
+
+  /* --- Step 2: likelihood of undetected early path */
+  dw1000_luep(d, rxdiag, ampls, n_ampls);
+
+  /* --- Step 3: detect accumulator saturation */
+  dw1000_mc(d, rxdiag);
+
+  /* --- Step 4: combine metrics in a single indicator (Confidence Level CL = 1 -> LOS). */
+  /* 
+   * If early paths were detected, the channel is likely NLOS (CL = 0.0);
+   * if first and peak path are very close, or saturation happened,
+   * channel is likely LOS (CL = 1.0);
+   * in other cases, CL depends on the distance between first and peak path. */
+  if(d->luep > 0.01) {
+    d->cl = 0.0;
+    if(d->pr_nlos < 0.001 || d->mc >= 0.9) {
+      d->cl_noluep = 1.0;
+    }
+    else {
+      d->cl_noluep = 1.0 - d->pr_nlos;
+    }
+  }
+  else if(d->pr_nlos < 0.001 || d->mc >= 0.9) {
+    d->cl = 1.0;
+    d->cl_noluep = d->cl;
+  }
+  else {
+    d->cl = 1.0 - d->pr_nlos;
+    d->cl_noluep = d->cl;
+  }
+}
+/*---------------------------------------------------------------------------*/
+void
+dw1000_nlos_noluep(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag) {
+
+  /* --- Step 1: extract NLOS probability based on the distance between the first path and peak path indexes */
+  dw1000_prnlos(d, rxdiag);
+
+  /* --- Skipping step 2: likelihood of undetected early path */
+  d->luep = 0.0;
+
+  /* --- Step 3: detect accumulator saturation */
+  dw1000_mc(d, rxdiag);
+
+  /* --- Step 4: combine metrics in a single indicator (Confidence Level CL = 1 -> LOS). */
+  if(d->pr_nlos < 0.001 || d->mc >= 0.9) {
+    d->cl_noluep = 1.0;
+    d->cl = d->cl_noluep;
+  }
+  else {
+    d->cl_noluep = 1.0 - d->pr_nlos;
+    d->cl = d->cl_noluep;
+  }
+}
+/*---------------------------------------------------------------------------*/
+void
+dw1000_prnlos(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag) {
 
   /* First, compute the index difference between first path and peak path;
    * firstPath is expressed as a 16-bits fixed point value (10bits.6bits).
@@ -358,8 +420,23 @@ dw1000_nlos(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag, const dw1000_cir_ampl_
     d->pr_nlos = 0.39178 * d->path_diff - 1.31719;
   else
     d->pr_nlos = 1.0;
+}
+/*---------------------------------------------------------------------------*/void
+dw1000_mc(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag) {
 
-  /* --- Step 2: likelihood of undetected early path */
+  /* Find the maximum amplitude of the first path (the radio reports 3 values close 
+   * to the leading edge) */
+  uint16_t firstPathAmp = rxdiag->firstPathAmp1;
+  if(rxdiag->firstPathAmp2 > firstPathAmp) firstPathAmp = rxdiag->firstPathAmp2;
+  if(rxdiag->firstPathAmp3 > firstPathAmp) firstPathAmp = rxdiag->firstPathAmp3;
+
+  /* When first and peak path have similar magnitudes, the metric is close to 1.0,
+   * indicating that saturation has likely occured */
+  d->mc = (double)firstPathAmp / (double)rxdiag->peakPathAmp;
+}
+/*----------------------------------------------------------------------------*/
+void
+dw1000_luep(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag, const dw1000_cir_ampl_t* ampls, uint16_t n_ampls) {
 
   /* Lower the threshold for path detection */
   uint8_t ntm, pmult;
@@ -399,33 +476,5 @@ dw1000_nlos(dw1000_nlos_t *d, const dwt_rxdiag_t* rxdiag, const dw1000_cir_ampl_
   else {
     d->luep = 0;
   }
-
-  /* --- Step 3: detect accumulator saturation */
-
-  /* Find the maximum amplitude of the first path (the radio reports 3 values close 
-   * to the leading edge) */
-  uint16_t firstPathAmp = rxdiag->firstPathAmp1;
-  if(rxdiag->firstPathAmp2 > firstPathAmp) firstPathAmp = rxdiag->firstPathAmp2;
-  if(rxdiag->firstPathAmp3 > firstPathAmp) firstPathAmp = rxdiag->firstPathAmp3;
-
-  /* When first and peak path have similar magnitudes, the metric is close to 1.0,
-   * indicating that saturation has likely occured */
-  d->mc = (double)firstPathAmp / (double)rxdiag->peakPathAmp;
-
-  /* --- Step 4: combine metrics in a single indicator (Confidence Level CL = 1 -> LOS). */
-  /* 
-   * If early paths were detected, the channel is likely NLOS (CL = 0.0);
-   * if first and peak path are very close, or saturation happened,
-   * channel is likely LOS (CL = 1.0);
-   * in other cases, CL depends on the distance between first and peak path. */
-  if(d->luep > 0.01) {
-    d->cl = 0.0;
-  }
-  else if(d->pr_nlos < 0.001 || d->mc >= 0.9) {
-    d->cl = 1.0;
-  }
-  else {
-    d->cl = 1.0 - d->pr_nlos;
-  }
 }
-/*---------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
