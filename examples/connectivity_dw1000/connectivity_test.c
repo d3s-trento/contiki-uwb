@@ -47,11 +47,15 @@ init()
 {
 }
 
+#if !defined(DW1000_RXOFF_WHILE_PROCESSING) || !DW1000_RXOFF_WHILE_PROCESSING
+#error Connectivity test require DW1000_RXOFF_WHILE_PROCESSING defined true
+#endif
+
 static void
 received()
 {
   struct header header;
-  dwt_rxdiag_t *d;
+  dwt_rxdiag_t d;
   linkaddr_t sender;
 
   if (packetbuf_datalen() != sizeof(header)) {
@@ -66,11 +70,11 @@ received()
     return;
   }
 
-  d = dw1000_get_last_rxdiag();
-  if (d == NULL) {
-    printf("error: rxdiag not available\n");
-    return;
-  }
+  dwt_readdiagnostics(&d);
+  /* if (d == NULL) { */
+  /*   printf("error: rxdiag not available\n"); */
+  /*   return; */
+  /* } */
   linkaddr_copy(&sender, packetbuf_addr(PACKETBUF_ADDR_SENDER));
 
   printf("received [");
@@ -79,8 +83,8 @@ received()
   print_addr(&linkaddr_node_addr);
   printf("] seqn %lu, %u %u %u %u %u %u %u %u\n",
          header.seqn,
-	 d->firstPathAmp1, d->firstPathAmp2, d->firstPathAmp3, d->maxGrowthCIR,
-	 d->rxPreamCount, d->pacNonsat, d->maxNoise, d->stdNoise);
+	 d.firstPathAmp1, d.firstPathAmp2, d.firstPathAmp3, d.maxGrowthCIR,
+	 d.rxPreamCount, d.pacNonsat, d.maxNoise, d.stdNoise);
 
 }
 
@@ -311,9 +315,6 @@ PROCESS_THREAD(cli_connectivity, ev, data)
   static bool smart_tx_power;
 
   PROCESS_BEGIN();
-
-  // enable acquisition of RX diagnostics for received packets
-  dw1000_enable_rxdiag_read(true);
 
   for(u8 = 0; u8 < LINKADDR_SIZE; u8++)
     linkaddr_broadcast.u8[u8] = 0xff;

@@ -10,5 +10,5 @@ CFLAGS+=-DNRF_SHOW_RESETREASON
 
 all: $(CONTIKI_PROJECT)
 
-UWB_CONTIKI=../../contiki-uwb
+UWB_CONTIKI=../../
 include $(UWB_CONTIKI)/Makefile.uwb
