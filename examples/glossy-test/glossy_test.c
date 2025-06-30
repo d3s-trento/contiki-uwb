@@ -50,7 +50,6 @@
 #include "dw1000-util.h"
 #include "dw1000-arch.h"
 #include "dw1000.h"
-#include "spix.h" // XXX platform-specific
 /*---------------------------------------------------------------------------*/
 #include "deployment.h"
 /*---------------------------------------------------------------------------*/
@@ -331,9 +330,9 @@ PT_THREAD(glossy_thread(struct rtimer *rt))
                                                                   current_trim_code);
                         
                         if (new_trim_code != current_trim_code) {
-                            spix_change_speed(DW1000_SPI, DW1000_SPI_SLOW);
+                            dw1000_spi_set_slow_rate();
                             dwt_setxtaltrim(new_trim_code);
-                            spix_change_speed(DW1000_SPI, DW1000_SPI_FAST);
+                            dw1000_spi_set_fast_rate();
                         }
 #endif
                     }

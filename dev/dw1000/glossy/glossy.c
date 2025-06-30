@@ -45,7 +45,9 @@
 #include "dw1000-util.h"
 #include "dw1000-arch.h"
 #include "dw1000.h"
+#ifdef CONTIKI_TARGET_EVB1000
 #include "spix.h" // XXX platform-specific
+#endif
 /*---------------------------------------------------------------------------*/
 #include "sys/node-id.h" // for node_id
 #include "net/mac/frame802154.h"
