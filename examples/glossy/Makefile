@@ -1,5 +1,5 @@
 TARGET ?= evb1000
-TESTBED ?= mytestbed-evb1000 # define the correct testbed to be used
+TESTBED ?= mytestbed-${TARGET} # define the correct testbed to be used
 
 DEFINES+=PROJECT_CONF_H=\"project-conf.h\"
 

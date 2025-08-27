@@ -50,8 +50,10 @@
 #include "dw1000-conv.h"
 #include "dw1000-arch.h"
 #include "dw1000-util.h"
+#if STATETIME_CONF_ON
 #include "dw1000-statetime.h"
 #include "evb1000-timer-mapping.h"
+#endif
 
 #include "clock.h"
 
@@ -593,7 +595,9 @@ int trexd_set_timer(uint32_t deadline_4ns) {
 
 void trexd_init()
 {
+#if STATETIME_CONF_ON
   tm_init();
+#endif
   uint16_t rx_ant_dly, tx_ant_dly;
   // Make sure the radio is off
   dwt_forcetrxoff();
@@ -674,7 +678,9 @@ void trexd_stats_get(trexd_stats_t* local_stats)
 }
 
 static inline void epoch_start_isr(void) {
+#if STATETIME_CONF_ON
   tm_set_actual_epoch_start_mcu();
+#endif
 
   uint32_t status = pdw1000local->cbData.status = dwt_read32bitreg(SYS_STATUS_ID); // Read status register low 32bits
 
@@ -775,11 +781,14 @@ void fs_debug_log_print() {
 #endif
 
 int trexd_pre_epoch_procedure(uint32_t actual_epoch_start) {
+
+#if STATETIME_CONF_ON
   // Reset the information to calcualte the ratio between the clock ofthe mcu and radio as we are changing epoch (there could be overflows or the radio could be in the future put to a lower state)
   tm_reset();
 
   // Set the time at which we expect the timer to fire
   tm_set_actual_epoch_start_dw1000(actual_epoch_start);
+#endif
 
   // Set a special isr to handle use of the timer to map the radio and mcu timer counter
   dw1000_set_isr(epoch_start_isr);
@@ -792,8 +801,10 @@ int trexd_pre_epoch_procedure(uint32_t actual_epoch_start) {
 static inline void custom_dwt_isr(void) {
     // NOTE: This is a modified version of dwt_isr present in deca_device.c
 
+#if STATETIME_CONF_ON
     // As first thing, get the mcu timer counter so that is not influenced by the time of the rest of the operations
     tm_set_timestamp_mcu();
+#endif
 
     uint32 status = pdw1000local->cbData.status = dwt_read32bitreg(SYS_STATUS_ID); // Read status register low 32bits
 
@@ -922,7 +933,9 @@ static inline void custom_dwt_isr(void) {
             context.state = TREXD_ST_FP_SENT;
             trexd_tx_fp();
 
+#if STATETIME_CONF_ON
             FS_DEBUG_MONITOR(fs_debug_log_add(logging_context, tm_get_elapsed_time_ns(rx_start), false));
+#endif
 
             // Busy-wait until the radio completed the transmission
             while(!(dwt_read32bitreg(SYS_STATUS_ID) & SYS_STATUS_TXFRS));
@@ -947,7 +960,9 @@ static inline void custom_dwt_isr(void) {
             context.state = TREXD_ST_FP_SENT_DETECTED;
             trexd_tx_fp();
 
+#if STATETIME_CONF_ON
             FS_DEBUG_MONITOR(fs_debug_log_add(logging_context, tm_get_elapsed_time_ns(rx_start),true));
+#endif
 
             // Busy-wait until the radio completed the transmission
             while(!(dwt_read32bitreg(SYS_STATUS_ID) & SYS_STATUS_TXFRS));

@@ -34,6 +34,10 @@ uint8_t deployment_set_node_id_ieee_addr(void)
       node_id = deployment_id_addr_list[i].id;
       return 1;
     }
+    else {
+      uint8_t dep_addr[IEEE_ADDR_LEN];
+      memcpy(dep_addr, deployment_id_addr_list[i].ieee_addr, IEEE_ADDR_LEN);
+    }
   }
 
   return 0;
@@ -45,11 +49,6 @@ void deployment_print_id_info(void)
   NETSTACK_RADIO.get_object(RADIO_PARAM_64BIT_ADDR, ieee_addr, IEEE_ADDR_LEN);
 
   printf("[DEPLOYMENT] Node ID: %u, ", node_id);
-  printf("IEEE addr: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
-         ieee_addr[0], ieee_addr[1],
-         ieee_addr[2], ieee_addr[3],
-         ieee_addr[4], ieee_addr[5],
-         ieee_addr[6], ieee_addr[7]);
 }
 
 bool deployment_get_addr_by_id(uint16_t node_id, linkaddr_t* addr) {
