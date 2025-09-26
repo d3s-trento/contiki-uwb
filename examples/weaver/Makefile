@@ -59,6 +59,13 @@ else
 $(error "Number of epochs per cycle not defined")
 endif
 
+ifdef WEAVER_WITH_FS
+$(info "WEAVER_WITH_FS: 	$(WEAVER_WITH_FS)")
+CFLAGS += -DWEAVER_WITH_FS=$(WEAVER_WITH_FS)
+else
+$(error "Use of weaver with or without fs is not defined")
+endif
+
 ifdef EXTRA_PAYLOAD_LEN
 $(info "EXTRA_PAYLOAD_LEN: 									$(EXTRA_PAYLOAD_LEN)")
 CFLAGS += -DEXTRA_PAYLOAD_LEN=$(EXTRA_PAYLOAD_LEN)

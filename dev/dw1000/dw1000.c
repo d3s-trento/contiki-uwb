@@ -40,7 +40,9 @@
 
 #include "dw1000.h"
 #include "dw1000-arch.h"
+#if DW1000_RANGING_ENABLED
 #include "dw1000-ranging.h"
+#endif
 #include "dw1000-config.h"
 #include "dw1000-util.h"
 #include "dw1000-shared-state.h"

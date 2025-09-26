@@ -1,13 +1,12 @@
 # Crystal Test
 
-Crystal Test allows evaluation of Crystal based on the Glossy implementation for the DW1000
-built for the Contiki OS.
+Crystal Test lets users evaluate Crystal. Crystal is based on the Glossy implementation atop Contiki for the DW1000 radio.
 
 
 ## Configuration and compilation
 
 It is recommended to use the script `test_tools/simgen_ta.py` to compile batches of tests.
-The test parameter sets can be specified in `params.py`. It is recommended to have a `params.py`
+The sets of test parameters can be specified in `params.py`. It is recommended to have a `params.py`
 in a separate directory dedicated for a specific set of tests. One can use the parameter
 file in `exps/example_experiment` directory as an example.
 

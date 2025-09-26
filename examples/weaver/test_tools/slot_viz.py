@@ -52,9 +52,18 @@ class SlotRectangle(patch.Rectangle):
 
         elif status == "Ra":
             kwargs["color"] = "goldenrod"
-
+        elif status == "~":
+            kwargs["color"] = "blueviolet"
+        elif status == "D":
+            kwargs["color"] = "aquamarine"
+        elif status == "!":
+            kwargs["color"] = "aqua"
+        elif status == "X":
+            kwargs["color"] = "saddlebrown"
+        elif status == "Q":
+            kwargs["color"] = "black"
         else:
-            kwargs["color"] = "orange"
+            kwargs["color"] = "deeppink"
 
         super().__init__(xy, width=width, height=height, angle=angle, **kwargs)
 
@@ -281,7 +290,7 @@ def plot_slots(epoch_pd, nodes, slots_per_fig=5, nodes_per_fig=5, savedir=".", i
     # determine the y position of each node - this won't change
     nodes_ypos = {nodes[i]: i * (box_h + sep_h) + off_h for i in range(0, len(nodes))}
 
-    slots = sorted(epoch_pd["slot_idx"].unique())
+    slots = sorted(epoch_pd["slot_idx"].unique())[:300]
     slots = list(range(slots[0], slots[-1] + 1))
 
     # compute the x pos of each slot
@@ -303,7 +312,7 @@ def plot_slots(epoch_pd, nodes, slots_per_fig=5, nodes_per_fig=5, savedir=".", i
     slot_plot.xticks = [x + box_w / 2 for x in slots_xpos.values()]
     slot_plot.xticklabels = slots
 
-    for slot_idx, slot_pd in epoch_pd.groupby("slot_idx", as_index=False):
+    for slot_idx, slot_pd in epoch_pd[epoch_pd['slot_idx'] < 300].groupby("slot_idx", as_index=False):
 
         # small check
         if sorted(list(slot_pd["node"])) != nodes:

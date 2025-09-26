@@ -41,7 +41,7 @@ int trexd_rx_until(uint8_t *buffer, uint32_t deadline_4ns);
 int trexd_rx(uint8_t *buffer);
 int trexd_rx_from(uint8_t *buffer, uint32_t rx_on_4ns);
 int trexd_set_timer(uint32_t deadline_4ns);  // secret undocumented function, use at your own risk ;)
-void trexd_set_rx_slot_preambleto_pacs(const uint16_t preambleto_pacs);
+void trexd_set_rx_slot_preambleto_pacs(const uint16_t preambleto_pacs, const uint32_t preambleto_duration_4ns);
 
 void trexd_init();
 void trexd_set_slot_callback(trexd_slot_cb callback);
@@ -49,6 +49,14 @@ void trexd_stats_get(trexd_stats_t*);
 void trexd_stats_print();
 void trexd_stats_reset();
 
+int trexd_pre_epoch_procedure(uint32_t epoch_start);
 
+#if TARGET == evb1000
+void trexd_tx_fp();
+int  trexd_tx_at_fp(uint32_t sfd_time_4ns);
+int  trexd_rx_slot_fp(uint32_t expected_sfd_time_4ns, uint32_t deadline_4ns);
+
+void fs_debug_log_print();
+#endif
 
 #endif //TREX_DRIVER_H

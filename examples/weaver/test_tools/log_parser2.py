@@ -33,8 +33,8 @@ pd.set_option('display.max_colwidth', None)
 BITMAP_ORDER = r"^BO\s+\d+,\s+(?P<node_ids>(?:\d+\s+)*)"
 NODE_BITMAP     = r"^ME\s+\d+,\s+(?P<node_ids>(?:\d+\s+)*)"
 ACK             = r"^ACK\s+(?P<epoch>\d+),\s+(?P<node_ids>(?:\d+\s+)*)"
-CLOG            = r"(?i)^E\s+(?P<epoch>\d+),\s+I\s+(?P<slot_idx>\d+),\s+L\s+(?P<status>[trleby#]),\s+D\s+(?P<distance>\d+),\s+S\s+(?P<sender>\d+),\s+H\s+(?P<lhs>\d+),\s+A\s+(?P<acked>0x[0-9a-fA-F]+),\s+B\s+(?P<buffer>0x[0-9a-fA-F]+)$"
-TSM_LOG         = r"(?i)^\[tsm\s+(?P<epoch>\d+)\]Slots:\s+(?P<slots_desc>[_trleby#+\-0-9mp$]+)$"
+CLOG            = r"(?i)^EW\s+(?P<epoch>\d+)\s+(?P<slot_idx>\d+)\s+(?P<status>[trleby#~xd!])\s+(?P<distance>\d+)\s+(?P<sender>\d+)\s+(?P<lhs>\d+)\s+(?P<acked>0x[0-9a-fA-F]+)\s+(?P<buffer>0x[0-9a-fA-F]+)$"
+TSM_LOG         = r"(?i)^\[tsm\s+(?P<epoch>\d+)\]Slots:\s+(?P<slots_desc>[_trleby#+\-0-9mp$~xd!]+)$"
 IS_SINK         = r"(?i)^is_sink$"
 IS_ORIG         = r"(?i)^E\s+(?P<epoch>\d+),\s+is_orig$"
 NSLOTS          = r"(?i)^E\s+(?P<epoch>\d+),\s+NSLOTS\s+(?P<nslots>\d+)$"
@@ -128,6 +128,9 @@ def convert_tsm_log(tsm_string, nid, epoch, mismatch_slot=[]):
         elif c in "LEB#":
             yield [nid, epoch, slot_idx, c]
 
+        elif c in "~D!X":
+            yield [nid, epoch, slot_idx, c]
+
         elif c in "$":
             yield [nid, epoch, slot_idx, "O"] # Overflow!
 
@@ -135,6 +138,8 @@ def convert_tsm_log(tsm_string, nid, epoch, mismatch_slot=[]):
             raise ValueError(f"Unmatched element {c} at {len(tsm_string) - len(tmp)} in {tsm_string}")
 
         slot_idx += 1
+
+    yield [nid, epoch, slot_idx, "Q"]
 
 def bitmap_hex2bin_array(bitmap_hex_str, bitmap_len=64):
     bitmap_number = int(bitmap_hex_str, 16)
@@ -185,6 +190,7 @@ def parse_log(filepath, parser, ignore_slots=True, info={}):
     statetime = []
 
     last_bitmap = {}
+
 
     line = 0
     sent = []
@@ -250,9 +256,12 @@ def parse_log(filepath, parser, ignore_slots=True, info={}):
             entry = [nid, epoch, slots_str.lower().count("e")]
             errs.append(entry)
 
-            mmatch = [] # TODO this could be reported in a separate file
-            for entry in convert_tsm_log(slots_str, nid, epoch, mismatch_slot=mmatch):
-                tsm_logs.append(entry)
+            try:
+                mmatch = [] # TODO this could be reported in a separate file
+                for entry in convert_tsm_log(slots_str, nid, epoch, mismatch_slot=mmatch):
+                    tsm_logs.append(entry)
+            except ValueError:
+                logging.warning("Cannot use tsm_slots")
 
             for slot in mmatch:
                 mismatches.append([nid, epoch, slot])
@@ -439,7 +448,7 @@ def get_rx_slots(rcvd_pd, sink_id):
 @boxplot_decorator
 def plot_nslots(nslots_pd, n_originators, n_nodes):
     fig = plt.figure(figsize=get_fig_dimensions(1, 1, width=3.25 * max(1, int(n_nodes/4))))
-    ax = fig.add_subplot("111")
+    ax = fig.add_subplot(int("111"))
     nslots_pd.boxplot("nslots", by="node", ax=ax)
     ax.set_xlabel("Nodes")
     ax.set_ylabel("Number of slots before termination")
@@ -456,7 +465,7 @@ def plot_arate(arate_pd, sink_id, n_originators, n_nodes):
         return fig
     sink_arate = arate_pd[arate_pd.node == sink_id]
     sink_miss  = sink_arate[sink_arate.a_rate < 1.00]
-    ax = fig.add_subplot("111")
+    ax = fig.add_subplot(int("111"))
     arate_pd.boxplot("a_rate", by="node", ax=ax)
     ax.set_xlabel("Nodes")
     ax.set_ylabel("% nodes acknowledged")
@@ -570,36 +579,42 @@ def plot_epoch(cslots_fp, tsm_slots_fp, nodes, bitmap_order, epoch, savedir=".",
     serialize_slots(epoch_pd, nodes, savedir=savedir)
 
 def summarize(sink_id, sent_pd, rcvd_pd, nslots_pd, origs_pd, acks_pd, stats):
-    # obtain ACK rate dataframe for the simulation
-    arate_pd = get_ack_rate(acks_pd, origs_pd, stats)
+    if not (origs_pd['n_originators'] == 0).all():
+        # obtain ACK rate dataframe for the simulation
+        arate_pd = get_ack_rate(acks_pd, origs_pd, stats)
 
-    # create summary dataframe with per-epoch stats;
-    # begin with sink ACK rate, i.e., packets received by the sink
-    summary_pd = arate_pd.loc[(arate_pd.node == sink_id), ["epoch", "a_rate"]]
-    summary_pd.rename(columns={'a_rate': 'a_rate_sink'}, inplace=True)
+        # create summary dataframe with per-epoch stats;
+        # begin with sink ACK rate, i.e., packets received by the sink
+        summary_pd = arate_pd.loc[(arate_pd.node == sink_id), ["epoch", "a_rate"]]
+        summary_pd.rename(columns={'a_rate': 'a_rate_sink'}, inplace=True)
 
-    # overall ACK rate (indicates the circulation of ACKs in the network)
-    mean_arate_pd = arate_pd.groupby(["epoch"])[["a_rate"]].mean().reset_index()
-    mean_arate_pd.rename(columns={'a_rate': 'a_rate_mean'}, inplace=True)
-    summary_pd = pd.merge(summary_pd, mean_arate_pd, on="epoch", how="left")
+        # overall ACK rate (indicates the circulation of ACKs in the network)
+        mean_arate_pd = arate_pd.groupby(["epoch"])[["a_rate"]].mean().reset_index()
+        mean_arate_pd.rename(columns={'a_rate': 'a_rate_mean'}, inplace=True)
+        summary_pd = pd.merge(summary_pd, mean_arate_pd, on="epoch", how="left")
 
     # number of slots for termination of the sink
     sink_nslots_pd = nslots_pd.loc[(nslots_pd.node == sink_id), ["epoch", "nslots"]]
     sink_nslots_pd.rename(columns={'nslots': 'last_slot_sink'}, inplace=True)
-    summary_pd = pd.merge(summary_pd, sink_nslots_pd, on="epoch", how="left")
+
+    if not (origs_pd['n_originators'] == 0).all():
+        summary_pd = pd.merge(summary_pd, sink_nslots_pd, on="epoch", how="left")
+    else:
+        summary_pd = sink_nslots_pd
 
     # number of slots for termination (overall)
     mean_nslots_pd = nslots_pd.groupby(["epoch"]).agg(
         last_slot_avg=("nslots", "mean"), last_slot_max=("nslots", "max")).reset_index()
     summary_pd = pd.merge(summary_pd, mean_nslots_pd, on="epoch", how="left")
 
-    last_cslots_pd = get_last_new_pkt(rcvd_pd, sink_id)
-    last_cslots_pd.rename(columns={'slot_idx': 'last_new_pkt_slot_sink'}, inplace=True)
-    summary_pd = pd.merge(summary_pd, last_cslots_pd, on="epoch", how="left")
+    if not (origs_pd['n_originators'] == 0).all():
+        last_cslots_pd = get_last_new_pkt(rcvd_pd, sink_id)
+        last_cslots_pd.rename(columns={'slot_idx': 'last_new_pkt_slot_sink'}, inplace=True)
+        summary_pd = pd.merge(summary_pd, last_cslots_pd, on="epoch", how="left")
 
-    last_cslots_pd = get_first_new_pkt(rcvd_pd, sink_id)
-    last_cslots_pd.rename(columns={'slot_idx': 'first_new_pkt_slot_sink'}, inplace=True)
-    summary_pd = pd.merge(summary_pd, last_cslots_pd, on="epoch", how="left")
+        last_cslots_pd = get_first_new_pkt(rcvd_pd, sink_id)
+        last_cslots_pd.rename(columns={'slot_idx': 'first_new_pkt_slot_sink'}, inplace=True)
+        summary_pd = pd.merge(summary_pd, last_cslots_pd, on="epoch", how="left")
 
     # aggregate across all epochs
     summary_mean = summary_pd.mean()
@@ -691,7 +706,7 @@ def get_stats_lastrx(sink_id, sim_epochs, cslots_fp, tsm_slots_fp):
     stat_before_last = stat_before_last[stat_before_last["epoch"].isin(sim_epochs)]
     return stat_before_last
 
-def get_statetime_info(statetime_traces_pd, savedir=Path(".")):
+def get_statetime_info(statetime_traces_pd, min_epoch, max_epoch, savedir=Path(".")):
     MAX_T = 4e6
     # remove epoch where an underflow occurred
     traces_pd = statetime_traces_pd.copy()
@@ -701,7 +716,7 @@ def get_statetime_info(statetime_traces_pd, savedir=Path(".")):
     epochs_to_remove = traces_pd[mask].epoch.unique()
 
     if len(epochs_to_remove) > 0:
-        logger.warn("Found statetime underflows, removing the following epochs from energy computation: %s" % traces_pd[mask].head())
+        logger.warn("Found statetime underflows, removing the following epochs from energy computation:\n{}\nlen: {}\nepochs: {}".format(traces_pd[mask].head(), len(traces_pd[mask]), traces_pd[mask]['epoch'].unique()))
 
     traces_pd = traces_pd[~traces_pd.epoch.isin(epochs_to_remove)]
 
@@ -718,7 +733,6 @@ def get_statetime_info(statetime_traces_pd, savedir=Path(".")):
 
     e_idle, e_tx_preamble, e_tx_data, e_rx_hunting, e_rx_preamble, e_rx_data = tuple(map(lambda curr_mA: curr_mA / 1e3 * ref_voltage,\
                                                                                  (e_idle, e_tx_preamble, e_tx_data, e_rx_hunting, e_rx_preamble, e_rx_data)))
-    traces_pd.drop("epoch", axis=1, inplace=True)
 
     traces_pd["idle"]        = traces_pd["idle"]        * e_idle
     traces_pd["tx_preamble"] = traces_pd["tx_preamble"] * e_tx_preamble
@@ -730,6 +744,11 @@ def get_statetime_info(statetime_traces_pd, savedir=Path(".")):
     traces_pd["e_total"] = traces_pd["idle"] +\
         traces_pd["tx_preamble"] + traces_pd["tx_data"] +\
         traces_pd["rx_hunting"] + traces_pd["rx_preamble"] + traces_pd["rx_data"]
+
+    traces_pd[(traces_pd['epoch'] >= min_epoch) & (traces_pd['epoch'] <= max_epoch)].to_csv(savedir.joinpath("energy.csv"), index=False)
+
+    traces_pd.drop("epoch", axis=1, inplace=True)
+
     statetime = traces_pd[["node", "e_total"]].groupby("node").agg(["mean", "std"]).reset_index()
     statetime.columns = ["node", "e_total_mean", "e_total_sd"]
     statetime.to_csv(savedir.joinpath("pernode_energy.csv"), index=False)
@@ -904,7 +923,7 @@ def run_log_parser(args):
         rstats_pd= rstats_pd[rstats_pd["epoch"].isin(sim_epochs)]
         boot_pd  = boot_pd[boot_pd["epoch"].isin(sim_epochs)]
 
-        get_statetime_info(statetime_traces_pd, savedir=SAVEDIR)
+        get_statetime_info(statetime_traces_pd, savedir=SAVEDIR, min_epoch=min_epoch, max_epoch=max_epoch)
         sync_miss_pd = get_sync_misses(boot_pd, simconf.sink_id, savedir=SAVEDIR)
 
         if simconf.n_orig == 0:
@@ -921,30 +940,33 @@ def run_log_parser(args):
             tmp = origs_pd[origs_pd.n_originators != simconf.n_orig]
             raise ValueError("Eterogeneous number of originators across epochs.\n%s" % tmp.head())
 
-        arate_pd2 = get_ack_rate2(sent_pd, rcvd_pd, simconf.n_orig, simconf.sink_id, savedir=SAVEDIR)
-        arate_pd2 = arate_pd2[arate_pd2["node"] == simconf.sink_id]
+        if not (origs_pd['n_originators'] == 0).all():
+            arate_pd2 = get_ack_rate2(sent_pd, rcvd_pd, simconf.n_orig, simconf.sink_id, savedir=SAVEDIR)
+            arate_pd2 = arate_pd2[arate_pd2["node"] == simconf.sink_id]
 
-        arate_pd = get_ack_rate(acks_pd, origs_pd, stats)
-        arate_pd = arate_pd[(arate_pd["node"] == simconf.sink_id)]
-        losses_pd = arate_pd[(arate_pd["a_rate"] < 1.00)]\
-            .to_csv(str(SAVEDIR.joinpath("epoch_with_losses.csv")), index=False)
-        bitmap_pdr = arate_pd.a_rate.mean()
-        pkt_pdr    = arate_pd2.pdr.mean()
-        if bitmap_pdr != pkt_pdr:
-            logger.info("The PDR computed from acked bitmaps and the one computed with packets differ.")
-        logger.info(f"ACK PDR: {bitmap_pdr}, PKT PDR: {pkt_pdr}")
+            arate_pd = get_ack_rate(acks_pd, origs_pd, stats)
+            arate_pd = arate_pd[(arate_pd["node"] == simconf.sink_id)]
+            losses_pd = arate_pd[(arate_pd["a_rate"] < 1.00)]\
+                .to_csv(str(SAVEDIR.joinpath("epoch_with_losses.csv")), index=False)
+            bitmap_pdr = arate_pd.a_rate.mean()
+            pkt_pdr    = arate_pd2.pdr.mean()
+            if bitmap_pdr != pkt_pdr:
+                logger.info("The PDR computed from acked bitmaps and the one computed with packets differ.")
+            logger.info(f"ACK PDR: {bitmap_pdr}, PKT PDR: {pkt_pdr}")
 
-        plot_arate(arate_pd, simconf.sink_id, simconf.n_orig, len(simconf.nodes))
-        plt.savefig(str(SAVEDIR.joinpath("a_rate.pdf")))
+            plot_arate(arate_pd, simconf.sink_id, simconf.n_orig, len(simconf.nodes))
+            plt.savefig(str(SAVEDIR.joinpath("a_rate.pdf")))
 
-        plot_nslots(nslots_pd, simconf.n_orig, len(simconf.nodes))
-        plt.savefig(str(SAVEDIR.joinpath("nslots.pdf")))
+            plot_nslots(nslots_pd, simconf.n_orig, len(simconf.nodes))
+            plt.savefig(str(SAVEDIR.joinpath("nslots.pdf")))
 
-        if len(cslots_pd):
-            stat_before_last = get_stats_lastrx(simconf.sink_id, sim_epochs, cslots_fp, tsm_slots_fp)
-            stat_before_last.to_csv(str(stats_lastrx_fp), index=False)
+            if len(cslots_pd):
+                stat_before_last = get_stats_lastrx(simconf.sink_id, sim_epochs, cslots_fp, tsm_slots_fp)
+                stat_before_last.to_csv(str(stats_lastrx_fp), index=False)
+            else:
+                logger.warn(f"No logs on slot details found. No {stats_lastrx_fp.name} generated...")
         else:
-            logger.warn(f"No logs on slot details found. No {stats_lastrx_fp.name} generated...")
+            print('No originators ever')
 
 
         summary_pd = summarize(simconf.sink_id, sent_pd, rcvd_pd, nslots_pd, origs_pd, acks_pd, stats)
@@ -953,11 +975,14 @@ def run_log_parser(args):
 
         summary["sink_id"]   = simconf.sink_id
         summary["n_epochs"]  = len(origs_pd.epoch.unique())
-        summary["epoch_min"] = origs_pd.epoch.min()
-        summary["epoch_max"] = origs_pd.epoch.max()
+        summary["epoch_min"] = int(origs_pd.epoch.min())
+        summary["epoch_max"] = int(origs_pd.epoch.max())
         summary["n_nodes"]   = len(stats.nodes)
-        summary["n_origs"]   = origs_pd.n_originators.unique()[0]
+        summary["n_origs"]   = int(origs_pd.n_originators.unique()[0])
         print(summary)
+
+        with open(SAVEDIR.joinpath("summary.json"), 'w') as fs:
+            json.dump(summary, fs)
 
 
 SEVERITY_STRICT = False # set to False for mobility tests

@@ -101,7 +101,7 @@ bool
 dw1000_configure(const dwt_config_t *cfg) {
   
   if (dw1000_is_sleeping) {
-    PRINTF("dwc: error. Radio configure requested while sleeping\n");
+    PRINTF("Err: Radio configure requested while sleeping\n");
     return false;
   }
 
@@ -127,7 +127,7 @@ bool
 dw1000_configure_ch(uint8_t chan, uint8_t txCode, uint8_t rxCode) {
   
   if (dw1000_is_sleeping) {
-    PRINTF("dwc: error. Channel configure requested while sleeping\n");
+    PRINTF("Err: Channel configure requested while sleeping\n");
     return false;
   }
   if (CUR_CFG.nssfd == 1) {
@@ -231,7 +231,7 @@ dw1000_configure_nssfd(uint16_t polarities, uint16_t magnitudes) {
 bool 
 dw1000_configure_tx(const dwt_txconfig_t* tx_cfg, bool smart) {
   if (dw1000_is_sleeping) {
-    PRINTF("dwc: error. TX configure requested while sleeping\n");
+    PRINTF("Err: TX configure requested while sleeping\n");
     return 0;
   }
   int8_t irq_status = dw1000_disable_interrupt();
@@ -249,8 +249,13 @@ dw1000_configure_tx(const dwt_txconfig_t* tx_cfg, bool smart) {
 bool
 dw1000_configure_ant_dly(uint16_t rx_dly, uint16_t tx_dly) {
   if (dw1000_is_sleeping) {
+<<<<<<< HEAD
     PRINTF("dwc: error. Ant dly configure requested while sleeping\n");
     return false;
+=======
+    PRINTF("Err: Ant dly configure requested while sleeping\n");
+    return 0;
+>>>>>>> tsm_dwm1001
   }
   int8_t irq_status = dw1000_disable_interrupt();
 
@@ -267,19 +272,14 @@ dw1000_configure_ant_dly(uint16_t rx_dly, uint16_t tx_dly) {
 bool
 dw1000_configure_lde(uint8_t ntm, uint8_t pmult, uint16_t prf_tune) {
   if (dw1000_is_sleeping) {
+<<<<<<< HEAD
     PRINTF("dwc: error. LDE configure requested while sleeping\n");
     return false;
+=======
+    PRINTF("Err: LDE configure requested while sleeping\n");
+    return 0;
+>>>>>>> tsm_dwm1001
   }
-
-#if DEBUG
-  uint8_t old_ntm, old_pmult;
-  uint16_t old_prf_tune;
-  dw1000_get_current_lde_cfg(&old_ntm, &old_pmult, &old_prf_tune);
-  uint8_t old_lde_cfg = (old_ntm | (old_pmult << 5));
-  PRINTF("dwc: previous LDE_CFG1 %u NTM %u PMULT %u LDE_CFG2/PRF_TUNE %u\n",
-         old_lde_cfg, old_ntm, old_pmult, old_prf_tune);
-#endif
-
   int8_t irq_status = dw1000_disable_interrupt();
 
   CUR_CFG.lde_ntm = ntm;
@@ -289,14 +289,8 @@ dw1000_configure_lde(uint8_t ntm, uint8_t pmult, uint16_t prf_tune) {
   dwt_write8bitoffsetreg(LDE_IF_ID, LDE_CFG1_OFFSET, lde_cfg);
   dwt_write16bitoffsetreg(LDE_IF_ID, LDE_CFG2_OFFSET, prf_tune);
 
-#if DEBUG
-  uint8_t new_ntm, new_pmult;
-  uint16_t new_prf_tune;
-  dw1000_get_current_lde_cfg(&new_ntm, &new_pmult, &new_prf_tune);
-  uint8_t new_lde_cfg = (new_ntm | (new_pmult << 5));
-  PRINTF("dwc: new LDE_CFG1 %u NTM %u PMULT %u LDE_CFG2/PRF_TUNE %u\n",
-         new_lde_cfg, new_ntm, new_pmult, new_prf_tune);
-#endif
+  PRINTF("LDE_CFG1 set %u\n", lde_cfg);
+  PRINTF("LDE_CFG2 set %u\n", prf_tune);
 
   dw1000_enable_interrupt(irq_status);
   return true;
@@ -307,8 +301,13 @@ dw1000_configure_lde(uint8_t ntm, uint8_t pmult, uint16_t prf_tune) {
 bool
 dw1000_reset_cfg() {
   if (dw1000_is_sleeping) {
+<<<<<<< HEAD
     PRINTF("dwc: error. Reset cfg requested while sleeping\n");
     return false;
+=======
+    PRINTF("Err: Reset cfg requested while sleeping\n");
+    return 0;
+>>>>>>> tsm_dwm1001
   }
   
   // use the configuration constants

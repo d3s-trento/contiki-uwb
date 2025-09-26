@@ -193,6 +193,21 @@ rr_table_update_deadlines(rr_table_t* table, int16_t current_slot) {
     }
 }
 
+bool
+rr_table_check_any_negative_deadline(const rr_table_t* table, int16_t current_slot) {
+    if (table == NULL) return false;
+    if (table->head_busy == NULL) return false;
+
+    rr_entry_t *tmp = table->head_busy;
+    for (; tmp != NULL; tmp = tmp->next) {
+        if (tmp->deadline == -1 || current_slot > tmp->deadline) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 rr_entry_t*
 rr_table_get_next(rr_table_t* table)
 {

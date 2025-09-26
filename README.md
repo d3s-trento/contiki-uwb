@@ -1,17 +1,16 @@
-# Contiki-based software package for the DecaWave EVB1000/DWM1001 platforms
+# D3S Contiki-based systems and Contiki OS port for the DecaWave EVB1000/DWM1001 platforms
 
 ## Overview 
+This repository contains the systems made by the d3s group of the University of Trento and their port of Contiki OS for the DecaWave (now Qorvo) EVB1000 and DWM1001 platforms onto which these systems are built.
+
+## Contiki OS port
 [Contiki](https://github.com/contiki-os/contiki) is an open source operating system that runs on constrained embedded systems and provides standardized low-power wireless communication.
 
-This repository contains a Contiki OS port for the DecaWave (now Qorvo) EVB1000 and DWM1001 platforms and
-includes our implementations of Glossy, Crystal and Weaver communication protocols, as well as UWB ranging primitives.
-
-
-## Package Features
+### Package Features
 This package includes support for:
 * Contiki system clock and rtimers
 * Watchdog timer
-* Serial-over-USB logging using printf (ans/or RTT for DWM1001)
+* Serial-over-USB logging using printf (and/or RTT for DWM1001)
 * LCD display
 * LEDs
 * Rime stack over UWB
@@ -19,9 +18,15 @@ This package includes support for:
 * Single-sided Two-way Ranging (SS-TWR) with frequency offset compensation
 * Double-sided Two-way Ranging (DS-TWR)
 * Bluetooth support (only DWM1001, and without integration with Contiki stacks)
-* [Glossy](https://ieeexplore.ieee.org/document/5779066), a fast flooding and synchronisation primitive (only EVB1000)
-* [Crystal](https://dl.acm.org/doi/10.1145/2994551.2994558), a fast and reliable data collection protocol based on Glossy (only EVB1000)
-* [Weaver](https://dl.acm.org/doi/10.1145/3384419.3430715), a next generation data collection protocol based on concurrent transmissions (only EVB1000) [video](http://disi.unitn.it/~picco/papers/sensys20_weaver.mp4)
+
+## Systems
+Together with a port of Contiki, which can be used standalone, this repo contains the systems we developed:
+- An EVB1000 implementation of [Glossy](https://ieeexplore.ieee.org/document/5779066), a fast flooding and synchronisation primitive, and [Crystal](https://dl.acm.org/doi/10.1145/2994551.2994558), a fast and reliable data collection protocol based on Glossy. For more information see [our paper](http://www.ewsn.org/file-repository/ewsn2020/132_143_lobba.pdf)
+- The [Weaver](https://dl.acm.org/doi/10.1145/3384419.3430715) communication protocol, a next generation data collection protocol based on concurrent transmissions (only EVB1000) [video](http://disi.unitn.it/~picco/papers/sensys20_weaver.mp4)
+- [TSM](dev/dw1000/tsm) (Time Slot Manager), a flexible CTX engine
+	- [Glossy robust flooding](https://github.com/ETHZ-TEC/robust-flooding) and Crystal layers for TSM 
+	- [Flick]() a binary condition disseminating primitive (only EVB1000) with Flick-enabled implementations of Crystal and Weaver
+- UWB ranging primitives
 
 ## Code Structure
 ```
@@ -32,8 +37,10 @@ This package includes support for:
 │   └── dw1000
 │       ├── crystal
 │       ├── glossy
-│       └── tsm
-├── examples
+│       ├── tsm
+│       ├── glossy_tsm
+│       └── crystal_flick
+├── systems
 │   ├── crystal-test
 │   ├── deployment
 │   ├── glossy-test
@@ -41,7 +48,9 @@ This package includes support for:
 │   ├── range-collect
 │   ├── sensniff
 │   ├── tsm-test
-│   └── weaver
+│   ├── weaver
+│   ├── glossy
+│   └── weavent
 └── platform
     ├── evb1000
     └── dwm1001
@@ -190,7 +199,18 @@ If you want to use TSM, define the following in your application Makefile:
 UWB_WITH_TSM = 1
 ```
 This will include TSM into the compilation process and exclude all other Contiki stacks.
+You can find more information on TSM on dev/dw1000/tsm/README.md
 
+If you want to use the GlossyTX TSM layer define the following in your application Makefile:
+```
+UWB_WITH_TSM_GLOSSY = 1
+```
+Note that you still need to enable TSM through its dedicated define macro.
+
+An implementation of Crystal TSM on top of this GlossyTX TSM layer is also provided when your Makefile defines:
+```
+UWB_WITH_TSM_CRYSTAL = 1
+```
 
 ## Porting to other Platforms / MCUs
 This port can be easily adapted for other platforms and MCUs based on the DW1000 transceiver. The radio driver only requires platform-specific implementations for the following functions:
@@ -212,18 +232,34 @@ Pablo Corbalán, Timofei Istomin, and Gian Pietro Picco. In Proceedings of the 1
 Please, consider citing this poster when using this Contiki port in your work.
 ```
 @inproceedings{contiki-uwb,
- title = {{Poster: Enabling Contiki on Ultra-wideband Radios}},
- author = {Corbal\'{a}n, Pablo and Istomin, Timofei and Picco, Gian Pietro},
- booktitle = {Proceedings of the International Conference on Embedded Wireless Systems and Networks},
- series = {EWSN'18},
- year = {2018},
+	title = {{Poster: Enabling Contiki on Ultra-wideband Radios}},
+	author = {Corbal\'{a}n, Pablo and Istomin, Timofei and Picco, Gian Pietro},
+	booktitle = {Proceedings of the International Conference on Embedded Wireless Systems and Networks},
+	series = {EWSN'18},
+	year = {2018},
 }
 ```
 
 A research paper about our Glossy and Crystal implementations for DW1000 has been accepted for publishing at EWSN'2020.
 
-* **Concurrent Transmissions for Multi-hop Communication on Ultra-wideband Radios**.
+* [**Concurrent Transmissions for Multi-hop Communication on Ultra-wideband Radios**](https://dl.acm.org/doi/10.5555/3400306.3400323).
 Diego Lobba, Matteo Trobinger, Davide Vecchia, Timofei Istomin, Gian Pietro Picco (University of Trento).
+```
+@inproceedings{10.5555/3400306.3400323,
+	author = {Lobba, Diego and Trobinger, Matteo and Vecchia, Davide and Istomin, Timofei and Picco, Gian Pietro},
+	title = {Concurrent Transmissions for Multi-Hop Communication on Ultra-Wideband Radios},
+	year = {2020},
+	isbn = {9780994988645},
+	publisher = {Junction Publishing},
+	address = {USA},
+	abstract = {Concurrent transmissions, as popularized by Glossy, have proven an effective, state-of-the-art technique for the design of reliable and efficient network protocols. However, their exploitation is largely confined to IEEE 802.15.4 narrowband radios. In this paper, we investigate the extent to which concurrent transmissions can be applied to ultra-wideband (UWB) radios, whose popularity is rapidly growing. We adopt a system-driven approach, where techniques and codebases representative of the state of the art are adapted for UWB and evaluated in a 23-node indoor testbed yielding multi-hop topologies. We show that, once embodied in a full-fledged system, UWB concurrent transmissions yield benefits similar to narrowband, i.e., near-perfect reliability and very low latency and energy consumption, along with order-of-magnitude improvements in networkwide time synchronization. Further, our implementations suggest that existing higher-level protocols built atop Glossy require only minimal adaptation. Our results pave the way for the exploitation of concurrent transmissions in UWB, which we foster by releasing our systems as open source, enabling their immediate use and improvement by researchers and practitioners.},
+	booktitle = {Proceedings of the 2020 International Conference on Embedded Wireless Systems and Networks},
+	pages = {132–143},
+	numpages = {12},
+	location = {Lyon, France},
+	series = {EWSN '20}
+}
+```
 
 
 ## License

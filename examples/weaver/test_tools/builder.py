@@ -37,7 +37,7 @@ def get_make_params(simulation):
     # please keep the indentation. It will make easier multiline editing
     make_params = [
         "SIMGEN=true",
-        "NODES_DEPLOYED=\"%s\""                % str.join(",", map(str, sorted(simulation.deployed_nodes))),# no space after comma, or Make will complain :(
+        "NODES_DEPLOYED=\"%s\""                % str.join(",", map(str, sorted(get_set_originators(simulation)))),# no space after comma, or Make will complain :(
         "WEAVER_ORIGINATORS_TABLE=\"%s\"" % str.join(",", map(str, simulation.originators_table)),
         "SINK_ID=%d"                        % simulation.sink_id,
         "SINK_RADIUS=%d"                    % simulation.sink_radius,
@@ -46,11 +46,12 @@ def get_make_params(simulation):
         "WEAVER_APP_START_EPOCH=%d"    % simulation.start_epoch,
         "WEAVER_EPOCHS_PER_CYCLE=%d"   % simulation.epochs_per_cycle,
         "EXTRA_PAYLOAD_LEN=%d"              % simulation.payload,
+        "WEAVER_WITH_FS=%d"                 % simulation.weaver_with_fs,
     ]
     return str.join(" ", make_params)
 
 def check_params(params):
-    assert params.start_time.lower() == "asap"     # the simgen is no more concerned with scheduling
+    assert params.start_time.lower().startswith("asap")     # the simgen is no more concerned with scheduling
     assert Path(".").joinpath(Path(params.app_dir)).resolve().exists() 
     assert isinstance(params.duration, int)
     # assert isinstance(params.max_slot, int)
@@ -114,6 +115,39 @@ def get_deployed_nodes(simulation):
     except AttributeError:
         pass
     return sorted(deployed_nodes)
+
+def get_set_originators(simulation):
+    table = []
+    table_random = random.Random(simulation.seed)
+    # check if all originators are scheduled per epoch
+    try:
+        for epoch_origs in simulation.originators_schedule:
+            table += copy.deepcopy(epoch_origs[0:simulation.n_orig])
+        return table
+    except AttributeError:
+        pass
+
+    # then, try use fixed senders
+    try:
+        # the sink cannot be a fixed sender
+        fixed = set(simulation.fixed_originators) - set([simulation.sink_id])
+    except AttributeError:
+        fixed = set() # no node is fixed
+
+    # Extract the remaining U - fixed senders.
+    # Use explicit random originators if defined, pick testbed nodes otherwise.
+    try:
+        rnd_originators = set(simulation.random_originators)
+    except AttributeError:
+        rnd_originators = set(simulation.nodes)
+
+    rnd_originators = list(rnd_originators - fixed - set([simulation.sink_id]))
+
+    # pick at most n_orig fixed senders
+    fixed = list(fixed)[:simulation.n_orig] # from set to list
+
+    return set(fixed).union(set(rnd_originators))
+
 
 def get_originators(simulation):
     table = []
@@ -181,21 +215,23 @@ def generate_simulations(params, overwrite=False):
     NAME_SUFFIX = "_duration%d" % params.duration
 
     nsimulations = 0
-    for (sink_id, sink_radius), n_orig in itertools.product(params.sinks, params.num_originators):
+    for (sink_id, sink_radius), n_orig, withFS in itertools.product(params.sinks, params.num_originators, [0, 1]):
 
         json_sim = copy.deepcopy(json_testbed)
         simulation = params.update(\
           **{"sink_id": sink_id,
              "sink_radius": sink_radius,
-             "n_orig":  n_orig})
+             "n_orig":  n_orig,
+             "weaver_with_fs": withFS})
         simulation = simulation.update(**{"originators_table": get_originators(simulation)})
         simulation = simulation.update(**{"deployed_nodes":    get_deployed_nodes(simulation)})
         check_simulation(simulation)
 
+
         # give a name to current simulation and create
         # the corresponding folder
         sim_name = NAME_PREFIX +\
-                "_s{}o{}".format(sink_id, n_orig) +\
+                "_s{}o{}w{}FS".format(sink_id, n_orig, "o" if withFS == 0 else "") +\
                 NAME_SUFFIX
 
         sim_dir  = sims_dir.joinpath(sim_name).resolve()
@@ -347,6 +383,7 @@ if __name__ == "__main__":
         print(TESTBED_TEMPLATE)
         sys.exit(0)
     elif args.params_info:
+        from params import PARAMS
         import pprint
         pprint.pprint(PARAMS)
         sys.exit(0)

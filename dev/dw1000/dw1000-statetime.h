@@ -94,6 +94,8 @@ typedef struct dw1000_statetime_context_t {
  */
 void dw1000_statetime_context_init();
 /*---------------------------------------------------------------------------*/
+void dw1000_statetime_set_tref(uint32_t tref);
+uint32_t dw1000_statetime_get_tref();
 /** \brief Start tracing statetime.
  */
 void dw1000_statetime_start();
@@ -101,6 +103,13 @@ void dw1000_statetime_start();
 /** \brief Stop tracing statetime.
  */
 void dw1000_statetime_stop();
+/*---------------------------------------------------------------------------*/
+/** \brief Stop tracing statetime but taking into account the remaining idle time.
+ *
+ *  \param end_32hi  when the idle time to take into account ends
+ */
+void
+dw1000_statetime_stop_at(uint32_t end_32hi);
 /*---------------------------------------------------------------------------*/
 /** \brief Retrieve the statetime context.
  */
@@ -129,6 +138,8 @@ void dw1000_statetime_set_last_idle(const uint32_t ts_idle_32hi);
  */
 void dw1000_statetime_after_rx(const uint32_t sfd_rx_32hi, const uint16_t framelength);
 void dw1000_statetime_after_rxerr(const uint32_t now_32hi);
+void dw1000_statetime_after_fs_pos(const uint32_t sfd_tx_32hi, const uint16_t framelength, bool sfdto);
+void dw1000_statetime_after_fs_neg(const uint32_t now_32hi);
 void dw1000_statetime_abort(const uint32_t now_32hi);
 /*---------------------------------------------------------------------------*/
 /** \brief Perform tracing after a successful transmission.
@@ -153,4 +164,9 @@ void dw1000_statetime_schedule_txrx(const uint32_t schedule_tx_32hi,
 /*---------------------------------------------------------------------------*/
 void dw1000_statetime_schedule_rx(const uint32_t schedule_rx_32hi);
 /*---------------------------------------------------------------------------*/
+uint32_t dw1000_statetime_get_schedule_32hi();
+/*---------------------------------------------------------------------------*/
+uint32_t estimate_preamble_time_ns(); // TODO: documentation
+uint32_t estimate_payload_time_ns(const uint16_t framelength);
+
 #endif /* DW1000_STATETIME_H */

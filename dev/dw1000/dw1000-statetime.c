@@ -36,16 +36,25 @@
  *      Diego Lobba <diego.lobba@gmail.com>
  */
 
+#include PROJECT_CONF_H
+
 #include "dw1000-statetime.h"
 #include "dw1000-util.h"
 #include "dw1000-conv.h"
 #include "dw1000-config.h"
+#include "evb1000-timer-mapping.h"
 #include <inttypes.h>
 #include <stdbool.h>
 #include "print-def.h"
 
+#define LOG_PREFIX "st"
 #define LOG_LEVEL LOG_WARN
 #include "logging.h"
+
+#pragma message STRDEF(SNIFF_FS)
+#pragma message STRDEF(SNIFF_FS_OFF_TIME)
+
+bool statetime_tracking = false;
 
 /*---------------------------------------------------------------------------*/
 #define DEBUG           1
@@ -70,11 +79,7 @@ static bool restarted; // used when debugging
 #define STATETIME_DBG(...) do {} while(0);
 #endif
 
-/*---------------------------------------------------------------------------*/
-/*                      UTILITY FUNCTIONS DECLARATIONS                       */
-/*---------------------------------------------------------------------------*/
-static uint32_t estimate_preamble_time_ns();
-static uint32_t estimate_payload_time_ns(const uint16_t framelength);
+
 /*---------------------------------------------------------------------------*/
 /*                          STATIC VARIABLES                                 */
 /*---------------------------------------------------------------------------*/
@@ -204,6 +209,8 @@ dw1000_statetime_after_rxerr(const uint32_t now_32hi)
         context.is_restarted = false;
     }
 
+    uint32_t p_time_ns = 0;
+
     if (context.state == DW1000_SCHEDULED_RX) {
 
         // using the rx_enable function
@@ -215,17 +222,23 @@ dw1000_statetime_after_rxerr(const uint32_t now_32hi)
 
         STATETIME_DBG(
         if (!TIME_LT32(context.schedule_32hi, now_32hi) || !TIME_LT32(context.last_idle_32hi, context.schedule_32hi)) {
-            printf("S %lu, N %lu, R %d\n", context.schedule_32hi, now_32hi, restarted);
+            printf("LI %lu S %lu, N %lu, R %d\n", context.last_idle_32hi, context.schedule_32hi, now_32hi, restarted);
         })
 
+        p_time_ns = tm_get_elapsed_time_ns(context.schedule_32hi);
+
+        if (statetime_tracking) {
+          printf("T %lu %lu\n", logging_context, p_time_ns);
+        }
+
         context.idle_time_us += (context.schedule_32hi - context.last_idle_32hi)  * DWT_TICK_TO_NS_32 / 1000;
-        context.rx_preamble_hunting_time_us += (now_32hi - context.schedule_32hi) * DWT_TICK_TO_NS_32 / 1000;
+        context.rx_preamble_hunting_time_us += p_time_ns / 1000;
     }
 
     // radio switched to idle when rx_ok callback was issued
     context.is_rx_after_tx = false;
     context.rx_delay_32hi  = 0;
-    context.last_idle_32hi = now_32hi;
+    context.last_idle_32hi = context.schedule_32hi + p_time_ns / DWT_TICK_TO_NS_32; // TODO: Da ricontrollare
 
     context.state = DW1000_IDLE;
 }
@@ -260,7 +273,7 @@ dw1000_statetime_after_rx(const uint32_t sfd_rx_32hi, const uint16_t framelength
         schedule_sfd_time_ns = (sfd_rx_32hi - context.schedule_32hi) * DWT_TICK_TO_NS_32;
         STATETIME_DBG(
         if (!TIME_LT32(context.schedule_32hi, sfd_rx_32hi) || !TIME_LT32(context.last_idle_32hi, context.schedule_32hi)) {
-            printf("S %lu, SFD %lu, R %d\n", context.schedule_32hi, sfd_rx_32hi, restarted);
+            printf("LI %lu S %lu, SFD %lu, R %d\n", context.last_idle_32hi, context.schedule_32hi, sfd_rx_32hi, restarted);
         })
 
         // the radio can wake up and manage to sucessfully receive a packet despite
@@ -282,6 +295,134 @@ dw1000_statetime_after_rx(const uint32_t sfd_rx_32hi, const uint16_t framelength
 
     // radio switched to idle when rx_ok callback was issued
     context.last_idle_32hi = sfd_rx_32hi + payload_time_ns / DWT_TICK_TO_NS_32;
+
+    context.state = DW1000_IDLE;
+}
+/*---------------------------------------------------------------------------*/
+void
+dw1000_statetime_after_fs_pos(const uint32_t sfd_tx_32hi, const uint16_t framelength, bool sfdto)
+{ // TODO: Da usare tempo cpu anche qui?
+    STATETIME_DBG(restarted = context.is_restarted);
+    if (!context.tracing) return;
+
+    WARNIF(context.state != DW1000_SCHEDULED_RX);
+
+    uint32_t preamble_time_ns = estimate_preamble_time_ns();
+    uint32_t payload_time_ns  = estimate_payload_time_ns(framelength);
+
+    if (context.is_restarted) {
+        // first transmission of the epoch. last idle is the time at the beginning
+        // of preamble transmission.
+        // NOTE: schedule reports the expected sfd time
+        dw1000_statetime_set_last_idle(context.schedule_32hi);// sfd_tx_32hi - STATETIME_SFD_SLACK_4NS - (preamble_time_ns / DWT_TICK_TO_NS_32));
+        context.is_restarted = false;
+    }
+
+    // The last time we were in idle must be smaller or equal then the last time we scheduled
+    WARNIF(!(TIME_LT32(context.last_idle_32hi, context.schedule_32hi) || context.last_idle_32hi == context.schedule_32hi));
+    // As we first schedule an rx and then do the rx the sfd of the rx must be after the schedule
+    WARNIF(!TIME_LT32(context.schedule_32hi, sfd_tx_32hi));
+
+#if STATETIME_CONF_ON && (DW1000_CONF_PLEN != DWT_PLEN_64 || DW1000_CONF_PRF != DWT_PRF_64M || DW1000_CONF_PAC != DWT_PAC8)
+#error "Statetime + Flick with PLEN != 64 not supported"
+#endif
+
+    uint32_t p_time_ns = ((sfd_tx_32hi - context.schedule_32hi) * DWT_TICK_TO_NS_32 - preamble_time_ns);
+
+#if SNIFF_FS
+    uint32_t pr_time_ns;
+
+    if (sfdto) {
+      WARNIF(p_time_ns < 9 * PRE_SYM_PRF64_TO_DWT_TIME_32);
+
+      pr_time_ns = 9 * PRE_SYM_PRF64_TO_DWT_TIME_32;
+    } else {
+      pr_time_ns = MIN(16 * PRE_SYM_PRF64_TO_DWT_TIME_32, p_time_ns);
+    }
+
+    uint32_t ph_time_ns = p_time_ns - pr_time_ns;
+
+    context.rx_preamble_time_us += pr_time_ns / 1000;
+
+
+    context.rx_preamble_hunting_time_us += (ph_time_ns*(16 * PRE_SYM_PRF64_TO_DWT_TIME_32)/(16 * PRE_SYM_PRF64_TO_DWT_TIME_32 + SNIFF_FS_OFF_TIME * UUS_TO_DWT_TIME_32)) / 1000;
+    context.idle_time_us                += (ph_time_ns - (ph_time_ns*(16 * PRE_SYM_PRF64_TO_DWT_TIME_32)/(16 * PRE_SYM_PRF64_TO_DWT_TIME_32 + SNIFF_FS_OFF_TIME * UUS_TO_DWT_TIME_32)) ) / 1000;
+#else
+    context.rx_preamble_hunting_time_us += p_time_ns / 1000;
+#endif
+
+    context.idle_time_us += (context.schedule_32hi - context.last_idle_32hi) * DWT_TICK_TO_NS_32 / 1000;
+    context.tx_preamble_time_us += preamble_time_ns / 1000;
+    context.tx_data_time_us += payload_time_ns / 1000;
+
+    // the radio goes idle when tx done is issued, therefore
+    // roughly at sfd + the time required to read the PHY payload
+    context.last_idle_32hi = sfd_tx_32hi + payload_time_ns / DWT_TICK_TO_NS_32;
+
+    // TODO: Check again this last part
+    if (context.is_rx_after_tx) {
+
+        // setrxaftertx_delay function used
+        context.schedule_32hi = context.last_idle_32hi + context.rx_delay_32hi;
+        context.state = DW1000_SCHEDULED_RX;
+        context.rx_delay_32hi = 0;
+        context.is_rx_after_tx = false;
+
+    } else {
+        context.state = DW1000_IDLE;
+    }
+}
+/*---------------------------------------------------------------------------*/
+void
+dw1000_statetime_after_fs_neg(const uint32_t now_32hi)
+{
+    STATETIME_DBG(restarted = context.is_restarted);
+    if (!context.tracing) return;
+
+    WARNIF(context.state != DW1000_SCHEDULED_RX);
+
+    if (context.is_restarted) {
+        // start counting when the radio was turned on
+        dw1000_statetime_set_last_idle(context.schedule_32hi);
+        context.is_restarted = false;
+    }
+
+    uint32_t p_time_ns = 0;
+
+    if (context.state == DW1000_SCHEDULED_RX) {
+
+        // using the rx_enable function
+        // context.schedule_32hi stores the timestamp the
+        // radio switched to rx
+        WARNIF(context.schedule_32hi == 0);
+        WARNIF(!TIME_LT32(context.schedule_32hi, now_32hi));
+        WARNIF(!TIME_LT32(context.last_idle_32hi, context.schedule_32hi));
+
+        STATETIME_DBG(
+        if (!TIME_LT32(context.schedule_32hi, now_32hi) || !TIME_LT32(context.last_idle_32hi, context.schedule_32hi)) {
+            printf("S %lu, N %lu, R %d\n", context.schedule_32hi, now_32hi, restarted);
+        })
+
+        p_time_ns = tm_get_elapsed_time_ns(context.schedule_32hi);
+
+        if (statetime_tracking) {
+          printf("T %lu %lu\n", logging_context, p_time_ns);
+        }
+
+#if SNIFF_FS
+        context.rx_preamble_hunting_time_us += (p_time_ns * (16 * PRE_SYM_PRF64_TO_DWT_TIME_32)/(16 * PRE_SYM_PRF64_TO_DWT_TIME_32 + SNIFF_FS_OFF_TIME * UUS_TO_DWT_TIME_32)) / 1000;
+        context.idle_time_us                += (p_time_ns - (p_time_ns * (16 * PRE_SYM_PRF64_TO_DWT_TIME_32)/(16 * PRE_SYM_PRF64_TO_DWT_TIME_32 + SNIFF_FS_OFF_TIME * UUS_TO_DWT_TIME_32)) ) / 1000;
+#else
+        context.rx_preamble_hunting_time_us += p_time_ns / 1000;
+#endif
+
+        context.idle_time_us += (context.schedule_32hi - context.last_idle_32hi)  * DWT_TICK_TO_NS_32 / 1000;
+    }
+
+    // radio switched to idle when rx_ok callback was issued
+    context.is_rx_after_tx = false;
+    context.rx_delay_32hi  = 0;
+    context.last_idle_32hi = context.schedule_32hi + p_time_ns / DWT_TICK_TO_NS_32; // TODO: Da ricontrollare
 
     context.state = DW1000_IDLE;
 }
@@ -370,6 +511,18 @@ dw1000_statetime_stop(void)
     context.tracing = false;
 }
 /*---------------------------------------------------------------------------*/
+void
+dw1000_statetime_stop_at(uint32_t end_32hi)
+{
+  WARNIF(!context.tracing);
+  WARNIF(context.state != DW1000_IDLE);
+  WARNIF(context.is_restarted);
+
+  dw1000_statetime_stop();
+
+  context.idle_time_us += (end_32hi - context.last_idle_32hi) * DWT_TICK_TO_NS_32 / 1000;
+}
+/*---------------------------------------------------------------------------*/
 dw1000_statetime_context_t*
 dw1000_statetime_get_context()
 {
@@ -378,17 +531,19 @@ dw1000_statetime_get_context()
 /*---------------------------------------------------------------------------*/
 /*                              UTILITY FUNCTIONS                            */
 /*---------------------------------------------------------------------------*/
-static
 uint32_t estimate_preamble_time_ns()
 {
     return dw1000_estimate_tx_time(dw1000_get_current_cfg(), 0, true);
 }
 /*---------------------------------------------------------------------------*/
-static
 uint32_t estimate_payload_time_ns(const uint16_t framelength)
 {
     return dw1000_estimate_tx_time(dw1000_get_current_cfg(), framelength, false) -
         dw1000_estimate_tx_time(dw1000_get_current_cfg(), 0, true);
+}
+/*---------------------------------------------------------------------------*/
+uint32_t dw1000_statetime_get_schedule_32hi(){
+  return context.schedule_32hi;
 }
 /*---------------------------------------------------------------------------*/
 void

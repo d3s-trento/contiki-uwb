@@ -49,7 +49,12 @@ enum tsm_action {
                         // or a reception error
   TSM_ACTION_RESTART,   // restart the slot series from 0 after a specified 
                         // interval
-  TSM_ACTION_STOP       // request TSM to stop
+  TSM_ACTION_STOP,      // request TSM to stop
+
+#if TARGET == evb1000
+  TSM_ACTION_EVENT,     // slotted event TX
+  TSM_ACTION_EVENT_FP   // slotted fast propagation
+#endif
 };
 
 typedef enum trex_status tsm_status_t; // TSM action status
@@ -61,10 +66,25 @@ struct tsm_prev_action {
     tsm_status_t    status;            // Trex status of the performed operation
     radio_status_t  radio_status;      // radio status for the performed operation
     //uint32_t        slot_ref_time;     // SFD time of the past TX or RX (if any) minus the TX delay (TODO)
-    int16_t         slot_idx;          // slot index according to the local counter
-    uint16_t        remote_slot_idx;   // slot index received in the packet
     uint8_t*        buffer;            // TX/RX buffer
     uint8_t         payload_len;       // TX/RX payload length
+
+    uint32_t       remote_minislot_idx;   // slot index received in the packet
+    int32_t        minislot_idx;      // Mini-slot index according to the local counter
+
+    union {                            // current logic slot index (number of operations)
+      __attribute__((deprecated("This is the field name used before the introduction"
+                                " of the minislot feature, check this code is still working")))
+      int32_t        slot_idx;
+      int32_t        logic_slot_idx;
+    };
+
+    union {                            // current logic slot index (number of operations)
+      __attribute__((deprecated("This is the field name used before the introduction"
+                                " of the minislot feature, check this code is still working")))
+      uint32_t        remote_slot_idx;
+      uint32_t        remote_logic_slot_idx;
+    };
 };
 
 /* Inrerface structure requesting the next action for TSM to perform.
@@ -78,13 +98,24 @@ struct tsm_next_action {
     enum tsm_action action;     // action to perform
 
     //uint32_t slot_ref_time;     // expected SFD time for the next slot (assuming TX delay 0)
-
-    uint8_t  progress_slots;    // defines an offset in number of slots when the action should be performed
+    union {                     // defines an offset in number of slots when the action should __logically__ (not physically) be performed
                                 // 0:   stay within this slot (not implemented) [only RX],
                                 // 1:   go to the next slot [RX/TX],
                                 // N>1: skip N-1 slots [RX/TX],
                                 // default: 1
-    
+        __attribute__((deprecated("This is the field name used before the introduction"
+                                  " of the minislot feature, check this code is still working")))
+        uint32_t progress_slots;
+
+        uint32_t progress_logic_slots;
+    };
+
+    uint32_t progress_minislots;// defines an offset in number of slots when the action should be performed
+                                // 0:   stay within this slot (not implemented) [only RX],
+                                // 1:   go to the next slot [RX/TX],
+                                // N>1: skip N-1 slots [RX/TX],
+                                // default: 1
+
     bool     accept_sync;       // resynch with the packet received in the previous slot (accept slot id 
                                 // and time reference), meaningful only after RX slot,
                                 // ignored if no packet was received
@@ -106,7 +137,12 @@ struct tsm_next_action {
 
     uint8_t  payload_len;       // TX payload length
                                 // must be set for TX slots
-    
+
+    uint32_t minislots_to_use;  // Number of minislots to schedule for the operation
+                                // default: TSM_DEFAULT_MINISLOTS_ADVANCE
+#if TARGET == evb1000
+    uint32_t max_fs_flood_duration; // NOTE: Only used for EVENT
+#endif
 };
 
 /* Publicly accessible global interface structures used to exchange the
@@ -117,7 +153,7 @@ extern struct tsm_next_action tsm_next_action;
 /* Header of the TSM layer */
 struct tsm_header {
   uint16_t tx_delay; // TODO: make it 8-ns based
-  uint8_t slot_idx;
+  uint32_t minislot_idx;
   uint8_t crc;
 } __attribute__((packed));
 
@@ -131,22 +167,37 @@ struct tsm_header {
 
 /* Slot callback type */
 typedef void (*tsm_slot_cb)();
+typedef uint32_t (*minislot_to_slot_cb)(uint32_t minislot_idx);
+
+#if TARGET == evb1000
+#define TSM_FS_ACTION(pt, fs_action, fs_macroslot_duration, fs_minislot_duration) do {tsm_next_action.progress_logic_slots += fs_macroslot_duration-1;\
+                                                                                      tsm_next_action.progress_minislots   += fs_minislot_duration-TSM_DEFAULT_MINISLOTS_GROUPING;\
+                                                                                      tsm_next_action.minislots_to_use      = fs_minislot_duration;\
+                                                                                      tsm_next_action.action = fs_action;\
+                                                                                      PT_YIELD(pt);} while (0)
+
+/* Schedule Flick TX in the next slot and yield the protothread */
+#define TSM_TX_FS_SLOT(pt, macroslot_duration, minislot_duration) do{TSM_FS_ACTION(pt, TSM_ACTION_EVENT, macroslot_duration, minislot_duration);} while(0)
+
+/* Schedule Flick TX and repropagation in the next slot and yield the protothread */
+#define TSM_RX_FS_SLOT(pt, macroslot_duration, minislot_duration) do{TSM_FS_ACTION(pt, TSM_ACTION_EVENT_FP, macroslot_duration, minislot_duration);} while(0)
+#endif
 
 /* Schedule TX in the next slot and yield the protothread */
-#define TSM_TX_SLOT(pt, buffer, len) do {tsm_next_action.action=TSM_ACTION_TX;\
-                                         tsm_next_action.buffer=buffer;\
-                                         tsm_next_action.payload_len=len;\
-                                         PT_YIELD(pt);} while(0)
+#define TSM_TX_SLOT(pt, _buffer, len) do {tsm_next_action.action=TSM_ACTION_TX;\
+                                          tsm_next_action.buffer=_buffer;\
+                                          tsm_next_action.payload_len=len;\
+                                          PT_YIELD(pt);} while(0)
 
 /* Schedule RX in the next slot and yield the protothread */
-#define TSM_RX_SLOT(pt, buffer) do {tsm_next_action.action=TSM_ACTION_RX;\
-                                    tsm_next_action.buffer=buffer;\
-                                    PT_YIELD(pt);} while(0)
+#define TSM_RX_SLOT(pt, _buffer) do {tsm_next_action.action=TSM_ACTION_RX;\
+                                     tsm_next_action.buffer=_buffer;\
+                                     PT_YIELD(pt);} while(0)
 
 /* Start scanning (listening) immediately and yield the protothread */
-#define TSM_SCAN(pt, buffer) do {tsm_next_action.action=TSM_ACTION_SCAN;\
-                                    tsm_next_action.buffer=buffer;\
-                                    PT_YIELD(pt);} while(0)
+#define TSM_SCAN(pt, _buffer) do {tsm_next_action.action=TSM_ACTION_SCAN;\
+                                  tsm_next_action.buffer=_buffer;\
+                                  PT_YIELD(pt);} while(0)
 
 
 
@@ -161,9 +212,62 @@ void tsm_init();
 void tsm_set_default_preambleto(const uint32_t preambleto);
 uint32_t tsm_get_default_preambleto();
 
-
 /* Start TSM */
 int tsm_start(uint32_t slot_duration, uint32_t rx_timeout, tsm_slot_cb callback);
+int tsm_minislot_start(uint32_t slot_duration, uint32_t rx_timeout, tsm_slot_cb callback, minislot_to_slot_cb minislot_to_slot_converter);
 
+struct tsm_context_t {
+  uint32_t         tref;                          // reference time of the current slot series (reference time of slot 0)
+  uint32_t         slot_duration;                 // fixed slot duration
+  uint32_t         slot_rx_timeout;               // for RX slots
+  tsm_slot_cb      cb;                            // higher-layer callback (called between slots)
+
+  int32_t          minislot_idx;                  // current minislot index
+  uint32_t         minislots_to_use;              // number of minislots to use in the next action
+  minislot_to_slot_cb ms_to_ls_cb;                // Upper-layer-defined function to convert from minislot to logic slots
+
+  union {                                         // current logic slot index (number of operations)
+    __attribute__((deprecated("This is the field name used before the introduction"
+                              " of the minislot feature, check this code is still working")))
+    int32_t        slot_idx;
+    int32_t        logic_slot_idx;
+  };
+
+  enum tsm_action  slot_action;                   // current slot action
+  //uint32_t         slot_tref;        // current slot reference time (TODO)
+  enum trex_status slot_status;                   // Trex operation status for the current slot
+
+  uint32_t         tentative_slot_tref;           // slot reference of the received packet (if any)
+  uint32_t         tentative_tref;                // tref reference of the received packet (if any)
+
+  uint32_t         tentative_minislot_idx;        // slot index of the received packet (if any)
+  uint32_t         tentative_logic_slot_idx;      // slot index of the received packet (if any)
+
+  uint32_t         default_preambleto;
+  uint16_t         default_preambleto_pacs;       // cache the default timeout in PACs units
+  uint32_t         default_preambleto_actual_4ns; // Actual duration of the preambleto in 4ns
+
+  bool             epoch_initialized;             // true if the timer-mapping was already initialized for this epoch or not
+};
+
+#if TARGET == evb1000
+uint32_t tsm_get_slot_start_4ns(uint16_t slot_idx);
+uint32_t tsm_get_slot_end_4ns(uint16_t slot_idx);
+#endif
+
+#ifndef TSM_DEFAULT_MINISLOTS_GROUPING
+#define TSM_DEFAULT_MINISLOTS_GROUPING 1
+#endif
+
+#ifndef PRE_EPOCH_DURATION
+//                            v- maximum rx_guard + preamble length (default, considers 1000us of guard and 64plen)
+#define PRE_EPOCH_DURATION ((1000 + 80 + 100)* UUS_TO_DWT_TIME_32)
+//            time for 64plen guard -^    ^- additional time for timer (default)
+#endif
+
+#ifndef EPOCH_INIT_DURATION
+#define EPOCH_INIT_DURATION ((2000)* UUS_TO_DWT_TIME_32)
+//                            ^- time to initialize protocol (default)
+#endif
 
 #endif // TREX_TSM_H
