@@ -249,13 +249,8 @@ dw1000_configure_tx(const dwt_txconfig_t* tx_cfg, bool smart) {
 bool
 dw1000_configure_ant_dly(uint16_t rx_dly, uint16_t tx_dly) {
   if (dw1000_is_sleeping) {
-<<<<<<< HEAD
     PRINTF("dwc: error. Ant dly configure requested while sleeping\n");
     return false;
-=======
-    PRINTF("Err: Ant dly configure requested while sleeping\n");
-    return 0;
->>>>>>> tsm_dwm1001
   }
   int8_t irq_status = dw1000_disable_interrupt();
 
@@ -272,13 +267,8 @@ dw1000_configure_ant_dly(uint16_t rx_dly, uint16_t tx_dly) {
 bool
 dw1000_configure_lde(uint8_t ntm, uint8_t pmult, uint16_t prf_tune) {
   if (dw1000_is_sleeping) {
-<<<<<<< HEAD
     PRINTF("dwc: error. LDE configure requested while sleeping\n");
     return false;
-=======
-    PRINTF("Err: LDE configure requested while sleeping\n");
-    return 0;
->>>>>>> tsm_dwm1001
   }
   int8_t irq_status = dw1000_disable_interrupt();
 
@@ -301,13 +291,8 @@ dw1000_configure_lde(uint8_t ntm, uint8_t pmult, uint16_t prf_tune) {
 bool
 dw1000_reset_cfg() {
   if (dw1000_is_sleeping) {
-<<<<<<< HEAD
     PRINTF("dwc: error. Reset cfg requested while sleeping\n");
     return false;
-=======
-    PRINTF("Err: Reset cfg requested while sleeping\n");
-    return 0;
->>>>>>> tsm_dwm1001
   }
   
   // use the configuration constants
