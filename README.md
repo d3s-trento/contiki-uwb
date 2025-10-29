@@ -22,6 +22,7 @@ This package includes support for:
 * [Glossy](https://ieeexplore.ieee.org/document/5779066), a fast flooding and synchronisation primitive (only EVB1000)
 * [Crystal](https://dl.acm.org/doi/10.1145/2994551.2994558), a fast and reliable data collection protocol based on Glossy (only EVB1000)
 * [Weaver](https://dl.acm.org/doi/10.1145/3384419.3430715), a next generation data collection protocol based on concurrent transmissions (only EVB1000) [video](http://disi.unitn.it/~picco/papers/sensys20_weaver.mp4)
+* You can find [Flick](https://dl.acm.org/doi/10.1145/3583120.3586967), a primitive for fast network-wide decisions, in a [dedicated branch](https://github.com/d3s-trento/contiki-uwb/tree/flick)
 
 ## Code Structure
 ```
