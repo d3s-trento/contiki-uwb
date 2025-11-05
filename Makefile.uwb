@@ -18,38 +18,37 @@ endif
 
 UWB_MODULES += core/net core/sys
 
-ifeq ($(UWB_WITH_TSM_GLOSSY),1)
+ifeq ($(UWB_WITH_SAMU_GLOSSY),1)
   ifeq ($(UWB_WITH_GLOSSY),1)
-    ${error only one of UWB_WITH_GLOSSY_TSM or UWB_WITH_GLOSSY can be enabled, not both}
+    ${error only one of UWB_WITH_GLOSSY_SAMU or UWB_WITH_GLOSSY can be enabled, not both}
   endif
 
-  ifneq ($(UWB_WITH_TSM),1)
-    ${error To use tsm glossy you first need to enable TSM}
+  ifneq ($(UWB_WITH_SAMU),1)
+    ${error To use SAMU glossy you first need to enable SAMU}
   endif
 
   CFLAGS += -DNETSTACK_CONF_WITH_GLOSSY=1
-  UWB_MODULES += dev/dw1000/glossy_tsm
+  UWB_MODULES += samu/modules/glossy
   CFLAGS+=-DNETSTACK_CONF_NETWORK=dummynet_driver
   CONTIKI_WITH_IPV6 = 0
   CONTIKI_WITH_RIME = 0
-	# CONTIKI_WITH_TREX = 0 # ?
 endif
 
-ifeq ($(UWB_WITH_TSM_CRYSTAL),1)
+ifeq ($(UWB_WITH_SAMU_CRYSTAL),1)
   ifeq ($(UWB_WITH_GLOSSY),1)
-    ${error only one of UWB_WITH_GLOSSY_TSM or UWB_WITH_GLOSSY can be enabled, not both}
+    ${error only one of UWB_WITH_GLOSSY_SAMU or UWB_WITH_GLOSSY can be enabled, not both}
   endif
 
-  ifneq ($(UWB_WITH_TSM),1)
-    ${error To use tsm glossy you first need to enable TSM}
+  ifneq ($(UWB_WITH_SAMU),1)
+    ${error To use SAMU Glossy you first need to enable SAMU}
   endif
 
-  ifneq ($(UWB_WITH_TSM_GLOSSY),1)
-    ${error To use tsm crystal you first need to enable TSM glossy}
+  ifneq ($(UWB_WITH_SAMU_GLOSSY),1)
+    ${error To use SAMU Crystal you first need to enable SAMU glossy}
   endif
 
   CFLAGS += -DNETSTACK_CONF_WITH_GLOSSY=1
-  UWB_MODULES += dev/dw1000/crystal_tsm
+  UWB_MODULES += samu/modules/crystal
   CFLAGS+=-DNETSTACK_CONF_NETWORK=dummynet_driver
   CONTIKI_WITH_IPV6 = 0
   CONTIKI_WITH_RIME = 0
@@ -63,17 +62,15 @@ ifeq ($(UWB_WITH_GLOSSY),1)
   CFLAGS+=-DNETSTACK_CONF_NETWORK=dummynet_driver
   CONTIKI_WITH_IPV6 = 0
   CONTIKI_WITH_RIME = 0
-	# CONTIKI_WITH_TREX = 0 # ?
 endif
 
-# If requested, include TSM and disable other stacks
-ifeq ($(UWB_WITH_TSM),1)
-  CFLAGS += -DNETSTACK_CONF_WITH_TSM=1
-  UWB_MODULES += dev/dw1000/tsm
+# If requested, include SAMU and disable other stacks
+ifeq ($(UWB_WITH_SAMU),1)
+  CFLAGS += -DNETSTACK_CONF_WITH_SAMU=1
+  UWB_MODULES += samu
   CFLAGS+=-DNETSTACK_CONF_NETWORK=dummynet_driver
   CONTIKI_WITH_IPV6 = 0
   CONTIKI_WITH_RIME = 0
-	# CONTIKI_WITH_GLOSSY = 0 # ?
 endif
 
 # use to print configuration macros at compile time

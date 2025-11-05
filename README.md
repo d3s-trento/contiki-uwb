@@ -1,270 +1,201 @@
-# D3S Contiki-based systems and Contiki OS port for the DecaWave EVB1000/DWM1001 platforms
+# Synchronized Action Manager for Ultra-Wideband (SAMU)
 
-## Overview 
-This repository contains the systems made by the d3s group of the University of Trento and their port of Contiki OS for the DecaWave (now Qorvo) EVB1000 and DWM1001 platforms onto which these systems are built.
+## Overview
 
-## Contiki OS port
-[Contiki](https://github.com/contiki-os/contiki) is an open source operating system that runs on constrained embedded systems and provides standardized low-power wireless communication.
+SAMU is a framework for building time-slotted and time-synchronized communication protocols. By handling all scheduling operations autonomously, it allows the programmer to focus on protocol logic rather than the intricacies of the hardware and the RF medium.
 
-### Package Features
-This package includes support for:
-* Contiki system clock and rtimers
-* Watchdog timer
-* Serial-over-USB logging using printf (and/or RTT for DWM1001)
-* LCD display
-* LEDs
-* Rime stack over UWB
-* IPv6 stack over UWB [to be tested]
-* Single-sided Two-way Ranging (SS-TWR) with frequency offset compensation
-* Double-sided Two-way Ranging (DS-TWR)
-* Bluetooth support (only DWM1001, and without integration with Contiki stacks)
+### Concurrent transmissions, and more
 
-## Systems
-Together with a port of Contiki, which can be used standalone, this repo contains the systems we developed:
-- An EVB1000 implementation of [Glossy](https://ieeexplore.ieee.org/document/5779066), a fast flooding and synchronisation primitive, and [Crystal](https://dl.acm.org/doi/10.1145/2994551.2994558), a fast and reliable data collection protocol based on Glossy. For more information see [our paper](http://www.ewsn.org/file-repository/ewsn2020/132_143_lobba.pdf)
-- The [Weaver](https://dl.acm.org/doi/10.1145/3384419.3430715) communication protocol, a next generation data collection protocol based on concurrent transmissions (only EVB1000) [video](http://disi.unitn.it/~picco/papers/sensys20_weaver.mp4)
-- [TSM](dev/dw1000/tsm) (Time Slot Manager), a flexible CTX engine
-	- [Glossy robust flooding](https://github.com/ETHZ-TEC/robust-flooding) and Crystal layers for TSM 
-	- [Flick]() a binary condition disseminating primitive (only EVB1000) with Flick-enabled implementations of Crystal and Weaver
-- UWB ranging primitives
+SAMU was developed with the goal to support concurrent transmissions (CTX, also known as synchronous transmissions, STX). CTX is a communication technique based on packets overlapping non-destructively at receivers, which has been applied in communication protocols to unlock substantial improvements in realiability and energy efficiency compared to traditional approaches. Yet, SAMU can be used beyond CTX to support any time-slotted schedule.  
+
+### Prominent features
+
+- Sequential programming style seamlessly combining fine-grained control and high-level protocols
+- Easy-to-use synchronization between nodes, even across deep sleep intervals
+- Configurable action duration at runtime
+- Automatic logging of the operations within each epoch (with a viewer, called [Inspector](./tools/inspector/README.md), to visualize them)
+- Preamble and frame timeouts to improve the RX energy efficiency when there is no data to receive
+- Energy consumption estimation through [StateTime](dev/dw1000/statetime.md)
+
+Although the current implementation targets the Qorvo DW1000 radio on the EVB1000 platform, the code herein can be ported to other platforms with minimal effort making the code written on top of SAMU platform-independent.
+
+### Contiki for UWB radios
+
+SAMU is implemented for the EVB1000 platform atop our UWB port of Contiki OS.
+You can find more information on the [main branch](https://github.com/d3s-trento/contiki-uwb/tree/master) of this repository.
 
 ## Code Structure
+
+The core of SAMU can be found in [samu](./samu).
+
 ```
 ├── cpu
-│   ├── nrf52832
 │   └── stm32f105
 ├── dev
-│   └── dw1000
-│       ├── crystal
-│       ├── glossy
-│       ├── tsm
-│       ├── glossy_tsm
-│       └── crystal_flick
+|   └── dw1000
+|       ├── decadriver
+|       ├── dw1000-statetime-evb1000.c
+|       ├── dw1000-statetime-generic.c
+|       ├── dw1000-statetime.h
+|       ├── evb1000-timer-mapping.c
+|       ├── evb1000-timer-mapping.h
+|       └── samu-radio-defaults.h
+├── samu
+│   ├── ascii85.c
+│   ├── ascii85.h
+│   ├── contiki-samu.c
+│   ├── contiki-samu.h
+│   ├── modules
+│   │   ├── crystal
+│   │   ├── glossy
+│   │   └── glossy_example
+│   ├── rtimer-drift.c
+│   ├── rtimer-drift.h
+│   ├── samu.c
+│   ├── samu.h
+│   ├── samu-logs.c
+│   ├── samu-logs.h
+│   ├── samu-ral.c
+│   ├── samu-ral.h
+│   ├── samu-ral-status.h
+│   ├── tools
+│   │   └── inspector
+│   ├── uwb-to-rtimer.c
+│   └── uwb-to-rtimer.h
 ├── systems
-│   ├── crystal-test
 │   ├── deployment
-│   ├── glossy-test
-│   ├── ranging
-│   ├── range-collect
-│   ├── sensniff
-│   ├── tsm-test
-│   ├── weaver
-│   ├── glossy
-│   └── weavent
+│   ├── crystal-app
+│   ├── sync-app
+│   └── weaver
 └── platform
-    ├── evb1000
-    └── dwm1001
-
+    └── evb1000
 ```
 
-## Requirements
-* For both platforms
-  * [GNU Arm Embedded Toolchain](https://developer.arm.com/open-source/gnu-toolchain/gnu-rm)
-* For EVB1000
-  * [ST-Link V2 Tools](https://github.com/texane/stlink)
-* For DWM1001
-  * [Nordic nRF5 SDK v16.0.0](https://www.nordicsemi.com/Software-and-tools/Software/nRF5-SDK/Download)
-  * [SEGGER J-Link](https://www.segger.com/downloads/jlink/)
+## Systems
 
-To use this port, clone the Contiki-UWB GitHub repository.
-```
-$ git clone https://github.com/d3s-trento/contiki-uwb.git
-```
+This repository includes the implementations of popular CTX protocols.
 
-Inside the `contiki-uwb` directory, initialise the Contiki submodule:
-```
-$ git submodule update --init contiki
-```
+* [Crystal](https://dl.acm.org/doi/10.1145/2994551.2994558), a fast and reliable data collection protocol based on Glossy ([systems/crystal-app/](./systems/crystal-app), exploits the Glossy and Crystal modules of SAMU)
+* [Weaver](https://dl.acm.org/doi/10.1145/3384419.3430715), a next generation data collection protocol based on concurrent transmissions ([systems/weaver/](./systems/weaver), with optional Flick integration) [video](http://disi.unitn.it/~picco/papers/sensys20_weaver.mp4)
+* You can find more informations and examples on [Flick](https://dl.acm.org/doi/10.1145/3583120.3586967), a primitive for fast network-wide decisions, in a [dedicated branch](https://github.com/d3s-trento/contiki-uwb/tree/flick)
 
-Then, either set `UWB_CONTIKI` environment variable pointing at the
-`contiki-uwb` directory or define it in your application Makefile (you can use
-`examples/ranging/Makefile` as a template).
+To compile one of the applications above, first apply the correct compilation options specified below. Then, follow the general instructions on the [main branch](https://github.com/d3s-trento/contiki-uwb/tree/master) for building and flashing your program.
 
-For DWM1001, set also the following environment variables:
+These applications have been evaluated on the [Cloves](https://iottestbed.disi.unitn.it/cloves/) public testbed located at the University of Trento. 
+
+## Compilation Options for SAMU
+
+To enable SAMU, define the following in your application Makefile:
 ```
-export NRF52_SDK_ROOT=/path/to/nrf_sdk
-export NRF52_JLINK_PATH=/path/to/jlink/bin
+UWB_WITH_SAMU = 1
+```
+This will exclude all other Contiki stacks.
+
+To enable the SAMU modules that directly provide ready-to-use protocol implementations,
+define the following in your application Makefile:
+```
+UWB_WITH_SAMU_GLOSSY = 1
+UWB_WITH_SAMU_CRYSTAL = 1
 ```
 
+Note that our Crystal application requires the Glossy and Crystal modules. Weaver does not use Glossy and therefore needs no extra modules.
 
-## Examples
-We include three main examples showing:
-- how to perform ranging: **examples/ranging**
-- how to use the Rime stack for data collection together with ranging: **examples/range-collect**
-- and a sniffer port for **sensniff** that can be used to debug your applications.
+## Using SAMU
 
-Note that other general Contiki examples directly available in the original
-Contiki OS GitHub repository, e.g, the Rime stack examples, can also be used on
-the DecaWave EVB1000 platform. To use them, start by copying them to `contiki-uwb/examples`
-and adjust the Makefile appropriately.
+SAMU abstracts the low-level details of communicating with the radio.
+Yet, when needed, SAMU enables fine-grained control of single TX/RX *actions*, which consitute the building blocks of a SAMU schedule.
 
-### Build and program your first example
-#### EVB1000
-Go to the **examples/ranging** folder and compile your example as:
+### Actions
+SAMU supports the following actions:
+- `SAMU_SCAN` starts a reception slot with no maximum listening time
+- `SAMU_RX` starts a reception slot with a maximum listening time due to preamble timeout or frame reception timeout
+- `SAMU_TX` transmits the specified message
+- `SAMU_FLICK` initiates or propagates a Flick flood
+- `SAMU_RESTART` puts the radio to sleep and automatically restarts at the beginning of the next epoch while maintaining synchronization between nodes
 
-```
-$ cd examples/ranging/
-$ make TARGET=evb1000
-```
+### Silvers
+The "time" of a SAMU schedule is expressed in _slivers_. They determine when the next SAMU action (RX, TX, ...) will be performed, are included in the SAMU header, and can be used by a receiver to synchronize to the transmitter. An actions has a certain duration in slivers, which can be adjusted on a per-action fashion for maximum flexibility.
 
-To flash your device with the compiled application, first connect the ST-LINK V2 programmer to your 
-DecaWave EVB1000 and power up both the ST-LINK programmer and the EVB1000 through USB. Then, simply run:
+### Examples
+Reception example: 
+```c
+SAMU_RX(&pt, buffer);
 
-```
-$ make TARGET=evb1000 rng.upload
-```
-
-If everything works out fine, you should get a positive message like: 
-> Flash written and verified! jolly good!
-
-#### DWM1001
-Go to the **examples/ranging** folder and compile your example as:
-
-```
-$ cd examples/ranging/
-$ make TARGET=dwm1001
+if (SAMU_PREV_A.status == RX_SUCCESS) {
+  // Correct reception
+} else if (SAMU_PREV_A.status == RX_ERROR) {
+  // Received invalid packet (e.g., wrong CRC, wrong Reed Solomon, wrong PHR SECDED, SFD Timeout, ...)
+} else if (SAMU_PREV_A.status == RX_TIMEOUT) {
+  // Didn't receive anything
+}
 ```
 
-To flash your device with the compiled application, connect the device to the computer through USB.
-Then, simply run:
-
-```
-$ make TARGET=dwm1001 rng.upload
-```
-
-If everything works out fine, you should get a positive message like: 
-> Verifying flash   [100%] Done.
-
-If you want to enable Bluetooth stack (SoftDevice), add the following to your project Makefile:
-```
-NRF52_SOFTDEVICE = 132
-```
-This will compile the application in a certain way so that the SoftDevice s132 needs to be flashed to the device.
-To flash SoftDevice, use the following:
-```
-make softdevice.flash
-```
-
-It is required to `make clean` between compiling the app with SoftDevice support and without it.
-It is also required to completely erase flash when switching between applications that require SoftDevice
-and the ones that do not.
-
-#### Configuring the ranging application
-Note that the ranging application requires to set the IEEE 802.15.4 link layer address of the responder (i.e., the node 
-to range with in the **rng.c** file). After flashing a device with any application from this code, the device should
-show its IEEE address in the LCD display. Set this address appropriately in the line:
-```
-linkaddr_t dst = {{0xdd, 0x37}};
-```
-This particular address should be displayed in the LCD (EVB1000 only) as `dd37`, it is also printed to the standard
-output when the node boots.
-
-### IEEE Addresses
-In this port, we generate the IEEE 802.15.4 link layer addresses used for the network stacks and ranging 
-using the DW1000 part id and lot id numbers. To see how we generate the addresses look at 
-the **set_rf_params()** function in **platform/evb1000/contiki-main.c**.
-
-Alternatively, only for dwm1001, 802.15.4 link layer addresses might be generated from the unique
-Bluetooth address of the device. To request this, set `#define DWM1001_USE_BT_ADDR_FOR_UWB 1` in
-`project-conf.h` of your application.
-
-### Serial Port 
-After you flash the node, you should be able to connect to the serial port and see the serial input printed by the device by:
-```
-$ make PORT=/dev/tty.usbmodem1411 login
+Bootstrap and synchronization example[^1]: 
+```c
+while (1) {
+  SAMU_SCAN(&pt, buffer);
+  
+  if ((SAMU_PREV_A.status == RX_SUCCESS) && (SAMU_PREV_A.payload_len == sizeof(pkt_t))) {
+    memcpy(&rcvd, buffer + SAMU_HDR_LEN, sizeof(pkt_t));
+    
+    if (extra_application_checks()) {
+      // Synchronize using the received packet
+      SAMU_NEXT_A.accept_sync = true;
+      
+      // Exit the bootstrap loop
+      break;
+    }
+  }
+}
 ```
 
-The `PORT` variable will change depending on your operating system.
-If you are using the ranging appication, you should receive some data as follows:
-```
-R req
-R success: 1.064711 bias 1.344711
-```
-
-### Compilation Options
-If your application does not need to perform ranging, you can disable ranging in your `project-conf.h` file as:
-```
-#define DW1000_CONF_RANGING_ENABLED 0
-```
-By default, ranging is enabled.
-
-If you want to use Glossy and/or Crystal, define the following in your application Makefile:
-```
-UWB_WITH_GLOSSY = 1
-```
-This will include Glossy and Crystal into the compilation process and exclude all other Contiki stacks.
-
-If you want to use TSM, define the following in your application Makefile:
-```
-UWB_WITH_TSM = 1
-```
-This will include TSM into the compilation process and exclude all other Contiki stacks.
-You can find more information on TSM on dev/dw1000/tsm/README.md
-
-If you want to use the GlossyTX TSM layer define the following in your application Makefile:
-```
-UWB_WITH_TSM_GLOSSY = 1
-```
-Note that you still need to enable TSM through its dedicated define macro.
-
-An implementation of Crystal TSM on top of this GlossyTX TSM layer is also provided when your Makefile defines:
-```
-UWB_WITH_TSM_CRYSTAL = 1
+Transmission example: 
+```c
+memcpy(buffer+SAMU_HDR_LEN, &node_pkt, sizeof(info_t));
+SAMU_TX(&pt, buffer, sizeof(info_t));
 ```
 
-## Porting to other Platforms / MCUs
-This port can be easily adapted for other platforms and MCUs based on the DW1000 transceiver. The radio driver only requires platform-specific implementations for the following functions:
-* writetospi(cnt, header, length, buffer)
-* readfromspi(cnt, header, length, buffer)
-* decamutexon()
-* decamutexoff(stat)
-* deca_sleep(t)
+See [systems](./systems) for fully-fledged implementations.
 
-For an overview of these functions, we refer the reader to the platform-specific section on **dev/dw1000/decadriver/deca_device_api.h** and
-the implementation on **platform/evb1000/dev/dw1000-arch.[ch]**. These functions must be implemented in the platform **dw1000-arch** code.
 
 ## Publications
-This port has been published as a poster at [EWSN'18](https://ewsn2018.networks.imdea.org).
-
-* **[Poster: Enabling Contiki on Ultra-Wideband Radios](http://pablocorbalan.com/files/posters/contikiuwb-ewsn18.pdf)**.
-Pablo Corbalán, Timofei Istomin, and Gian Pietro Picco. In Proceedings of the 15th International Conference on Embedded Wireless Systems and Networks (EWSN), Madrid (Spain), February 2018.
-
-Please, consider citing this poster when using this Contiki port in your work.
+- TSM, the predecessor of SAMU, was presented and used in [Weaver](https://dl.acm.org/doi/10.1145/3384419.3430715)
 ```
-@inproceedings{contiki-uwb,
-	title = {{Poster: Enabling Contiki on Ultra-wideband Radios}},
-	author = {Corbal\'{a}n, Pablo and Istomin, Timofei and Picco, Gian Pietro},
-	booktitle = {Proceedings of the International Conference on Embedded Wireless Systems and Networks},
-	series = {EWSN'18},
-	year = {2018},
-}
-```
-
-A research paper about our Glossy and Crystal implementations for DW1000 has been accepted for publishing at EWSN'2020.
-
-* [**Concurrent Transmissions for Multi-hop Communication on Ultra-wideband Radios**](https://dl.acm.org/doi/10.5555/3400306.3400323).
-Diego Lobba, Matteo Trobinger, Davide Vecchia, Timofei Istomin, Gian Pietro Picco (University of Trento).
-```
-@inproceedings{10.5555/3400306.3400323,
-	author = {Lobba, Diego and Trobinger, Matteo and Vecchia, Davide and Istomin, Timofei and Picco, Gian Pietro},
-	title = {Concurrent Transmissions for Multi-Hop Communication on Ultra-Wideband Radios},
+@inproceedings{10.1145/3384419.3430715,
+	author = {Trobinger, Matteo and Vecchia, Davide and Lobba, Diego and Istomin, Timofei and Picco, Gian Pietro},
+	title = {One Flood to Route Them All: Ultra-Fast Convergecast of Concurrent Flows over UWB},
 	year = {2020},
-	isbn = {9780994988645},
-	publisher = {Junction Publishing},
-	address = {USA},
-	abstract = {Concurrent transmissions, as popularized by Glossy, have proven an effective, state-of-the-art technique for the design of reliable and efficient network protocols. However, their exploitation is largely confined to IEEE 802.15.4 narrowband radios. In this paper, we investigate the extent to which concurrent transmissions can be applied to ultra-wideband (UWB) radios, whose popularity is rapidly growing. We adopt a system-driven approach, where techniques and codebases representative of the state of the art are adapted for UWB and evaluated in a 23-node indoor testbed yielding multi-hop topologies. We show that, once embodied in a full-fledged system, UWB concurrent transmissions yield benefits similar to narrowband, i.e., near-perfect reliability and very low latency and energy consumption, along with order-of-magnitude improvements in networkwide time synchronization. Further, our implementations suggest that existing higher-level protocols built atop Glossy require only minimal adaptation. Our results pave the way for the exploitation of concurrent transmissions in UWB, which we foster by releasing our systems as open source, enabling their immediate use and improvement by researchers and practitioners.},
-	booktitle = {Proceedings of the 2020 International Conference on Embedded Wireless Systems and Networks},
-	pages = {132–143},
-	numpages = {12},
-	location = {Lyon, France},
-	series = {EWSN '20}
+	isbn = {9781450375900},
+	publisher = {Association for Computing Machinery},
+	address = {New York, NY, USA},
+	url = {https://doi.org/10.1145/3384419.3430715},
+	doi = {10.1145/3384419.3430715},
+	abstract = {Concurrent transmissions (CTX) enable low latency, high reliability, and energy efficiency. Nevertheless, existing protocols typically exploit CTX via the Glossy system, whose fixed-length network-wide floods are entirely dedicated to disseminating a single packet.In contrast, the system we present here, Weaver, enables concurrent dissemination towards a receiver of different packets from multiple senders in a single, self-terminating, network-wide flood.The protocol is generally applicable to any radio supporting CTX; the prototype targets ultra-wideband (UWB), for which a reference network stack is largely missing. Our modular design separates the low-level mechanics of CTX from their higher-level orchestration in Weaver. Other researchers can easily experiment with alternate designs via our open-source implementation, which includes a reusable component estimating UWB energy consumption.Our analytical model and testbed experiments confirm that Weaver disseminates concurrent flows significantly faster and more efficiently than state-of-the-art Glossy-based protocols while achieving higher reliability and resilience to topology changes.},
+	booktitle = {Proceedings of the 18th Conference on Embedded Networked Sensor Systems},
+	pages = {179–191},
+	numpages = {13},
+	keywords = {ultra-wideband, concurrent transmissions, low-power wireless},
+	location = {Virtual Event, Japan},
+	series = {SenSys '20}
+}
+```
+- Used and modified in ["Network On or Off? Instant Global Binary Decisions over UWB with Flick"](https://dl.acm.org/doi/10.1145/3583120.3586967)
+```
+@inproceedings{soprana2023network,
+  title = {Network On or Off? Instant Global Binary Decisions over UWB with Flick},
+  author = {Soprana, Enrico and Trobinger, Matteo and Vecchia, Davide and Picco, Gian Pietro},
+  booktitle = {Proceedings of the 22nd International Conference on Information Processing in Sensor Networks},
+  url = {https://dl.acm.org/doi/10.1145/3583120.3586967},
+  doi = {10.1145/3583120.3586967},
+  pages = {261--273},
+  year = {2023}
 }
 ```
 
-
-## License
-This software package makes use of low-level drivers provided by DecaWave and STMicroelectronics. These drivers are licensed on a separate terms.
-The files developed by our research group for this port are under BSD license.
+- SAMU is based on many of the principles of TSM, but introduces action APIs, dynamic action duration (with "slivers"), deep sleep support, and more.
+```
+...
+```
 
 ## Disclaimer
 Although we tested the code extensively, it is considered a research prototype that likely contains bugs. We take no responsibility for and give no warranties in respect of using this code.

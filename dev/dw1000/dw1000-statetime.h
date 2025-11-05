@@ -39,6 +39,8 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
+#include "rtimer.h"
+
 /*
  * Define radio states that are useful to determine the actions
  * taken by the radio.
@@ -70,6 +72,7 @@ typedef struct dw1000_statetime_log_t {
  * spent RX/TX the preamble from the one spent for the PHR and PHY payload.
  */
 typedef struct dw1000_statetime_context_t {
+	bool is_valid; // False if the results from statetime should be disregarded
     dw1000_state_t state;
 
     uint64_t idle_time_us;
@@ -88,14 +91,24 @@ typedef struct dw1000_statetime_context_t {
 
     bool     is_rx_after_tx;            // set to true if the previous rx operation was performed after tx
     uint32_t rx_delay_32hi;             // the amount of delay (4ns precision)
+
+	bool     sniff_enabled;
+	uint32_t sniff_rx_pacs_4ns;
+	uint32_t sniff_sleep_4ns;
+
+	uint32_t pre_epoch_idle_4ns;
 } dw1000_statetime_context_t;
+/*---------------------------------------------------------------------------*/
+/** \brief Used to set a custom beginning for the epoch
+ */
+void dw1000_statetime_pre_epoch_total_guard(uint32_t guard_4ns);
+void dw1000_statetime_pre_epoch_take_into_account();
 /*---------------------------------------------------------------------------*/
 /** \brief Initialize the statetime context.
  */
 void dw1000_statetime_context_init();
+void dw1000_statetime_set_sniff(bool enabled, uint32_t sniff_rx_pacs_4ns, uint32_t sniff_sleep_4ns);
 /*---------------------------------------------------------------------------*/
-void dw1000_statetime_set_tref(uint32_t tref);
-uint32_t dw1000_statetime_get_tref();
 /** \brief Start tracing statetime.
  */
 void dw1000_statetime_start();
@@ -136,11 +149,16 @@ void dw1000_statetime_set_last_idle(const uint32_t ts_idle_32hi);
  *  \param sfd_rx_32hi  sfd of the incoming rx.
  *  \param framelength  the length of the frame received.
  */
+void dw1000_statetime_after_rx_ext(const bool valid_sfd_rx_32hi, uint32_t sfd_rx_32hi, const uint16_t framelength, rtimer_clock_t diff);
+void dw1000_statetime_after_rxerr_ext(const uint32_t now_32hi, rtimer_clock_t diff, const uint32_t radio_status);
 void dw1000_statetime_after_rx(const uint32_t sfd_rx_32hi, const uint16_t framelength);
 void dw1000_statetime_after_rxerr(const uint32_t now_32hi);
+
 void dw1000_statetime_after_fs_pos(const uint32_t sfd_tx_32hi, const uint16_t framelength, bool sfdto);
 void dw1000_statetime_after_fs_neg(const uint32_t now_32hi);
 void dw1000_statetime_abort(const uint32_t now_32hi);
+
+
 /*---------------------------------------------------------------------------*/
 /** \brief Perform tracing after a successful transmission.
  *

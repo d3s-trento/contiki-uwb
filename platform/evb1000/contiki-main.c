@@ -195,11 +195,12 @@ main(void)
   watchdog_start();
 
   while(1) {
-    uint8_t r;
+    int r;
     do {
       r = process_run();
-      watchdog_periodic();
+    watchdog_periodic();
     } while(r > 0);
+    watchdog_periodic();
 
     // Drop to some low power mode
     // lpm_drop();

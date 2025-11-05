@@ -1,0 +1,102 @@
+/*
+ * Copyright (c) 2020, University of Trento.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above
+ *    copyright notice, this list of conditions and the following
+ *    disclaimer in the documentation and/or other materials provided
+ *    with the distribution.
+ * 3. The name of the author may not be used to endorse or promote
+ *    products derived from this software without specific prior
+ *    written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
+/*
+ * \author    Diego Lobba         <diego.lobba@gmail.com>
+ * \author    Matteo Trobinger    <matteo.trobinger@unitn.it>
+ * \author    Davide Vecchia      <davide.vecchia@unitn.it>
+ */
+#include <string.h>
+#include <stddef.h>
+#include <inttypes.h>
+
+#include "samu-ral-status.h"
+#include "weaver-log.h"
+
+#define LOG_PREFIX "E"  // epoch
+#include "logging.h"
+
+
+#include PROJECT_CONF_H
+#include "print-def.h"
+
+#ifndef WEAVER_LOGS_MAX
+#define WEAVER_LOGS_MAX 100
+#endif
+
+#pragma message STRDEF(WEAVER_LOGS_MAX)
+
+static weaver_log_t weaver_slot_logs[WEAVER_LOGS_MAX];
+static size_t next_log = 0;
+
+void
+weaver_log_init()
+{
+    next_log = 0;
+}
+
+void
+weaver_log_append(weaver_log_t *entry)
+{
+    if (next_log < WEAVER_LOGS_MAX) {
+        weaver_slot_logs[next_log] = *entry;
+        next_log++;
+    }
+}
+
+void
+weaver_log_print()
+{
+    weaver_log_t *s;
+    char stat_label[2] = "";
+
+    for (s = weaver_slot_logs; s < weaver_slot_logs + next_log; s++) {
+
+        switch (s->slot_status) {
+            case TX_DONE:
+                snprintf(stat_label, 2, "T"); break; // Transmitted
+            case RX_SUCCESS:
+                snprintf(stat_label, 2, "R"); break; // Received
+            case RX_TIMEOUT:
+                snprintf(stat_label, 2, "L"); break; // Late
+            case RX_ERROR:
+                snprintf(stat_label, 2, "E"); break; // Error
+            case RX_MALFORMED:
+                snprintf(stat_label, 2, "B"); break; // Bad
+            case -1:                                 // SAMU_LOG_STATUS_SAMU_LOG_RX_WITH_SYNCH
+                snprintf(stat_label, 2, "Y"); break; // received and resYnchronised
+            default:
+                snprintf(stat_label, 2, "#");        // unknown (should not happen)
+        }
+        printf(LOG_PREFIX "W %"PRIu32" %"PRIi16" %s %"PRIu8" %"PRIu16" %"PRIu16" 0x%"PRIx64" 0x%"PRIx64"\n",
+                logging_context, s->idx, stat_label, s->node_dist, s->originator_id, s->lhs, s->acked, s->buffer);
+    }
+}
+

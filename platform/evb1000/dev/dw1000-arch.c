@@ -291,13 +291,33 @@ dw1000_arch_reset()
   /* Sleep 2 ms to get the DW1000 restarted */
   clock_wait(2);
 }
+
+#include "rtimer.h"
+
 /*---------------------------------------------------------------------------*/
 /* Note that after calling this function you need to wait 5ms for XTAL to 
  * start and stabilise (or wait for PLL lock IRQ status bit: in SLOW SPI mode)
  */
 void dw1000_arch_wakeup_nowait() {
-    /* To wake up the DW1000 we keep the SPI CS line low for (at least) 500us.
-     * This can be achieved with a long read SPI transaction.*/
-  uint8_t wakeup_buffer[600];
-  dwt_readfromdevice(0x0, 0x0, 600, wakeup_buffer);
+	//rtimer_clock_t start =RTIMER_NOW();
+#define CURRENT_SPI_SPEED (5) // (32) // You should put double of what it is
+#define WAKEUP_TIME (1100)
+#define WAKEUP_BYTES_TO_READ ((WAKEUP_TIME*(CURRENT_SPI_SPEED) + (CURRENT_SPI_SPEED) - 1)/(8*2))
+
+
+//#define WAKEUP_TIME (950)
+//#define WAKEUP_BYTES_TO_READ (((WAKEUP_TIME*6) + 4)/5)
+ 
+     /* To wake up the DW1000 we keep the SPI CS line low for (at least) 500us.
+      * This can be achieved with a long read SPI transaction.*/
+   static uint8_t wakeup_buffer[WAKEUP_BYTES_TO_READ];
+   dwt_readfromdevice(0x0, 0x0, WAKEUP_BYTES_TO_READ, wakeup_buffer);
+ 
+//#undef WAKEUP_BYTES_TO_READ
+//#undef WAKEUP_TIME
+#undef CURRENT_SPI_SPEED
+	//rtimer_clock_t end =RTIMER_NOW();
+
+	//printf("spi rticks %li\n", end-start);
+
 }

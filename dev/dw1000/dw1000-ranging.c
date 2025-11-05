@@ -254,19 +254,6 @@ const static ranging_conf_t ranging_conf_6M8 = {
 };
 #endif
 
-const static ranging_conf_t ranging_conf_850K = {
-/* SS and DS timeouts */
-  .a = 1500,
-  .rx_dly_a = 0,
-  .to_a = 2000,
-
-/* DS timeouts */
-  .b = 1500,
-  .rx_dly_b = 0,
-  .to_b = 3000,
-  .to_c = 2500,
-};
-
 const static ranging_conf_t ranging_conf_110K = {
 /* SS and DS timeouts */
   .a = 3000,
@@ -287,9 +274,6 @@ static inline void update_ranging_conf(void) {
   switch(dw1000_cached_config.cfg.dataRate) {
   case DWT_BR_6M8:
     ranging_conf = ranging_conf_6M8;
-    break;
-  case DWT_BR_850K:
-    ranging_conf = ranging_conf_850K;
     break;
   case DWT_BR_110K:
     ranging_conf = ranging_conf_110K;
@@ -911,20 +895,8 @@ PROCESS_THREAD(dw1000_rng_process, ev, data)
 
       if(rng_type == DW1000_RNG_SS) {
         tof = ss_tof_calc();
-        ranging_data.poll_tx_ts = ss_poll_tx_ts;
-        ranging_data.resp_rx_ts = ss_resp_rx_ts;
-        ranging_data.poll_rx_ts = ss_poll_rx_ts;
-        ranging_data.resp_tx_ts = ss_resp_tx_ts;
-        ranging_data.ds_final_tx_ts = 0;
-        ranging_data.ds_final_rx_ts = 0;
       } else {
         tof = ds_tof_calc();
-        ranging_data.poll_tx_ts = ds_poll_tx_ts;
-        ranging_data.resp_rx_ts = ds_resp_rx_ts;
-        ranging_data.poll_rx_ts = ds_poll_rx_ts;
-        ranging_data.resp_tx_ts = ds_resp_tx_ts;
-        ranging_data.ds_final_tx_ts = ds_final_tx_ts;
-        ranging_data.ds_final_rx_ts = ds_final_rx_ts;
       }
 
       not_corrected = tof * SPEED_OF_LIGHT;

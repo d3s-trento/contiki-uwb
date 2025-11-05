@@ -1,0 +1,115 @@
+<!--
+ Copyright (c) 2025, University of Trento.
+ All rights reserved.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+ 1. Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+ 2. Redistributions in binary form must reproduce the above
+    copyright notice, this list of conditions and the following
+    disclaimer in the documentation and/or other materials provided
+    with the distribution.
+ 3. The name of the author may not be used to endorse or promote
+    products derived from this software without specific prior
+    written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
+ OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+ Authors:
+   Enrico Soprana      <enrico.soprana@unitn.it>
+-->
+<div style="width: 100vw; height: 100vh">
+  <mat-toolbar>
+      <button mat-icon-button type="button" (click)="drawer.toggle()"><mat-icon>menu</mat-icon></button>
+      <span style="font-variant: all-petite-caps">Inspector</span>
+    <span class="toolbar-spacer"></span>
+
+
+    <mat-tab-group (selectedTabChange)="selectedTab = $event.index; updateFlip()">
+      <mat-tab *ngFor="let tab of tabs" label="{{tab}}"></mat-tab>
+    </mat-tab-group>
+    <button type="button" mat-mini-fab (click)="updateFlip()" matTooltip="Force view update" aria-label="Button to force a view update"><mat-icon>update</mat-icon></button>
+
+    <span class="toolbar-spacer"></span>
+    <button type="button" mat-raised-button (click)="fileInput.click()"><mat-icon>file_open</mat-icon> Choose File</button>
+    <input hidden (change)="onFileSelected()" #fileInput type="file" id="file">
+  </mat-toolbar>
+  <mat-drawer-container>
+    <mat-drawer #drawer  mode="side" style="padding: 8px; width: 300px">
+      <!--<div *ngIf="selectedTab == 0">-->
+          <button mat-icon-button aria-label="Decrease text size" matTooltip="Decrease text size" (click)="graphFontSize=graphFontSize-2">
+            <mat-icon>text_decrease</mat-icon>
+          </button>
+          <button mat-icon-button aria-label="Increase text size" matTooltip="Increase text size" (click)="graphFontSize=graphFontSize+2">
+            <mat-icon>text_increase</mat-icon>
+          </button>
+          <!--</div>-->
+
+        <mat-form-field *ngIf="(selectedTab === 0) || (selectedTab === 1) || (selectedTab === 4) ">
+          <mat-label>Selected epoch</mat-label>
+          <!--<input matInput (change)="onEpochSelected()" type="number" id="epoch" min="{{minEpoch}}" max="{{maxEpoch}}">-->
+          <input matInput [(ngModel)]="epoch" type="number" id="epoch" min="{{minEpoch}}" max="{{maxEpoch}}">
+          <mat-hint align="end">{{minEpoch}}-{{maxEpoch}}</mat-hint>
+        </mat-form-field>
+
+        <mat-form-field *ngIf="selectedTab === 4">
+          <mat-label>Selected epoch</mat-label>
+          <input matInput [(ngModel)]="minislot" type="number" min="0">
+        </mat-form-field>
+
+        <mat-expansion-panel>
+          <mat-expansion-panel-header>
+            <mat-panel-title>Filter nodes</mat-panel-title>
+            <mat-panel-description> Shown {{_nodeSet.length}}/{{_complete_nodeSet.length}} </mat-panel-description>
+          </mat-expansion-panel-header>
+          <button mat-button aria-label="Disable all" matTooltip="Disable all" (click)="togglesDisable() ">
+            <mat-icon>clear_all</mat-icon> Disable all nodes
+          </button>
+          <button mat-button aria-label="Invert all" matTooltip="Invert all" (click)="togglesInvert()">
+            <mat-icon>invert_colors</mat-icon> Invert all nodes
+          </button>
+
+          <div style="display: flex; flex-wrap: wrap">
+            <div style="width: 33%; margin: 10px 0 10px 0; display: block" *ngFor="let item of _complete_nodeSet">
+              <mat-slide-toggle #nodeSetSlideToggle (change)="toggleNode($event,item)" checked="true">{{item}}</mat-slide-toggle>
+            </div>
+          </div>
+        </mat-expansion-panel>
+
+        <mat-expansion-panel>
+          <mat-expansion-panel-header>
+            <mat-panel-title>Job description</mat-panel-title>
+          </mat-expansion-panel-header>
+          <ngx-json-viewer [json]="_test_info" [expanded]="false" style="max-width: 300px; display: block; --ngx-json-font-family: 8pt"></ngx-json-viewer>
+        </mat-expansion-panel>
+
+    </mat-drawer>
+  <div *ngIf="loading" style="width: 100%; height: calc(100vh - 64px); padding: calc((100vh - 64px - 100px)/2) calc((100% - 100px)/2);">
+    <mat-spinner *ngIf="loading" style="width: 100px; height: 100px"></mat-spinner>
+    <h2 style="text-align: center; width: 300px; margin-left: -100px">Loading dataset...</h2>
+  </div>
+  <div *ngIf="!loading && emptyFilteredDataframe()" style="width: 100%; height: calc(100vh - 64px); padding: calc((100vh - 64px - 100px)/2) calc((100% - 100px)/2);">
+    <mat-icon style="width: 100px; height: 100px; font-size: 100px">block</mat-icon>
+    <h2 style="text-align: center; width: 300px; margin-left: -100px">The current dataset is empty</h2>
+  </div>
+  <ng-container *ngIf="!loading && !emptyFilteredDataframe()">
+    <app-history-plot *ngIf="selectedTab == 0" [dataframe]="_filtered_dataframe" [nodeSet]="_nodeSet" [epoch]="epoch" [updateFlipper]="updateFlipper" [textSize]="graphFontSize"></app-history-plot>
+    <app-slots-used-plot *ngIf="selectedTab == 1" [dataframe]="_filtered_dataframe" [nodeSet]="_nodeSet" [epoch]="epoch" [updateFlipper]="updateFlipper" [textSize]="graphFontSize"></app-slots-used-plot>
+    <app-slots-used-overall-plot *ngIf="selectedTab == 2" [dataframe]="_filtered_dataframe" [nodeSet]="_nodeSet" [updateFlipper]="updateFlipper" [minEpoch]="minEpoch" [maxEpoch]="maxEpoch" [textSize]="graphFontSize"></app-slots-used-overall-plot>
+    <app-lost-epochs-plot *ngIf="selectedTab == 3" [dataframe]="_filtered_dataframe" [nodeSet]="_nodeSet" [updateFlipper]="updateFlipper" [minEpoch]="minEpoch" [maxEpoch]="maxEpoch" [textSize]="graphFontSize"></app-lost-epochs-plot>
+  </ng-container>
+
+  </mat-drawer-container>
+</div>

@@ -41,6 +41,7 @@
 #include "dw1000-arch.h"
 #include "dw1000-cir.h"
 #include "dw1000-util.h"
+#include "dw1000-conv.h"
 #include "dw1000-config.h"
 #include <math.h>
 /*---------------------------------------------------------------------------*/
@@ -48,8 +49,44 @@
 
 // Compute the square of the magnitude of the complex CIR sample
 #define MAGSQ(x) (POW2(x.compl.real) + POW2(x.compl.imag))
+
+/*---------------------------------------------------------------------------*/
+
+/**
+ * Estimate the duration (in ~4ns ticks) of a PAC given a radio configuration
+ * dwt_config_t   dwt_config  Configuration struct of the DW1000
+ *
+ * ~((uint32_t)0) is used as an error code
+ */
+uint32_t dw1000_get_pac_duration(const dwt_config_t* config) {
+  uint32_t symbol_duration_4ns;
+  uint32_t pac_4ns;
+  if (config->prf == DWT_PRF_16M) {
+      symbol_duration_4ns = PRE_SYM_PRF16_TO_DWT_TIME_32;
+  }
+  else if (config->prf == DWT_PRF_64M) {
+      symbol_duration_4ns = PRE_SYM_PRF64_TO_DWT_TIME_32;
+  }
+  else {
+      return ~((uint32_t)0);
+  }
+
+  switch (config->rxPAC) {
+      case DWT_PAC8  : pac_4ns = symbol_duration_4ns *  8;  break;
+      case DWT_PAC16 : pac_4ns = symbol_duration_4ns * 16;  break;
+      case DWT_PAC32 : pac_4ns = symbol_duration_4ns * 32;  break;
+      case DWT_PAC64 : pac_4ns = symbol_duration_4ns * 64;  break;
+      default: 
+        return ~((uint32_t)0);
+  }
+
+  return pac_4ns;
+}
+
 /*---------------------------------------------------------------------------*/
 static double cfo_jitter_guard = DW1000_CFO_JITTER_GUARD;
+
+
 /*---------------------------------------------------------------------------*/
 /**
  * Estimate the transmission time of a frame in nanoseconds

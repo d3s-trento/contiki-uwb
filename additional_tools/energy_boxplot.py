@@ -93,6 +93,8 @@ for b, (label, p) in zip(args.base, args.jobs):
                 df = df[df['epoch'].isin(complete_bootstrap)]
 
             if args.completeEpochFilter:
+                print('COMPLETE_EPOCHS')
+                print(a.completed_epochs)
                 completed_epochs = set(a.completed_epochs['epoch'])
 
                 removed = set(df['epoch'].unique()) - completed_epochs

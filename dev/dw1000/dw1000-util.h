@@ -29,6 +29,14 @@ typedef struct {
 } dw1000_nlos_t;
 
 /**
+ * Estimate the duration (in ~4ns ticks) of a PAC given a radio configuration
+ * dwt_config_t   dwt_config  Configuration struct of the DW1000
+ *
+ * ~((uint32_t)0) is used as an error code
+ */
+uint32_t dw1000_get_pac_duration(const dwt_config_t* config);
+
+/**
  * Estimate the transmission time of a frame in nanoseconds
  * dwt_config_t   dwt_config  Configuration struct of the DW1000
  * uint16_t       framelength Framelength including the 2-Byte CRC

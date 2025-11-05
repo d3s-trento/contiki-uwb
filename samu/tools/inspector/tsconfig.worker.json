@@ -1,0 +1,28 @@
+/* To learn more about this file see: https://angular.io/config/tsconfig. */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./out-tsc/worker",
+    "lib": [
+      "es2022",
+      "webworker"
+    ],
+    "types": [],
+    "paths": {
+        "crypto": ["./node_modules/crypto-browserify"],
+        "stream": ["./node_modules/stream-browserify"],
+        "assert": ["./node_modules/assert"],
+        "http": ["./node_modules/stream-http"],
+        "https": ["./node_modules/https-browserify"],
+        "os": ["./node_modules/os-browserify"],
+        "process": ["./node_modules/process"],
+        "zlib": ["./node_modules/browserify-zlib"],
+    },
+  },
+  "include": [
+    "src/**/*.worker.ts"
+  ],
+  "files": [
+    "src/polyfills.ts"
+  ],
+}

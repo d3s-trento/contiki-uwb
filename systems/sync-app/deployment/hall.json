@@ -1,0 +1,14 @@
+{
+  "name" : "TSM robust flooding test",
+  "description" : "EVB1000 robust flooding test",
+  "start_time" : "asap",
+  "duration": 120,
+  "island": "HALL-A",
+  "binaries": [{
+    "hardware" : "evb1000",
+    "bin_file": "../glossy.bin",
+    "targets": [50, 51, 52, 53, 54, 55, 56, 57, 58, 61, 62, 63, 64, 65, 70, 71, 72, 73, 74, 75, 76, 77]
+  }]
+}
+
+
