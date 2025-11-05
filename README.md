@@ -13,7 +13,7 @@ SAMU was developed with the goal to support concurrent transmissions (CTX, also 
 - Sequential programming style seamlessly combining fine-grained control and high-level protocols
 - Easy-to-use synchronization between nodes, even across deep sleep intervals
 - Configurable action duration at runtime
-- Automatic logging of the operations within each epoch (with a viewer, called [Inspector](./tools/inspector/README.md), to visualize them)
+- Automatic logging of the operations within each epoch (with a viewer, called [Inspector](./samu/tools/inspector/README.md), to visualize them)
 - Preamble and frame timeouts to improve the RX energy efficiency when there is no data to receive
 - Energy consumption estimation through [StateTime](dev/dw1000/statetime.md)
 
