@@ -6,7 +6,7 @@ SAMU is a framework for building time-slotted and time-synchronized communicatio
 
 ### Concurrent transmissions, and more
 
-SAMU was developed with the goal to support concurrent transmissions (CTX, also known as synchronous transmissions, STX). CTX is a communication technique based on packets overlapping non-destructively at receivers, which has been applied in communication protocols to unlock substantial improvements in realiability and energy efficiency compared to traditional approaches. Yet, SAMU can be used beyond CTX to support any time-slotted schedule.  
+SAMU was developed with the goal of supporting concurrent transmissions (CTX, also known as synchronous transmissions, STX). CTX is a communication technique based on packets overlapping non-destructively at receivers, which has been applied in communication protocols to unlock substantial improvements in reliability and energy efficiency compared to traditional approaches. Yet, SAMU can be used beyond CTX to support any time-slotted schedule.  
 
 ### Prominent features
 
@@ -17,7 +17,7 @@ SAMU was developed with the goal to support concurrent transmissions (CTX, also 
 - Preamble and frame timeouts to improve the RX energy efficiency when there is no data to receive
 - Energy consumption estimation through [StateTime](dev/dw1000/statetime.md)
 
-Although the current implementation targets the Qorvo DW1000 radio on the EVB1000 platform, the code herein can be ported to other platforms with minimal effort making the code written on top of SAMU platform-independent.
+Although the current implementation targets the Qorvo DW1000 radio on the EVB1000 platform, the code herein can be ported to other platforms with minimal effort, making the code written on top of SAMU platform-independent.
 
 ### Contiki for UWB radios
 
@@ -114,7 +114,7 @@ SAMU supports the following actions:
 - `SAMU_RESTART` puts the radio to sleep and automatically restarts at the beginning of the next epoch while maintaining synchronization between nodes
 
 ### Silvers
-The "time" of a SAMU schedule is expressed in _slivers_. They determine when the next SAMU action (RX, TX, ...) will be performed, are included in the SAMU header, and can be used by a receiver to synchronize to the transmitter. An actions has a certain duration in slivers, which can be adjusted on a per-action fashion for maximum flexibility.
+The "time" of a SAMU schedule is expressed in _slivers_. They determine when the next SAMU action (RX, TX, ...) will be performed, are included in the SAMU header, and can be used by a receiver to synchronize to the transmitter. An action has a certain duration in slivers, which can be adjusted on a per-action fashion for maximum flexibility.
 
 ### Examples
 Reception example: 
