@@ -10,6 +10,10 @@ all: $(CONTIKI_PROJECT)
 UWB_WITH_TSM_GLOSSY = 1
 UWB_WITH_TSM = 1
 
+# use RTT
+ENABLE_SEGGER_RTT=1
+PRINTF_OVER_RTT=1
+
 # print configuration macros at compile time
 UWB_CONTIKI_PRINT_DEF = 1
 
