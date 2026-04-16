@@ -4,7 +4,7 @@
 [Contiki](https://github.com/contiki-os/contiki) is an open source operating system that runs on constrained embedded systems and provides standardized low-power wireless communication.
 
 This repository contains a Contiki OS port for the DecaWave (now Qorvo) EVB1000 and DWM1001 platforms and
-includes our implementations of Glossy, Crystal and Weaver communication protocols, as well as UWB ranging primitives.
+includes our implementations of Glossy, Crystal, and Weaver communication protocols, as well as UWB ranging primitives.
 
 
 ## Package Features
@@ -22,6 +22,7 @@ This package includes support for:
 * [Glossy](https://ieeexplore.ieee.org/document/5779066), a fast flooding and synchronisation primitive (only EVB1000)
 * [Crystal](https://dl.acm.org/doi/10.1145/2994551.2994558), a fast and reliable data collection protocol based on Glossy (only EVB1000)
 * [Weaver](https://dl.acm.org/doi/10.1145/3384419.3430715), a next generation data collection protocol based on concurrent transmissions (only EVB1000) [video](http://disi.unitn.it/~picco/papers/sensys20_weaver.mp4)
+* You can find [Flick](https://dl.acm.org/doi/10.1145/3583120.3586967), a primitive for fast network-wide decisions, in a [dedicated branch](https://github.com/d3s-trento/contiki-uwb/tree/flick)
 
 ## Code Structure
 ```
@@ -126,7 +127,7 @@ $ make TARGET=dwm1001 rng.upload
 If everything works out fine, you should get a positive message like: 
 > Verifying flash   [100%] Done.
 
-If you want to enable Bluetooth stack (SoftDevice), add the following to your project Makefile:
+If you want to enable the Bluetooth stack (SoftDevice), add the following to your project Makefile:
 ```
 NRF52_SOFTDEVICE = 132
 ```
@@ -152,7 +153,7 @@ output when the node boots.
 
 ### IEEE Addresses
 In this port, we generate the IEEE 802.15.4 link layer addresses used for the network stacks and ranging 
-using the DW1000 part id and lot id numbers. To see how we generate the addresses look at 
+using the DW1000 part id and lot id numbers. To see how we generate the addresses, look at 
 the **set_rf_params()** function in **platform/evb1000/contiki-main.c**.
 
 Alternatively, only for dwm1001, 802.15.4 link layer addresses might be generated from the unique
@@ -160,13 +161,13 @@ Bluetooth address of the device. To request this, set `#define DWM1001_USE_BT_AD
 `project-conf.h` of your application.
 
 ### Serial Port 
-After you flash the node, you should be able to connect to the serial port and see the serial input printed by the device by:
+After you flash the node, you should be able to connect to the serial port and see the serial input printed by the device by running:
 ```
 $ make PORT=/dev/tty.usbmodem1411 login
 ```
 
 The `PORT` variable will change depending on your operating system.
-If you are using the ranging appication, you should receive some data as follows:
+If you are using the ranging application, you should receive some data as follows:
 ```
 R req
 R success: 1.064711 bias 1.344711
@@ -183,13 +184,13 @@ If you want to use Glossy and/or Crystal, define the following in your applicati
 ```
 UWB_WITH_GLOSSY = 1
 ```
-This will include Glossy and Crystal into the compilation process and exclude all other Contiki stacks.
+This will include Glossy and Crystal in the compilation process and exclude all other Contiki stacks.
 
 If you want to use TSM, define the following in your application Makefile:
 ```
 UWB_WITH_TSM = 1
 ```
-This will include TSM into the compilation process and exclude all other Contiki stacks.
+This will include TSM in the compilation process and exclude all other Contiki stacks.
 
 
 ## Porting to other Platforms / MCUs
@@ -209,7 +210,7 @@ This port has been published as a poster at [EWSN'18](https://ewsn2018.networks.
 * **[Poster: Enabling Contiki on Ultra-Wideband Radios](http://pablocorbalan.com/files/posters/contikiuwb-ewsn18.pdf)**.
 Pablo Corbalán, Timofei Istomin, and Gian Pietro Picco. In Proceedings of the 15th International Conference on Embedded Wireless Systems and Networks (EWSN), Madrid (Spain), February 2018.
 
-Please, consider citing this poster when using this Contiki port in your work.
+Please consider citing this poster when using this Contiki port in your work.
 ```
 @inproceedings{contiki-uwb,
  title = {{Poster: Enabling Contiki on Ultra-wideband Radios}},
@@ -220,14 +221,14 @@ Please, consider citing this poster when using this Contiki port in your work.
 }
 ```
 
-A research paper about our Glossy and Crystal implementations for DW1000 has been accepted for publishing at EWSN'2020.
+A research paper about our Glossy and Crystal implementations for DW1000 has been accepted for publication at EWSN'2020.
 
 * **Concurrent Transmissions for Multi-hop Communication on Ultra-wideband Radios**.
 Diego Lobba, Matteo Trobinger, Davide Vecchia, Timofei Istomin, Gian Pietro Picco (University of Trento).
 
 
 ## License
-This software package makes use of low-level drivers provided by DecaWave and STMicroelectronics. These drivers are licensed on a separate terms.
+This software package makes use of low-level drivers provided by DecaWave and STMicroelectronics. These drivers are licensed on separate terms.
 The files developed by our research group for this port are under BSD license.
 
 ## Disclaimer
