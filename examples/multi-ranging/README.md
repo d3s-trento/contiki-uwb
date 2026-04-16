@@ -8,7 +8,6 @@ This works under the assumption that the tags are within the communication
 range with the master tag. If a tag leaves the communication range or
 misses the command (which may happen sporadically), it skips the ranging round(s).
 
-
 ## Configuration
 
 The configuration is set at compile time.
@@ -31,6 +30,7 @@ The application may use one of the two ranging methods: Single-Sided Two-Way Ran
 Double-Sided Two-Way Ranging (DS-TWR), defined by the `RANGING_STYLE` constant. 
 SS-TWR is recommended, it provides very similar accuracy but uses only 2 messages instead of 4,
 therefore it is faster and less affected by packet loss.
+`RANGING_TIME` is set based on the value of `RANGING_STYLE`. However, adjustments may be needed for extreme radio configurations.
 
 The constant `ROUND_PERIOD` sets the total ranging round period. It is checked at compile time that
 all the rangings fit inside that time.
@@ -41,7 +41,31 @@ The pre-defined value of `MAX_PRINTING_DELAY` is set large enough to print the f
 
 The constant `PRINT_RXDIAG` enables/disables printing the RX diagnostics for the last ranging packet received.
 
+## Radio configuration
+
+You can modify the radio configuration in `project-conf.h`.
+
+```
+#define DW1000_CONF_CHANNEL        5                // frequency channel
+#define DW1000_CONF_PRF            DWT_PRF_64M      // pulse repetition frequency (16M or 64M, affects preamble)
+#define DW1000_CONF_PLEN           DWT_PLEN_128     // preamble length in symbols (roughly 1us per symbol)
+#define DW1000_CONF_PAC            DWT_PAC8         // preamble accumulation count (length of symbol chunks for preamble detection)
+#define DW1000_CONF_SFD_MODE       0                // standard (0) or manufacturer-defined (1) start-of-frame delimiter
+#define DW1000_CONF_DATA_RATE      DWT_BR_6M8       // data rate (one of DWT_BR_110K, DWT_BR_850K or DWT_BR_6M8)
+#define DW1000_CONF_PHR_MODE       DWT_PHRMODE_STD  // PHY header mode, use DWT_PHRMODE_EXT for extended frames (payload > 127B)
+#define DW1000_CONF_PREAMBLE_CODE  9                // preamble code (code choice is constrained by channel and PRF)
+#define DW1000_CONF_SFD_TIMEOUT    (129 + 8 - 8)    // SFD timeout (in symbols); set enough symbols for the preamble and the SFD, PAC can be subtracted
+```
+
+Refer to [Qorvo documents](https://www.qorvo.com/products/p/DW1000#documents), and the software API guide in particular, for more information.
+
+### Breaking configuration warning
+
+Multi-ranging uses the `range_with()` function offered by the DW1000 port (see `dev/dw1000/dw1000-ranging.c`).
+The port automatically sets several timeouts when the function is called, but it is possible to configure the radio in a way that breaks the assumptions of the DW1000 port.
+
 ## Important notes
+
 Make sure that all tags share the same configuration (same firmware). Anchor nodes need to be reflashed
 only if the radio configuration changes, but may keep the firmware if only the set of tags changes.
 
