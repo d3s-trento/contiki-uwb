@@ -46,7 +46,7 @@
 /** Number of times the bootstrap pkt is sent */
 #define CONF_B     3
 
-#define SINK_ID 19
+#define SINK_ID 1
 
 #define R_NUMBER_SEED  (123)
 #define R_NUMBER_EXCL  (~((uint64_t)137432662014))
@@ -72,6 +72,8 @@
 #define GLOSSY_LATENCY_LOG 1
 
 #define TSM_DEFAULT_MINISLOTS_GROUPING 1
+
+#define PRE_EPOCH_DURATION ((1000 + 80 + 2000)* UUS_TO_DWT_TIME_32)
 
 #define TSM_LOGS_MAX 100
 #define FS_DEBUG 0
